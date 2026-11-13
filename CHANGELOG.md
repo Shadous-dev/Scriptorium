@@ -1,5 +1,19 @@
 # Changelog
 
+## v3 — local mechanics pass (2026-11-13)
+
+Credits
+- Mechanical fixes now happen in code, free, BEFORE the text is sent: spacing before/after punctuation, curly→straight quotes, `...`→`…`, `--`→`—`, sentence-start capitals, "I", God / Lord / Holy Spirit, 25 names that are never ordinary words, Bible books before a chapter number (`job 2:4` → `Job 2:4`, but `his job` stays), and every name in Words to Search For. Claude sees cleaner text, so it returns fewer edits (fewer output tokens) and its `find` strings match more often.
+- Prompt dropped the sentence-capitalization and quote-mark lines. Fixed overhead ≈ 4,790 chars (≈1,200 tokens); was 7,037 (≈1,760) in v1.
+- A paragraph that just stops gets its period locally — after joins, so a mid-thought break is closed up rather than ended.
+
+Code
+- One `MECH` table of regex rules replaces scattered string handling; `stripCues` folded into `mechanics`. All patterns compiled once.
+- Every local change is still a visible row (grouped where there are many).
+
+Not done, on purpose
+- Run-ons and comma splices stay with the model. Deciding where a sentence breaks is a judgment about meaning, and code guessing at it would violate SSOT 4.1.
+
 ## v2 — cost-reduction pass (2026-11-05)
 
 Credits
