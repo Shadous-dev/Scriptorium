@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep every text file LF in the repo and on disk, so build.js --check compares the same bytes on every machine
+* text=auto eol=lf

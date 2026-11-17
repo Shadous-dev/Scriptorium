@@ -1,0 +1,25 @@
+{
+  "bookTitle": "",
+  "wordsToSearchFor": "",
+  "sections": [
+    {
+      "id": "s1",
+      "name": "",
+      "raw": "",
+      "corrected": "",
+      "editedFromRaw": null,
+      "summary": "",
+      "changeCount": 0,
+      "misheard": [],
+      "nonsensical": [],
+      "status": "draft",
+      "error": null,
+      "editedAt": null
+    }
+  ],
+  "nextId": 2,
+  "overview": "",
+  "lastEditAt": null,
+  "approved": false,
+  "docResult": null
+}

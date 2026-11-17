@@ -1,0 +1,1444 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<title>The Scriptorium</title>
+<style id="app-style">
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+  --paper: #F7F3EA;
+  --paper-raised: #FFFFFF;
+  --ink: #262019;
+  --ink-soft: #6B6153;
+  --ink-faint: #9C9182;
+  --line: #E4DAC5;
+  --line-strong: #D3C6A9;
+  --accent: #9C5A2E;
+  --accent-soft: #F1E4D3;
+  --accent-ink: #6E3F1F;
+  --edit: #A6402A;
+  --edit-hover: #8C3521;
+  --edit-soft: #F5DFD8;
+  --conclude: #3F6B4A;
+  --conclude-hover: #335A3D;
+  --conclude-soft: #DCE9DE;
+  --warn: #B08A2E;
+  --warn-soft: #F2E7C9;
+  --scrim: rgba(38,32,25,.5);
+  --shadow-1: 0 1px 2px rgba(38,32,25,.07);
+  --shadow-2: 0 8px 24px rgba(38,32,25,.08);
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1C1812;
+    --paper-raised: #262019;
+    --ink: #EDE6D6;
+    --ink-soft: #B3A890;
+    --ink-faint: #7C7364;
+    --line: #3A3226;
+    --line-strong: #4A4030;
+    --accent: #D08A54;
+    --accent-soft: #3A2C1E;
+    --accent-ink: #EFC49B;
+    --edit: #E2624A;
+    --edit-hover: #EE7A63;
+    --edit-soft: #3D211B;
+    --conclude: #6FAE81;
+    --conclude-hover: #85BE93;
+    --conclude-soft: #22332A;
+    --warn: #D9B15C;
+    --warn-soft: #362C16;
+    --scrim: rgba(0,0,0,.66);
+    --shadow-1: 0 1px 2px rgba(0,0,0,.35);
+    --shadow-2: 0 8px 24px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1C1812;
+  --paper-raised: #262019;
+  --ink: #EDE6D6;
+  --ink-soft: #B3A890;
+  --ink-faint: #7C7364;
+  --line: #3A3226;
+  --line-strong: #4A4030;
+  --accent: #D08A54;
+  --accent-soft: #3A2C1E;
+  --accent-ink: #EFC49B;
+  --edit: #E2624A;
+  --edit-hover: #EE7A63;
+  --edit-soft: #3D211B;
+  --conclude: #6FAE81;
+  --conclude-hover: #85BE93;
+  --conclude-soft: #22332A;
+  --warn: #D9B15C;
+  --warn-soft: #362C16;
+  --scrim: rgba(0,0,0,.66);
+  --shadow-1: 0 1px 2px rgba(0,0,0,.35);
+  --shadow-2: 0 8px 24px rgba(0,0,0,.4);
+}
+
+html { color-scheme: light dark; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+#app-root { max-width: 1120px; margin: 0 auto; padding: 40px 24px 96px; }
+.wrap { display: flex; flex-direction: column; gap: 26px; }
+
+.hero { max-width: 760px; }
+.eyebrow { margin: 0 0 10px; font: 600 12px/1 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-ink); }
+.title-field { display: block; width: 100%; border: none; background: transparent; padding: 2px 0; font: 600 clamp(28px, 4vw, 40px)/1.15 var(--font-display); color: var(--ink); text-wrap: balance; border-bottom: 2px solid transparent; }
+.title-field::placeholder { color: var(--ink-faint); font-weight: 500; }
+.title-field:focus { outline: none; border-bottom-color: var(--accent); }
+.dek { margin: 14px 0 0; max-width: 62ch; color: var(--ink-soft); font-size: 16px; }
+
+.tip { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; }
+.tip summary { cursor: pointer; font: 600 14px var(--font-body); color: var(--ink); }
+.tip ol { margin: 12px 0 2px; padding-left: 20px; color: var(--ink-soft); font-size: 14.5px; }
+.tip li { margin: 6px 0; }
+.tip strong { color: var(--ink); }
+
+.search-panel { background: var(--accent-soft); border: 1px solid var(--line-strong); border-radius: 10px; padding: 18px 20px; }
+.search-panel label { display: block; font: 600 14px var(--font-body); color: var(--accent-ink); margin-bottom: 4px; }
+.search-panel .hint { margin: 0 0 10px; font-size: 13.5px; color: var(--ink-soft); max-width: 68ch; }
+.search-panel textarea { width: 100%; resize: vertical; min-height: 44px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper-raised); color: var(--ink); font: 500 15px/1.5 var(--font-mono); padding: 10px 12px; }
+.search-panel textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.action-bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--paper); padding: 12px 0; border-bottom: 1px solid var(--line); }
+.status-line { margin: 0; flex: 1; min-width: 160px; font-size: 13.5px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.action-bar-end { display: flex; gap: 10px; margin-left: auto; }
+
+.btn { appearance: none; border: 1px solid transparent; border-radius: 8px; padding: 10px 18px; font: 600 14.5px var(--font-body); cursor: pointer; transition: background-color .15s ease, border-color .15s ease, transform .05s ease; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { cursor: not-allowed; opacity: .5; }
+.btn-add { background: var(--paper-raised); border-color: var(--line-strong); color: var(--ink); }
+.btn-add:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); }
+.btn-edit { background: var(--edit); color: #FBF3EF; }
+.btn-edit:hover:not(:disabled) { background: var(--edit-hover); }
+.btn-conclude { background: var(--conclude); color: #F2FAF4; }
+.btn-conclude:hover:not(:disabled) { background: var(--conclude-hover); }
+.btn-ghost { background: transparent; border-color: var(--line-strong); color: var(--ink-soft); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--ink-faint); }
+.link-btn { border: none; background: none; padding: 0; cursor: pointer; font: 600 13px var(--font-body); color: var(--accent-ink); text-decoration: underline; }
+
+.overview { background: var(--paper-raised); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 8px; padding: 18px 20px; }
+.overview h3 { margin: 0 0 10px; font: 600 15px var(--font-body); color: var(--ink); }
+.overview-list { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; }
+.overview-list li { margin: 5px 0; }
+.overview-list strong { color: var(--ink); }
+
+.sections { display: flex; flex-direction: column; gap: 18px; }
+.section-card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-1); padding: 18px 20px 20px; }
+.section-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.section-name { flex: 1; border: none; background: transparent; font: 600 19px var(--font-display); color: var(--ink); padding: 4px 2px; border-bottom: 1px solid transparent; min-width: 0; }
+.section-name::placeholder { color: var(--ink-faint); font-weight: 500; }
+.section-name:focus { outline: none; border-bottom-color: var(--accent); }
+.chip { flex-shrink: 0; font: 600 11.5px var(--font-body); letter-spacing: .03em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+.chip-draft { background: var(--line); color: var(--ink-soft); }
+.chip-editing { background: var(--accent-soft); color: var(--accent-ink); }
+.chip-edited { background: var(--conclude-soft); color: var(--conclude); }
+.chip-error { background: var(--warn-soft); color: var(--warn); }
+.icon-btn { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--paper-raised); color: var(--ink-soft); font-size: 18px; line-height: 1; cursor: pointer; }
+.icon-btn:hover { border-color: var(--edit); color: var(--edit); }
+
+.section-body { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 880px) { .section-body { grid-template-columns: 1fr 1fr; } }
+.pane label { display: block; font: 600 12px var(--font-body); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px; }
+.pane textarea { width: 100%; min-height: 190px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 14.5px/1.6 var(--font-mono); padding: 12px; }
+.pane textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.corrected-output { min-height: 190px; max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--accent-soft); color: var(--ink); font: 400 14.5px/1.6 var(--font-mono); padding: 12px; white-space: pre-wrap; }
+.corrected-output.is-empty { color: var(--ink-faint); font-family: var(--font-body); font-style: italic; }
+
+.section-details { margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.section-summary { margin: 0 0 12px; color: var(--ink-soft); font-size: 14.5px; max-width: 72ch; }
+.detail-block { margin-top: 12px; }
+.detail-block h4 { margin: 0 0 8px; font: 600 12.5px var(--font-body); letter-spacing: .03em; text-transform: uppercase; color: var(--ink-faint); }
+.misheard-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.misheard-table th { text-align: left; font: 600 11.5px var(--font-body); text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); padding: 6px 10px; border-bottom: 1px solid var(--line-strong); }
+.misheard-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink); }
+.misheard-table .mono { font-family: var(--font-mono); }
+.misheard-table tr:last-child td { border-bottom: none; }
+.flag-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.flag-list li { display: flex; flex-direction: column; gap: 3px; background: var(--warn-soft); border-radius: 8px; padding: 10px 12px; }
+.flag-quote { font-family: var(--font-mono); font-size: 13px; color: var(--ink); }
+.flag-issue { font-size: 13.5px; color: var(--ink-soft); }
+.section-error { margin: 14px 0 0; font-size: 13.5px; color: var(--edit); }
+.redo-line { margin: 12px 0 0; text-align: right; }
+
+.conclude-bar { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.approve-prompt { margin: 0; font: 600 16px var(--font-display); color: var(--ink); }
+.approve-row { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; color: var(--ink); cursor: pointer; }
+.approve-row input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--conclude); }
+.approve-row input:disabled { cursor: not-allowed; }
+.conclude-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.doc-result { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.doc-result a { color: var(--conclude); font-weight: 600; }
+.doc-result.is-error { color: var(--edit); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+.notice { margin: 0; padding: 12px 16px; border-radius: 8px; font-size: 14px; }
+.notice-warn { background: var(--warn-soft); color: var(--ink); border: 1px solid var(--warn); }
+
+/* Clearing the workbench: a quiet destructive button, and a confirm step. */
+.btn-quiet-danger { background: transparent; border-color: var(--line-strong); color: var(--ink-soft); margin-left: 4px; }
+.btn-quiet-danger:hover:not(:disabled) { border-color: var(--edit); color: var(--edit); }
+.btn-danger { background: var(--edit); color: #FBF3EF; }
+.btn-danger:hover:not(:disabled) { background: var(--edit-hover); }
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--scrim); }
+.modal-card { width: 100%; max-width: 470px; background: var(--paper-raised); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: var(--shadow-2); padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.modal-title { margin: 0; font: 600 21px var(--font-display); color: var(--ink); text-wrap: balance; }
+.modal-body { margin: 0; font-size: 14.5px; color: var(--ink-soft); }
+.modal-warn { margin: 0; font-size: 14px; color: var(--ink); background: var(--warn-soft); border: 1px solid var(--warn); border-radius: 8px; padding: 10px 12px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+
+.notice-info { background: var(--accent-soft); color: var(--ink); border: 1px solid var(--line-strong); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.notice-dismiss { flex-shrink: 0; border: none; background: none; cursor: pointer; color: var(--ink-soft); font-size: 17px; line-height: 1; padding: 0 2px; }
+.notice-dismiss:hover { color: var(--ink); }
+
+/* ---- v22: loading skeleton, save indicator, collapsible cards, copy button ---- */
+.skeleton-card { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px 20px; }
+.skeleton-line { height: 14px; border-radius: 6px; background: var(--line); margin: 10px 0; }
+.skeleton-line.w40 { width: 40%; } .skeleton-line.w70 { width: 70%; } .skeleton-line.tall { height: 120px; margin-top: 16px; }
+.action-bar .btn:disabled, .action-bar input:disabled { opacity: .5; }
+input:disabled, textarea:disabled { cursor: wait; }
+
+.save-state { margin: 0; font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; }
+.save-state.is-saving { color: var(--accent-ink); }
+
+.bar-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn-sm { padding: 7px 12px; font-size: 13px; }
+.speed-pick { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); }
+.speed-pick select { font: 600 12.5px var(--font-body); color: var(--ink); background: var(--paper-raised); border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 6px; }
+
+.section-card.is-collapsed { padding-bottom: 14px; }
+.section-card.is-collapsed .section-head { margin-bottom: 0; }
+.collapse-btn { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--paper-raised); color: var(--ink-soft); font-size: 13px; line-height: 1; cursor: pointer; }
+.collapse-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+.section-meta { margin: 0 8px 0 0; font-size: 12.5px; color: var(--ink-faint); white-space: nowrap; }
+.chip-stale { background: var(--warn-soft); color: var(--warn); }
+.stale-note { margin: 8px 0 0; font-size: 13px; color: var(--warn); }
+
+.pane-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.pane-head label { margin: 0; }
+.copy-btn { border: 1px solid var(--line-strong); background: var(--paper-raised); color: var(--ink-soft); border-radius: 6px; font: 600 11.5px var(--font-body); padding: 3px 8px; cursor: pointer; }
+.copy-btn:hover { border-color: var(--accent); color: var(--accent-ink); }
+.copy-btn.is-done { border-color: var(--conclude); color: var(--conclude); }
+
+.doc-link-line { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+.doc-link-line a { color: var(--conclude); font-weight: 600; }
+
+/* ---- v23: verses in bold, before/after tables, folded grammar list ---- */
+.corrected-output strong.verse { font-weight: 600; color: var(--ink); background: var(--paper-raised); box-shadow: inset 0 -2px 0 var(--accent); padding: 0 1px; border-radius: 2px; }
+.misheard-table td.was { color: var(--ink-soft); text-decoration: line-through; text-decoration-color: var(--edit); text-decoration-thickness: 1.5px; }
+.misheard-table td.now { color: var(--ink); font-weight: 500; }
+.detail-fold > summary { cursor: pointer; font: 600 12.5px var(--font-body); letter-spacing: .03em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
+.detail-fold > summary:hover { color: var(--accent-ink); }
+.verse-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.verse-list li { display: grid; grid-template-columns: minmax(120px, 190px) 1fr; gap: 10px; font-size: 13.5px; align-items: baseline; }
+.verse-ref { font-weight: 600; color: var(--accent-ink); }
+.verse-ref em { font-weight: 500; color: var(--ink-faint); }
+.verse-quote { color: var(--ink-soft); font-family: var(--font-mono); font-size: 12.5px; }
+@media (max-width: 600px) { .verse-list li { grid-template-columns: 1fr; gap: 2px; } }
+
+/* ---- v24: laid-out corrected script (verse blocks), uncertain references, extra controls ---- */
+.corrected-output.is-blocks { white-space: normal; font: 400 14.5px/1.6 var(--font-body); }
+.corrected-output.is-blocks p { margin: 0 0 12px; }
+.corrected-output.is-blocks p:last-child { margin-bottom: 0; }
+.verse-block { margin: 12px 0 14px 10px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--paper-raised); border-radius: 0 6px 6px 0; }
+.verse-block strong { font-weight: 600; color: var(--ink); }
+.verse-block.is-uncertain { border-left-color: var(--warn); }
+.verse-list li.is-uncertain .verse-ref { color: var(--warn); }
+.verse-spoken { display: block; font-weight: 400; font-size: 12px; color: var(--ink-faint); }
+.verse-warn { display: block; font-family: var(--font-body); font-size: 12.5px; color: var(--warn); margin-top: 2px; }
+.speed-pick input[type=checkbox] { accent-color: var(--accent); margin: 0 2px 0 0; }
+</style>
+<div id="app-root"></div>
+<script type="application/json" id="seed-state">{"bookTitle":"","wordsToSearchFor":"","sections":[{"id":"s1","name":"","raw":"","corrected":"","editedFromRaw":null,"summary":"","changeCount":0,"misheard":[],"nonsensical":[],"status":"draft","error":null,"editedAt":null}],"nextId":2,"overview":"","lastEditAt":null,"approved":false,"docResult":null}</script>
+<script id="app-script">
+(function () {
+  var root = document.getElementById('app-root');
+
+  /* ==================================================================
+     State
+     ================================================================== */
+
+  function newSectionRaw(id) {
+    return { id: id, name: '', raw: '', corrected: '', editedFromRaw: null, summary: '', changeCount: 0,
+             misheard: [], nonsensical: [], edits: [], unapplied: [], verses: [], method: '',
+             status: 'draft', error: null, editedAt: null };
+  }
+  function defaultState() {
+    return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
+             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null };
+  }
+  function loadSeed() {
+    try {
+      var parsed = JSON.parse(document.getElementById('seed-state').textContent);
+      if (parsed && Array.isArray(parsed.sections) && parsed.sections.length) { parsed.lastDoc = parsed.lastDoc || null; return parsed; }
+    } catch (e) {}
+    return defaultState();
+  }
+
+  var state = loadSeed();
+  var editState = null;        // { total, done } while an Edit All run is in progress
+  var editControllers = [];    // in-flight AbortControllers, for Stop
+  var flash = null;            // one-line in-page message (replaces browser alerts)
+  var confirmState = null;     // { title, body, warn, confirmLabel, onConfirm }
+  var clearing = false;
+
+  function uid() { var id = 's' + state.nextId; state.nextId += 1; return id; }
+  function newSection() { return newSectionRaw(uid()); }
+  function findSection(id) { return state.sections.filter(function (x) { return x.id === id; })[0]; }
+
+  /* ==================================================================
+     Small helpers
+     ================================================================== */
+
+  function esc(str) { return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function escAttr(str) { return esc(str).replace(/"/g, '&quot;'); }
+  function plural(n) { return n === 1 ? '' : 's'; }
+  function relTime(ts) {
+    if (!ts) return '';
+    var diff = Date.now() - ts, min = Math.round(diff / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return min + ' minute' + plural(min) + ' ago';
+    var hr = Math.round(min / 60);
+    if (hr < 24) return hr + ' hour' + plural(hr) + ' ago';
+    var day = Math.round(hr / 24);
+    return day + ' day' + plural(day) + ' ago';
+  }
+  function isStale(s) { return s.status === 'edited' && s.editedFromRaw != null && s.raw !== s.editedFromRaw; }
+  function needsEdit(s) { return !!s.raw.trim() && (s.status !== 'edited' || s.raw !== s.editedFromRaw); }
+
+  // Per-viewer conveniences only; the page must work when storage is unavailable.
+  function prefGet(key, fallback) { try { var v = localStorage.getItem('scriptorium.' + key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }
+  function prefSet(key, value) { try { localStorage.setItem('scriptorium.' + key, JSON.stringify(value)); } catch (e) {} }
+
+  var collapsed = {};
+  (prefGet('collapsed', []) || []).forEach(function (id) { collapsed[id] = true; });
+  function persistCollapsed() { prefSet('collapsed', Object.keys(collapsed)); }
+  var concurrency = prefGet('concurrency', 2) === 1 ? 1 : 2;
+  var repairParagraphs = prefGet('repairParagraphs', true) !== false;
+  var docMode = prefGet('docMode', 'perScript') === 'one' ? 'one' : 'perScript';
+
+  /* ==================================================================
+     Text matching — applying the editor's changes, and finding verses
+     ================================================================== */
+
+  // A normalised copy of `text` (straight quotes, single spaces) plus a map from each
+  // normalised index back to the original, so a loose match can still be applied exactly.
+  function normIndex(text) {
+    var norm = '', map = [], lastSpace = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i], c = ch.charCodeAt(0);
+      if (c === 0x2018 || c === 0x2019 || c === 0x02BC) ch = "'";
+      else if (c === 0x201C || c === 0x201D) ch = '"';
+      else if (c === 0x00A0 || c === 0x200A || c === 0x2009 || /\s/.test(ch)) ch = ' ';
+      if (ch === ' ') { if (lastSpace) continue; lastSpace = true; } else lastSpace = false;
+      norm += ch; map.push(i);
+    }
+    return { norm: norm, map: map };
+  }
+  function normString(str) { return normIndex(String(str || '')).norm.trim(); }
+
+  // Find `needle` in `text` starting near `from`; exact first, then normalised. Returns {start,end} or null.
+  function locate(text, needle, from, caseInsensitive) {
+    needle = String(needle || ''); if (!needle) return null;
+    var idx = text.indexOf(needle, from || 0);
+    if (idx === -1 && from) idx = text.indexOf(needle);
+    if (idx !== -1) return { start: idx, end: idx + needle.length };
+    var ni = normIndex(text), n = normString(needle);
+    if (!n) return null;
+    var hay = ni.norm, nd = n;
+    if (caseInsensitive) { hay = hay.toLowerCase(); nd = nd.toLowerCase(); }
+    var nFrom = 0;
+    if (from) { while (nFrom < ni.map.length && ni.map[nFrom] < from) nFrom++; }
+    var j = hay.indexOf(nd, nFrom);
+    if (j === -1 && nFrom) j = hay.indexOf(nd);
+    if (j === -1) return null;
+    return { start: ni.map[j], end: ni.map[j + nd.length - 1] + 1 };
+  }
+
+  // Apply the editor's find/replace list in order. Edits that cannot be placed are returned separately.
+  function applyEdits(raw, edits) {
+    var text = raw, cursor = 0, applied = [], unapplied = [];
+    (edits || []).forEach(function (e) {
+      var find = String((e && e.find) || ''), repl = String((e && e.replace) || '');
+      if (!find || find === repl) return;
+      var hit = locate(text, find, cursor, false);
+      if (!hit) { unapplied.push({ find: find, replace: repl, kind: String((e && e.kind) || 'grammar'), note: String((e && e.note) || '') }); return; }
+      text = text.slice(0, hit.start) + repl + text.slice(hit.end);
+      cursor = hit.start + repl.length;
+      applied.push({ find: find, replace: repl, kind: String((e && e.kind) || 'grammar'), note: String((e && e.note) || '') });
+    });
+    return { text: text, applied: applied, unapplied: unapplied };
+  }
+
+  /* ------------------------------------------------------------------
+     Layout — the corrected prose plus the verses the editor found, laid
+     out the way the finished scripts are published: every quoted verse in
+     its own paragraph, in quotation marks, bold, set off as a block quote,
+     with its reference after it. Derived from the saved text each time,
+     so it is never baked into the script itself.
+     ------------------------------------------------------------------ */
+
+  function refLabel(v) {
+    var c = String((v && v.canonical) || '').trim();
+    if (!c) return '';
+    if (v.confidence === 'low') { var m = c.match(/^(.*?\d+):/); return m ? m[1] + ':?' : c + '?'; }
+    return c;
+  }
+
+  // One clean pair of double quotes around the verse; speech inside it in single quotes. The
+  // transcript's own marks are often doubled, curly, or missing a partner, so the inner speech
+  // quotes are re-balanced from their positions rather than trusted.
+  function normalizeVerseQuotes(inner) {
+    inner = inner.replace(/^["“”]+\s*/, '').replace(/\s*["“”]+$/, '').trim();
+    var open = false, needLead = false, re = /["“”]/g, m;
+    while ((m = re.exec(inner))) {
+      var ch = m[0], prev = m.index ? inner[m.index - 1] : '';
+      var isOpener = ch === '“' || (ch === '"' && (!prev || /[\s(:—–\-\[]/.test(prev)));
+      if (isOpener) open = true; else { if (!open) needLead = true; open = false; }
+    }
+    inner = inner.replace(/[“”"]/g, "'");
+    if (needLead) inner = "'" + inner;
+    if (open) inner = inner + "'";
+    return '"' + inner + '"';
+  }
+
+  function layoutBlocks(s) {
+    var text = String(s.corrected || '');
+    var hits = [];
+    (s.verses || []).forEach(function (v) {
+      var quote = String((v && v.quote) || ''); if (!quote) return;
+      var q = locate(text, quote, 0, true);
+      if (!q && quote.length > 60) {
+        var head = locate(text, quote.slice(0, 50), 0, true);
+        if (head) q = { start: head.start, end: Math.min(text.length, head.start + quote.length) };
+      }
+      if (!q) return;
+      var st = q.start, en = q.end;
+      while (st > 0 && /["“]/.test(text[st - 1])) st--;
+      while (en < text.length && /["”]/.test(text[en])) en++;
+      // Absorb a reference the speaker or an earlier pass already put after the quote.
+      var tail = text.slice(en).match(/^\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)/);
+      if (tail) en += tail[0].length;
+      hits.push({ start: st, end: en, verse: v });
+    });
+    hits.sort(function (a, b) { return a.start - b.start; });
+    var kept = []; hits.forEach(function (h) { var last = kept[kept.length - 1]; if (!last || h.start >= last.end) kept.push(h); });
+
+    var blocks = [], pos = 0;
+    function prose(chunk) {
+      chunk.split(/\n\s*\n/).forEach(function (p) {
+        p = p.replace(/\s*\n\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
+        if (p) blocks.push({ type: 'p', text: p });
+      });
+    }
+    kept.forEach(function (h) {
+      prose(text.slice(pos, h.start));
+      var inner = text.slice(h.start, h.end).replace(/\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)\s*$/, '').replace(/\s*\n+\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
+      // Strip whatever quote marks the transcript had around the verse (doubled, curly, mismatched),
+      // turn any double quotes still inside it into single quotes for the speech within the verse,
+      // then wrap the whole verse in one clean pair of double quotes.
+      inner = normalizeVerseQuotes(inner);
+      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: h.verse.confidence === 'low' || !h.verse.canonical, note: String(h.verse.note || '') });
+      pos = h.end;
+    });
+    prose(text.slice(pos));
+    return blocks;
+  }
+
+  var DOC_GAP = '<p>&nbsp;</p>'; // an empty paragraph: the one thing Google keeps as a visible blank line
+  function blocksToHtml(blocks, forDoc) {
+    return blocks.map(function (b) {
+      if (b.type === 'verse') {
+        var line = esc(b.text) + (b.ref ? ' (' + esc(b.ref) + ')' : '');
+        return forDoc ? '<blockquote><p><b>' + line + '</b></p></blockquote>' : '<blockquote class="verse-block' + (b.uncertain ? ' is-uncertain' : '') + '"><strong>' + line + '</strong></blockquote>';
+      }
+      return '<p>' + esc(b.text) + '</p>';
+    }).join(forDoc ? DOC_GAP : '');
+  }
+  function blocksToPlain(blocks) {
+    return blocks.map(function (b) { return b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text; }).join('\n\n');
+  }
+
+  /* ==================================================================
+     Rendering
+     ================================================================== */
+
+  function statusLabel(s) {
+    if (s.status === 'editing') return 'Editing…';
+    if (s.status === 'edited') return isStale(s) ? 'Edited — transcript changed' : 'Edited ' + relTime(s.editedAt);
+    if (s.status === 'error') return 'Needs attention';
+    return 'Not yet edited';
+  }
+  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : 'chip-' + s.status; }
+
+  function changeTable(rows, h1, h2) {
+    return '<table class="misheard-table"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th><th>Why</th></tr></thead><tbody>' +
+      rows.map(function (m) { return '<tr><td class="mono was">' + esc(m.find != null ? m.find : m.heard) + '</td><td class="mono now">' + esc(m.replace != null ? m.replace : m.likely) + '</td><td>' + esc(m.note || '') + '</td></tr>'; }).join('') +
+      '</tbody></table>';
+  }
+
+  function renderSectionDetails(s) {
+    var edits = s.edits || [];
+    var misheardRows = edits.length ? edits.filter(function (e) { return e.kind === 'misheard'; }) : (s.misheard || []);
+    var verseFixRows = edits.filter(function (e) { return e.kind === 'verse-fix'; });
+    var grammarRows = edits.filter(function (e) { return e.kind !== 'misheard' && e.kind !== 'verse-fix'; });
+    var misheardHtml = misheardRows.length ? '<div class="detail-block"><h4>Words that may have been misheard</h4>' + changeTable(misheardRows, 'Heard as', 'Likely meant') + '</div>' : '';
+    var verseFixHtml = verseFixRows.length ? '<div class="detail-block"><h4>Mishearings fixed inside a verse</h4>' + changeTable(verseFixRows, 'Transcript had', 'Corrected to') + '</div>' : '';
+    var joinCount = grammarRows.filter(function (e) { return e.kind === 'paragraph'; }).length;
+    var cueCount = grammarRows.filter(function (e) { return e.kind === 'cue'; }).length;
+    var capCount = grammarRows.filter(function (e) { return e.kind === 'capitalization'; }).length;
+    var grammarHtml = grammarRows.length ? '<details class="detail-block detail-fold"><summary>' + grammarRows.length + ' grammar, punctuation &amp; paragraph change' + plural(grammarRows.length) + (joinCount ? ' (' + joinCount + ' paragraph' + plural(joinCount) + ' joined)' : '') + (cueCount ? ' (stage cues removed)' : '') + (capCount ? ' (' + capCount + ' capitalization fix' + (capCount === 1 ? '' : 'es') + ')' : '') + '</summary>' + changeTable(grammarRows, 'Before', 'After') + '</details>' : '';
+    var unappliedHtml = (s.unapplied && s.unapplied.length) ? '<div class="detail-block"><h4>Suggested but couldn’t be placed — check by hand</h4>' + changeTable(s.unapplied, 'Looked for', 'Wanted to make it') + '</div>' : '';
+    var placed = (s.verses && s.verses.length) ? layoutBlocks(s).filter(function (b) { return b.type === 'verse'; }).length : 0;
+    var versesHtml = (s.verses && s.verses.length) ?
+      '<div class="detail-block"><h4>Scripture used — ' + placed + ' of ' + s.verses.length + ' set in bold' + (placed < s.verses.length ? ' (the rest could not be found in the text)' : '') + '</h4><ul class="verse-list">' +
+      s.verses.map(function (v) {
+        var q = String(v.quote || ''); var short = q.length > 90 ? q.slice(0, 88).replace(/\s+\S*$/, '') + '…' : q;
+        var label = v.canonical ? esc(refLabel(v)) : '<em>reference unknown — check</em>';
+        if (v.reference) label += '<span class="verse-spoken">spoken: ' + esc(v.reference) + '</span>';
+        var warn = (v.confidence === 'low' || !v.canonical) ? '<span class="verse-warn">' + esc(v.note || (v.canonical ? 'Not sure of this reference' : 'Could not work out the reference')) + '</span>' : '';
+        return '<li' + ((v.confidence === 'low' || !v.canonical) ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + '</span></li>';
+      }).join('') + '</ul></div>' : '';
+    var nonsenseHtml = (s.nonsensical && s.nonsensical.length) ?
+      '<div class="detail-block"><h4>Doesn’t quite make sense</h4><ul class="flag-list">' +
+      s.nonsensical.map(function (n) { return '<li><span class="mono flag-quote">“' + esc(n.original) + '”</span><span class="flag-issue">' + esc(n.issue) + '</span></li>'; }).join('') +
+      '</ul></div>' : '';
+    return '<div class="section-details"><p class="section-summary">' + esc(s.summary || '') + '</p>' + versesHtml + misheardHtml + verseFixHtml + nonsenseHtml + unappliedHtml + grammarHtml + '</div>';
+  }
+
+  function sectionMeta(s) {
+    if (s.status !== 'edited') return '';
+    var bits = [];
+    if (s.verses && s.verses.length) {
+      var unsure = s.verses.filter(function (v) { return v.confidence === 'low' || !v.canonical; }).length;
+      bits.push(s.verses.length + ' verse' + plural(s.verses.length) + (unsure ? ' (' + unsure + ' to check)' : ''));
+    }
+    if (s.misheard && s.misheard.length) bits.push(s.misheard.length + ' misheard');
+    if (s.nonsensical && s.nonsensical.length) bits.push(s.nonsensical.length + ' to check');
+    return bits.join(' · ');
+  }
+
+  function renderSection(s) {
+    var isCollapsed = !!collapsed[s.id];
+    var head =
+      '<div class="section-head">' +
+      '<button type="button" class="collapse-btn" data-action="toggle-collapse" data-id="' + s.id + '" aria-label="' + (isCollapsed ? 'Expand' : 'Collapse') + '" title="' + (isCollapsed ? 'Expand' : 'Collapse') + '">' + (isCollapsed ? '▸' : '▾') + '</button>' +
+      '<input class="section-name" data-field="name" data-id="' + s.id + '" type="text" placeholder="e.g. Job – Chapter 2" value="' + escAttr(s.name) + '" aria-label="Script name">' +
+      (isCollapsed && sectionMeta(s) ? '<span class="section-meta">' + esc(sectionMeta(s)) + '</span>' : '') +
+      '<span class="chip ' + chipClass(s) + '"' + (s.status === 'edited' && !isStale(s) && s.editedAt ? ' data-ts="' + s.editedAt + '"' : '') + '>' + esc(statusLabel(s)) + '</span>' +
+      '<button type="button" class="icon-btn" data-action="remove-section" data-id="' + s.id + '" aria-label="Remove this script" title="Remove this script">−</button>' +
+      '</div>';
+    if (isCollapsed) return '<article class="section-card is-collapsed" data-section="' + s.id + '">' + head + '</article>';
+
+    var corrected = s.corrected ? blocksToHtml(layoutBlocks(s), false) : 'Not edited yet — click “Edit All Scripts” above.';
+    var extra = '';
+    if (s.status === 'edited') {
+      extra = (isStale(s) ? '<p class="stale-note">The transcript has changed since this was edited — run Edit again to refresh the corrected script.</p>' : '') +
+        renderSectionDetails(s) +
+        '<p class="redo-line"><button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Redo this one</button></p>';
+    }
+    if (s.status === 'error' && s.error === '__stopped__') extra = '<p class="section-error">Stopped before this one finished. <button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Try again</button></p>';
+    else if (s.status === 'error') extra = '<p class="section-error">Couldn’t edit this one: ' + esc(s.error || 'unknown error') + '. <button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Try again</button></p>';
+    return (
+      '<article class="section-card" data-section="' + s.id + '">' + head +
+      '<div class="section-body">' +
+      '<div class="pane"><div class="pane-head"><label>Raw transcript (from Descript)</label></div>' +
+      '<textarea data-field="raw" data-id="' + s.id + '" rows="8" placeholder="Paste the Descript transcript here — e.g. &quot;So Eli who answered and said, so far said unto Job…&quot;">' + esc(s.raw) + '</textarea></div>' +
+      '<div class="pane pane-corrected"><div class="pane-head"><label>Corrected script</label>' +
+      (s.corrected ? '<button type="button" class="copy-btn" data-action="copy-corrected" data-id="' + s.id + '" title="Copies the script with bold verses and block quotes, ready to paste">Copy for YouVersion</button>' : '') + '</div>' +
+      '<div class="corrected-output' + (s.corrected ? ' is-blocks' : ' is-empty') + '">' + corrected + '</div></div>' +
+      '</div>' + extra +
+      '</article>'
+    );
+  }
+
+  function renderOverview() {
+    if (!state.lastEditAt) return '';
+    var rows = state.sections.map(function (s) {
+      var detail;
+      if (s.status === 'edited') {
+        var unsureRefs = (s.verses || []).filter(function (v) { return v.confidence === 'low' || !v.canonical; }).length;
+        detail = (s.verses || []).length + ' verse' + plural((s.verses || []).length) + (unsureRefs ? ' (' + unsureRefs + ' reference' + plural(unsureRefs) + ' to check)' : '') + ', ' + s.misheard.length + ' misheard word' + plural(s.misheard.length) + ', ' + s.nonsensical.length + ' sentence' + plural(s.nonsensical.length) + ' to double-check' + (isStale(s) ? ' — transcript changed since' : '');
+      }
+      else if (s.status === 'error' && s.error === '__stopped__') detail = 'stopped before finishing';
+      else if (s.status === 'error') detail = 'couldn’t be edited (' + esc(s.error || 'error') + ')';
+      else if (!s.raw.trim()) detail = 'no transcript yet';
+      else detail = 'not yet edited';
+      return '<li><strong>' + esc(s.name || 'Untitled script') + '</strong> — ' + detail + '</li>';
+    }).join('');
+    return '<section class="overview"><h3>Overview — last edit pass <span data-ts="' + state.lastEditAt + '">' + esc(relTime(state.lastEditAt)) + '</span></h3><ul class="overview-list">' + rows + '</ul></section>';
+  }
+
+  function statusSummary() {
+    var total = state.sections.length;
+    var edited = state.sections.filter(function (s) { return s.status === 'edited'; }).length;
+    var errored = state.sections.filter(function (s) { return s.status === 'error'; }).length;
+    if (dbStatus === 'loading') return 'Loading your saved scripts…';
+    if (editState) {
+      var activeNow = state.sections.filter(function (s) { return s.status === 'editing'; }).length;
+      return editState.done + ' of ' + editState.total + ' done in this pass — editing ' + activeNow + ' now…';
+    }
+    var line = total + ' script' + plural(total) + ' · ' + edited + ' edited';
+    if (errored) line += ' · ' + errored + ' needs attention';
+    return line;
+  }
+
+  function renderDocResult() {
+    if (state.docResult) {
+      if (state.docResult.method === 'pending') return '<p class="doc-result" id="doc-progress">' + esc(state.docResult.progress || 'Building your Google Doc…') + '</p>';
+      if (state.docResult.method === 'drive') {
+        if (state.docResult.count != null) {
+          var failedNote = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be created — try again for those.' : '';
+          return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + ' in a new folder in your Google Drive — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the folder</a>.' + esc(failedNote) + '</p>';
+        }
+        return '<p class="doc-result">Created in your Google Drive — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>.</p>';
+      }
+      if (state.docResult.method === 'download') return '<p class="doc-result">Saved as a file — open it with Google Docs (File › Open, or drag it into Drive) to keep editing there.</p>';
+      return '<p class="doc-result is-error">' + esc(state.docResult.message || 'Something went wrong.') + '</p>';
+    }
+    if (state.lastDoc && state.lastDoc.url) {
+      return '<p class="doc-link-line">Last created <span data-ts="' + state.lastDoc.at + '">' + esc(relTime(state.lastDoc.at)) + '</span> — <a href="' + escAttr(state.lastDoc.url) + '" target="_blank" rel="noopener">' + (state.lastDoc.kind === 'folder' ? 'open the folder of Docs' : 'open the Google Doc') + '</a>.</p>';
+    }
+    return '';
+  }
+
+  function renderModal() {
+    if (!confirmState) return '';
+    return (
+      '<div class="modal-backdrop" data-action="confirm-cancel" role="dialog" aria-modal="true" aria-label="' + escAttr(confirmState.title) + '">' +
+      '<div class="modal-card" data-stop-click>' +
+      '<h2 class="modal-title">' + esc(confirmState.title) + '</h2>' +
+      '<p class="modal-body">' + esc(confirmState.body) + '</p>' +
+      (confirmState.warn ? '<p class="modal-warn">' + esc(confirmState.warn) + '</p>' : '') +
+      '<div class="modal-actions">' +
+      '<button type="button" class="btn btn-ghost" data-action="confirm-cancel">Cancel</button>' +
+      '<button type="button" class="btn btn-danger" data-action="confirm-ok">' + esc(confirmState.confirmLabel) + '</button>' +
+      '</div></div></div>'
+    );
+  }
+
+  function renderSkeleton() {
+    var card = '<div class="skeleton-card" aria-hidden="true"><div class="skeleton-line w40"></div><div class="skeleton-line tall"></div></div>';
+    return '<div class="sections">' + card + card + card + '</div>';
+  }
+
+  function saveStateLabel() {
+    if (dbStatus !== 'ready') return '';
+    if (savesInFlight > 0 || Object.keys(pendingSaves).length || metaTimer) return 'Saving…';
+    return everSaved ? 'All changes saved' : '';
+  }
+
+  function renderApp() {
+    var loading = dbStatus === 'loading';
+    var anyEdited = state.sections.some(function (s) { return s.status === 'edited'; });
+    var editRunning = !!editState || state.sections.some(function (s) { return s.status === 'editing'; });
+    var pending = !!(state.docResult && state.docResult.method === 'pending');
+    var hasAnything = state.sections.some(function (s) { return s.raw.trim() || s.name.trim(); });
+    var toEdit = state.sections.filter(needsEdit).length;
+    var anyCollapsible = state.sections.some(function (s) { return s.status === 'edited' && !collapsed[s.id]; });
+    var anyCollapsed = state.sections.some(function (s) { return collapsed[s.id]; });
+    var concludeDisabled = (!anyEdited || !state.approved || editRunning || pending || loading) ? ' disabled' : '';
+    var dis = loading ? ' disabled' : '';
+
+    var notice = '';
+    if (dbStatus === 'unavailable') notice = '<p class="notice notice-warn">Saved work can’t be reached in this view, so anything you change here won’t be kept. Reload the page, or open the artifact from your Claude gallery.</p>';
+    else if (saveError) notice = '<p class="notice notice-warn">' + esc(saveError) + '</p>';
+    if (flash) notice += '<div class="notice notice-info"><span>' + esc(flash) + '</span><button type="button" class="notice-dismiss" data-action="dismiss-flash" aria-label="Dismiss">×</button></div>';
+
+    var editLabel = editRunning ? 'Editing…' : (toEdit && toEdit < state.sections.length ? 'Edit ' + toEdit + ' Script' + plural(toEdit) : 'Edit All Scripts');
+    var saveLabel = saveStateLabel();
+
+    return (
+      '<div class="wrap">' +
+      '<header class="hero">' +
+      '<p class="eyebrow">Through the Word · Script Workbench</p>' +
+      '<input class="title-field" data-field="bookTitle" type="text" placeholder="Untitled book or plan" value="' + escAttr(state.bookTitle) + '" aria-label="Book or plan title"' + dis + '>' +
+      '<p class="dek">Turn Descript’s AI transcript of each audio guide into a clean, accurate script — grammar fixed, misheard names caught, nothing about how it sounds changed.</p>' +
+      '</header>' +
+      '<details class="tip"><summary>How this works</summary><ol>' +
+      '<li>Paste each chapter’s Descript transcript into its own script below — use <strong>+ Add Script</strong> for as many as the plan needs.</li>' +
+      '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
+      '<li>Click <strong>Edit All Scripts</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished script is saved on its own, so you can stop and resume anytime without losing what’s already done.</li>' +
+      '<li>Review the overview, check the approval box, then click <strong>Create Google Docs</strong> — one Doc per script in a folder, or one Doc for the book. Or use <strong>Copy for YouVersion</strong> on any script to paste it straight in with the verses already formatted.</li>' +
+      '</ol></details>' +
+      '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
+      '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
+      '<textarea id="wordsToSearchFor" data-field="wordsToSearchFor" rows="2" placeholder="Elihu, Eliphaz, Zophar, Bildad, Behemoth, Leviathan…"' + dis + '>' + esc(state.wordsToSearchFor) + '</textarea></section>' +
+      notice +
+      '<div class="action-bar">' +
+      '<div class="bar-group">' +
+      '<button type="button" class="btn btn-add" data-action="add-section"' + dis + '>+ Add Script</button>' +
+      '<button type="button" class="btn btn-quiet-danger" data-action="clear-all"' + (loading || editRunning || clearing || !hasAnything ? ' disabled' : '') + '>' + (clearing ? 'Clearing…' : 'Clear All') + '</button>' +
+      (anyCollapsible ? '<button type="button" class="btn btn-ghost btn-sm" data-action="collapse-edited"' + dis + '>Collapse edited</button>' : '') +
+      (anyCollapsed ? '<button type="button" class="btn btn-ghost btn-sm" data-action="expand-all"' + dis + '>Expand all</button>' : '') +
+      '</div>' +
+      '<p class="status-line">' + esc(statusSummary()) + '</p>' +
+      '<p class="save-state' + (saveLabel === 'Saving…' ? ' is-saving' : '') + '" id="save-state">' + esc(saveLabel) + '</p>' +
+      '<div class="action-bar-end">' +
+      '<label class="speed-pick" title="Close paragraph breaks that fall mid-thought (Descript breaks on pauses)"><input type="checkbox" data-action="set-repair"' + (repairParagraphs ? ' checked' : '') + (editRunning ? ' disabled' : '') + '> Fix mid-thought breaks</label>' +
+      '<label class="speed-pick" title="How many scripts to edit at the same time">Speed <select data-action="set-concurrency"' + (editRunning ? ' disabled' : '') + '><option value="1"' + (concurrency === 1 ? ' selected' : '') + '>1 at a time</option><option value="2"' + (concurrency === 2 ? ' selected' : '') + '>2 at a time</option></select></label>' +
+      '<button type="button" class="btn btn-edit" data-action="edit-all"' + (editRunning || loading ? ' disabled' : '') + '>' + editLabel + '</button>' +
+      (editRunning ? '<button type="button" class="btn btn-ghost" data-action="stop-edit">Stop</button>' : '') + '</div>' +
+      '</div>' +
+      (loading ? renderSkeleton() :
+        renderOverview() +
+        '<div class="sections">' + state.sections.map(renderSection).join('') + '</div>' +
+        '<footer class="conclude-bar">' +
+        '<p class="approve-prompt">Ready to turn these scripts into a Google Doc?</p>' +
+        '<label class="approve-row"><input type="checkbox" data-action="toggle-approve"' + (state.approved ? ' checked' : '') + (anyEdited ? '' : ' disabled') + '><span>I’ve reviewed the corrections above and approve moving forward.</span></label>' +
+        '<div class="conclude-row">' +
+        '<button type="button" class="btn btn-conclude" data-action="conclude"' + concludeDisabled + '>' + (docMode === 'perScript' ? 'Create Google Docs' : 'Create Google Doc') + '</button>' +
+        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per script, in a folder</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc for the whole book</option></select></label>' +
+        '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (anyEdited ? '' : ' disabled') + '>Download a copy instead</button>' +
+        '</div>' + renderDocResult() +
+        '</footer>') +
+      '</div>' + renderModal()
+    );
+  }
+
+  /* ---- Repainting: keep the caret where it was; repaint one card when that is all that changed ---- */
+
+  function captureFocus() {
+    var el = document.activeElement;
+    if (!el || !el.dataset || !el.dataset.field) return null;
+    return { field: el.dataset.field, id: el.dataset.id || '', start: el.selectionStart, end: el.selectionEnd, scrollTop: el.scrollTop };
+  }
+  function restoreFocus(f) {
+    if (!f) return;
+    var el = root.querySelector('[data-field="' + f.field + '"]' + (f.id ? '[data-id="' + f.id + '"]' : ':not([data-id])'));
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); if (f.start != null && el.setSelectionRange) el.setSelectionRange(f.start, f.end); el.scrollTop = f.scrollTop; } catch (e) {}
+  }
+  function paint() { var f = captureFocus(); root.innerHTML = renderApp(); restoreFocus(f); }
+  function paintSection(id) {
+    var s = findSection(id), el = root.querySelector('[data-section="' + id + '"]');
+    if (!s || !el) { paint(); return; }
+    var f = captureFocus(); el.outerHTML = renderSection(s); restoreFocus(f);
+  }
+  function paintStatus() {
+    var el = root.querySelector('.status-line'); if (el) el.textContent = statusSummary();
+    var sv = document.getElementById('save-state');
+    if (sv) { var label = saveStateLabel(); sv.textContent = label; sv.classList.toggle('is-saving', label === 'Saving…'); }
+  }
+  function paintChipOnly(s) {
+    var card = root.querySelector('[data-section="' + s.id + '"]');
+    var chip = card && card.querySelector('.chip');
+    if (chip) { chip.className = 'chip ' + chipClass(s); chip.textContent = statusLabel(s); if (isStale(s)) chip.removeAttribute('data-ts'); else if (s.editedAt) chip.setAttribute('data-ts', s.editedAt); }
+    if (card) {
+      var note = card.querySelector('.stale-note');
+      if (isStale(s) && !note) {
+        var details = card.querySelector('.section-details');
+        var p = document.createElement('p'); p.className = 'stale-note';
+        p.textContent = 'The transcript has changed since this was edited — run Edit again to refresh the corrected script.';
+        if (details) card.insertBefore(p, details); else card.appendChild(p);
+      } else if (!isStale(s) && note) note.remove();
+    }
+    var btn = root.querySelector('[data-action="edit-all"]');
+    if (btn && !editState) {
+      var toEdit = state.sections.filter(needsEdit).length;
+      btn.textContent = (toEdit && toEdit < state.sections.length) ? 'Edit ' + toEdit + ' Script' + plural(toEdit) : 'Edit All Scripts';
+    }
+  }
+  // "Edited 3 minutes ago" stays truthful without a repaint.
+  setInterval(function () {
+    root.querySelectorAll('[data-ts]').forEach(function (el) {
+      var ts = Number(el.getAttribute('data-ts')); if (!ts) return;
+      el.textContent = el.classList.contains('chip') ? 'Edited ' + relTime(ts) : relTime(ts);
+    });
+  }, 60000);
+
+  /* ==================================================================
+     Capabilities
+     ================================================================== */
+
+  var capCache = {};
+  function useCap(name) {
+    if (capCache[name]) return capCache[name];
+    if (!window.claude || typeof window.claude.use !== 'function') { capCache[name] = Promise.resolve(null); return capCache[name]; }
+    capCache[name] = window.claude.use(name).catch(function () { return null; });
+    return capCache[name];
+  }
+
+  /* ==================================================================
+     Saving — the artifact's document store, one small document per
+     script plus a "meta" document. Nothing is written until the saved
+     work has finished loading, so a half-loaded page can never
+     overwrite or duplicate anything.
+     ================================================================== */
+
+  var dbApi = null;
+  var dbStatus = 'loading'; // loading | ready | unavailable
+  var saveError = null;
+  var pendingSaves = {};
+  var metaTimer = null;
+  var savesInFlight = 0;
+  var everSaved = false;
+
+  function sectionToDoc(s) {
+    return { name: s.name || '', raw: s.raw || '', corrected: s.corrected || '',
+             editedFromRaw: s.editedFromRaw == null ? '' : s.editedFromRaw, hasEditedFrom: s.editedFromRaw != null,
+             summary: s.summary || '', changeCount: s.changeCount || 0, misheard: s.misheard || [], nonsensical: s.nonsensical || [],
+             edits: s.edits || [], unapplied: s.unapplied || [], verses: s.verses || [], method: s.method || '',
+             status: s.status || 'draft', error: s.error || '', editedAt: s.editedAt || 0 };
+  }
+  function docToSection(id, d) {
+    d = d || {};
+    return { id: id, name: String(d.name || ''), raw: String(d.raw || ''), corrected: String(d.corrected || ''),
+             editedFromRaw: d.hasEditedFrom ? String(d.editedFromRaw || '') : null,
+             summary: String(d.summary || ''), changeCount: Number(d.changeCount) || 0,
+             misheard: Array.isArray(d.misheard) ? d.misheard : [], nonsensical: Array.isArray(d.nonsensical) ? d.nonsensical : [],
+             edits: Array.isArray(d.edits) ? d.edits : [], unapplied: Array.isArray(d.unapplied) ? d.unapplied : [],
+             verses: Array.isArray(d.verses) ? d.verses : [], method: String(d.method || ''),
+             status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null };
+  }
+  function metaToDoc() {
+    return { bookTitle: state.bookTitle || '', wordsToSearchFor: state.wordsToSearchFor || '',
+             order: state.sections.map(function (s) { return s.id; }), nextId: state.nextId || 2,
+             lastEditAt: state.lastEditAt || 0, approved: !!state.approved,
+             lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
+  }
+
+  var retryCounts = {};
+  function trackSave(key, promise, retry) {
+    savesInFlight += 1; paintStatus();
+    return promise.then(function () {
+      everSaved = true; delete retryCounts[key];
+      if (saveError) { saveError = null; paint(); }
+    }).catch(function (err) {
+      saveError = dbErrorMessage(err); paint();
+      // Try again on our own a few times, with a growing pause, so a blip never loses an edit.
+      var n = (retryCounts[key] || 0) + 1; retryCounts[key] = n;
+      if (retry && n <= 4 && !(err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded' || err.code === 'revoked'))) {
+        setTimeout(retry, 2500 * n);
+      }
+    }).then(function () { savesInFlight -= 1; paintStatus(); });
+  }
+  function saveMeta() { return dbApi ? trackSave('meta', dbApi.doc('state/meta').set(metaToDoc()), saveMeta) : Promise.resolve(); }
+  function saveSection(id) {
+    var s = findSection(id);
+    return (dbApi && s) ? trackSave('s:' + id, dbApi.doc('scripts/' + id).set(sectionToDoc(s)), function () { saveSection(id); }) : Promise.resolve();
+  }
+  function saveSectionSoon(id) {
+    if (!dbApi) return;
+    if (pendingSaves[id]) clearTimeout(pendingSaves[id]);
+    pendingSaves[id] = setTimeout(function () { delete pendingSaves[id]; saveSection(id); }, 1200);
+    paintStatus();
+  }
+  function saveMetaSoon() {
+    if (!dbApi) return;
+    if (metaTimer) clearTimeout(metaTimer);
+    metaTimer = setTimeout(function () { metaTimer = null; saveMeta(); }, 1200);
+    paintStatus();
+  }
+  function flushSaves() {
+    Object.keys(pendingSaves).forEach(function (id) { clearTimeout(pendingSaves[id]); delete pendingSaves[id]; saveSection(id); });
+    if (metaTimer) { clearTimeout(metaTimer); metaTimer = null; saveMeta(); }
+  }
+  function dbErrorMessage(err) {
+    var code = err && err.code;
+    if (code === 'quota_exceeded') return 'The workbench is full — remove some scripts before adding more.';
+    if (code === 'resource_exhausted') return 'Saving is being throttled — it will catch up in a moment.';
+    if (code === 'invalid_argument') return 'One script is too large to save — try splitting it in two.';
+    if (code === 'revoked') return 'Saving access was withdrawn — reload the page.';
+    return 'Saving hit a snag — your work is still on screen and will retry on your next change.';
+  }
+
+  function seedStore(db) {
+    var chain = db.doc('state/meta').set(metaToDoc());
+    state.sections.forEach(function (s) { chain = chain.then(function () { return db.doc('scripts/' + s.id).set(sectionToDoc(s)); }); });
+    return chain;
+  }
+
+  function applyStored(meta, byId) {
+    state.bookTitle = String(meta.bookTitle || '');
+    state.wordsToSearchFor = String(meta.wordsToSearchFor || '');
+    state.nextId = Number(meta.nextId) || state.nextId;
+    state.lastEditAt = Number(meta.lastEditAt) || null;
+    state.approved = !!meta.approved;
+    state.lastDoc = (meta.lastDoc && meta.lastDoc.url) ? { url: String(meta.lastDoc.url), at: Number(meta.lastDoc.at) || 0, kind: String(meta.lastDoc.kind || 'doc') } : null;
+    var order = Array.isArray(meta.order) ? meta.order : [];
+    var rebuilt = [];
+    order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id])); });
+    // A script saved but missing from the order list is kept only if it holds a real transcript;
+    // an empty stray (the old half-loaded-page bug) is dropped rather than resurrected.
+    Object.keys(byId).forEach(function (id) {
+      if (order.indexOf(id) === -1 && byId[id] && String(byId[id].raw || '').trim()) rebuilt.push(docToSection(id, byId[id]));
+    });
+    if (!rebuilt.length) rebuilt.push(newSection());
+    state.sections = rebuilt;
+    var maxNum = state.sections.reduce(function (m, s) { var n = Number(String(s.id).replace(/^s/, '')); return n > m ? n : m; }, 0);
+    if (state.nextId <= maxNum) state.nextId = maxNum + 1;
+    state.sections.forEach(function (s) { if (s.status === 'editing') { s.status = 'draft'; s.error = null; } });
+  }
+
+  function initStore() {
+    useCap('db').then(function (db) {
+      if (!db) { dbStatus = 'unavailable'; paint(); return; }
+      return db.doc('state/meta').get().then(function (snap) {
+        if (snap && snap.exists) {
+          return db.collection('scripts').get().then(function (qs) {
+            var byId = {};
+            (qs.docs || []).forEach(function (d) { byId[d.id] = d.data(); });
+            applyStored(snap.data() || {}, byId);
+          });
+        }
+        return seedStore(db);
+      }).then(function () {
+        dbApi = db;            // only now may anything be written
+        dbStatus = 'ready';
+        paint();
+      });
+    }).catch(function (err) {
+      console.warn('Scriptorium: store unavailable', err);
+      dbStatus = 'unavailable'; paint();
+    });
+  }
+
+  /* ==================================================================
+     Field syncing
+     ================================================================== */
+
+  function syncOneField(el) {
+    var field = el.dataset.field, id = el.dataset.id;
+    if (id) { var sec = findSection(id); if (sec) sec[field] = el.value; }
+    else state[field] = el.value;
+  }
+  function syncFieldsFromDom() { root.querySelectorAll('[data-field]').forEach(syncOneField); }
+
+  /* ==================================================================
+     Actions
+     ================================================================== */
+
+  function showFlash(message) { flash = message; paint(); }
+
+  function addSection() {
+    syncFieldsFromDom();
+    var added = newSection();
+    state.sections.push(added);
+    state.approved = false;
+    paint();
+    saveSection(added.id); saveMeta();
+    var nameEl = root.querySelector('[data-field="name"][data-id="' + added.id + '"]');
+    if (nameEl) { try { nameEl.focus(); nameEl.scrollIntoView({ block: 'center' }); } catch (e) {} }
+  }
+
+  function removeSection(id) {
+    syncFieldsFromDom();
+    var victim = findSection(id);
+    state.sections = state.sections.filter(function (s) { return s.id !== id; });
+    var replacement = null;
+    if (!state.sections.length) { replacement = newSection(); state.sections.push(replacement); }
+    state.approved = false;
+    delete collapsed[id]; persistCollapsed();
+    paint();
+    if (dbApi) {
+      dbApi.doc('scripts/' + id).delete().catch(function () {
+        showFlash('“' + ((victim && victim.name) || 'That script') + '” was removed from view but could not be deleted from storage — it may reappear when you reload. Try removing it again then.');
+      });
+    }
+    if (replacement) saveSection(replacement.id);
+    saveMeta();
+  }
+
+  function toggleCollapse(id) { if (collapsed[id]) delete collapsed[id]; else collapsed[id] = true; persistCollapsed(); paint(); }
+  function collapseEdited() { state.sections.forEach(function (s) { if (s.status === 'edited') collapsed[s.id] = true; }); persistCollapsed(); paint(); }
+  function expandAll() { collapsed = {}; persistCollapsed(); paint(); }
+
+  function copyCorrected(id, btn) {
+    var s = findSection(id);
+    if (!s || !s.corrected) return;
+    var blocks = layoutBlocks(s);
+    var html = '<div>' + blocksToHtml(blocks, true) + '</div>', plain = blocksToPlain(blocks);
+    var done = function () { if (btn) { btn.textContent = 'Copied'; btn.classList.add('is-done'); setTimeout(function () { btn.textContent = 'Copy for YouVersion'; btn.classList.remove('is-done'); }, 1800); } };
+    var fail = function () { showFlash('Couldn’t copy automatically in this view — select the corrected script and copy it by hand.'); };
+    function plainOnly() {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain).then(done, fail); else fail();
+    }
+    if (navigator.clipboard && navigator.clipboard.write && window.ClipboardItem) {
+      try {
+        var item = new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([plain], { type: 'text/plain' }) });
+        navigator.clipboard.write([item]).then(done, plainOnly);
+      } catch (e) { plainOnly(); }
+    } else plainOnly();
+  }
+
+  function promptHeader(section) {
+    return 'You are proofreading an AI-generated transcript of a spoken audio guide. The transcript was produced by Descript listening to a real recording, so it captures the SOUND of the words, not necessarily the correct words — especially unfamiliar names, which often get replaced with an ordinary word or phrase that sounds similar.\n\n' +
+      'Book or plan: ' + (state.bookTitle || '(untitled)') + '\n' +
+      'Script name: ' + (section.name || '(untitled section)') + '\n' +
+      'Names or terms likely to have been misheard (the speaker uses these; the transcript may not): ' + (state.wordsToSearchFor || '(none listed)') + '\n\n' +
+      'What to fix:\n' +
+      '1. GRAMMAR AND PUNCTUATION — the main job. WITHOUT changing the speaker’s wording, meaning, tone, or intent, make every sentence correctly punctuated:\n' +
+      '   - Every question ends with a question mark, including rhetorical questions in mid-flow ("Or was it a Big Bang?"). Transcription usually flattens these to periods; fix them.\n' +
+      '   - Commas where grammar needs them: direct address ("Welcome back, my friends"), introductory phrases, interrupting phrases ("And that, my friends, is how"), and items in a list, with the serial comma ("a, b, and c").\n' +
+      '   - Periods end statements; a full sentence inside parentheses keeps its period inside the parentheses. "?!" is fine where the speaker is clearly exclaiming a question.\n' +
+      '   - Hyphenate compound modifiers before a noun ("so-called", "science-minded", "well-meaning").\n' +
+      '   - CAPITALIZATION must be flawless: the first word of every sentence and of every paragraph is capitalized (transcripts often leave a sentence starting lowercase after a period or a pause — fix every one); "I" is always capital; names, places, books of the Bible, and titles are capitalized consistently (God, Jesus, the Bible, Genesis 1, Big Bang, Young Earth Creationism); ordinary nouns mid-sentence stay lowercase ("my dad", "the church"). Before you finish, scan the whole script once more for any sentence that still begins with a lowercase letter.\n' +
+      '   - Keep deliberate sentence fragments and the speaker’s casual voice ("No soapbox." "Then, 1964."). Do not merge or complete them.\n' +
+      '   - RUN-ON SENTENCES: speech chains clauses together with "and", "so", "but", "because". Where a sentence runs on past two or three clauses, break it up using only punctuation and capitalization, not new words: end a sentence at a natural boundary and start the next with the conjunction ("…tell anyone. But the angel…"), use a semicolon between two closely linked statements, or set off an aside or a sharp turn with an em dash (—). Keep the speaker’s words in their order.\n' +
+      '   - Keep dashes the transcript already has. Add a dash only where it does grammatical work (an aside, a break in thought, a run-on repair), never just to mark a pause.\n' +
+      '   - Use straight double quotes (") for quotations and the single … character for a trailing-off pause, consistently throughout.\n' +
+      '   - Remove anything that is not spoken: bracketed delivery cues such as [HOOK] or [lively], stray pause marks such as a lone underscore, and a standalone section label in capital letters (for example a line reading only BEARINGS). Words spoken in capitals for emphasis stay.\n' +
+      '2. Words or short phrases that are plausible mishearings of a listed name or term (for example "Elihu" heard as "Eli who", or "Zophar" heard as "so far"), and mishearings of other names where the sentence only makes sense with a different word.\n' +
+      '3. SCRIPTURE: the speaker quotes Bible verses, usually introduced by a reference such as "Verse one", "Job 2:4", "Proverbs twenty" or "Isaiah 3 verses two through four". Inside a quoted verse, fix ONLY misheard words (for example "the land of us" to "the land of Uz", "the sabians" to "the Sabeans"). Change nothing else inside a verse — not wording, word order, capitalization, or punctuation, not even a comma you think should be a question mark. Bible translations read oddly on purpose; leave them.\n' +
+      '4. Flag any sentence that still doesn’t make sense after your changes, with your best guess at what is wrong.\n\n';
+  }
+
+  function versesSpec() {
+    return '"verses": every Bible quotation in the script, in order, each with:\n' +
+      ' - "reference": the reference phrase exactly as the speaker says it, copied from the text (for example "Verse one", "Job 2:4", "Proverbs twenty"), or "" if none is spoken nearby. Read it carefully — "In verse four" means verse four.\n' +
+      ' - "quote": the quoted verse text, copied exactly as it reads AFTER your corrections, from its first word to its last, WITHOUT the surrounding quotation marks. If the Bible verse itself contains narration (for example: "How will this be," Mary asked the angel, "since I am a virgin?"), include that narration — the quote is the whole verse as it appears in the Bible. Never include the speaker’s own commentary. In the corrected text itself, every quoted verse is wrapped in double quotation marks, and any speech inside a verse uses single quotation marks (\'Do not be afraid, Zechariah; your prayer has been heard.\').\n' +
+      ' - "canonical": the standard reference — Book Chapter:Verse, or Chapter:Verse-Verse for a span (for example "Luke 1:30-33") — worked out from the book or chapter this script covers (see the script name), the spoken reference, and the quoted words themselves: count how many verses the quotation actually runs through.\n' +
+      ' - "confidence": "high" only when you are sure of the canonical reference; otherwise "low".\n' +
+      ' - "note": "" when confident; otherwise a few words on the doubt (the spoken reference and the quoted words disagree, the book is unclear, the span is uncertain).\n';
+  }
+  function joinsSpec() {
+    if (!repairParagraphs) return '';
+    return '"joins": places where the transcript breaks a paragraph in the middle of a continuous thought (a pause for breath, not a real change of paragraph). Give each as {"endsWith": "the last five or so words before the break", "startsWith": "the first five or so words after it"}, copied exactly as the text reads after your corrections. Join only breaks that split one flowing thought; leave genuine paragraph changes alone, and never join across the start or end of a quoted verse.\n';
+  }
+
+  // Preferred: ask only for the changes. Far less text comes back, so each script finishes much sooner.
+  function buildEditsPrompt(section) {
+    return promptHeader(section) +
+      'Return your corrections as a list of EDITS — do not rewrite the script.\n' +
+      'Each edit has "find": a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes and spacing), long enough to be unambiguous — usually 3 to 15 words, never crossing a blank line — and "replace": the corrected version of exactly that run. List edits in the order they occur. If the same mistake appears several times, give one edit per occurrence. "kind" is "misheard" for a misheard word or name, "verse-fix" for a misheard word inside a quoted verse, otherwise "grammar". Keep "note" to a few words.\n' +
+      versesSpec() +
+      joinsSpec() +
+      '"nonsensical": sentences that still don’t make sense after your edits. "summary": one or two plain-language sentences on what kind of corrections you made.\n\n' +
+      'Return ONLY this JSON object:\n' +
+      '{"edits":[{"find":"","replace":"","kind":"grammar","note":""}],"verses":[{"reference":"","quote":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
+      'Use empty arrays when there is nothing to report. No text outside the JSON.\n\n' +
+      'TRANSCRIPT:\n"""\n' + textForEdit(section) + '\n"""';
+  }
+
+  // Fallback: the whole corrected script, used when the edit list could not be placed cleanly.
+  function buildFullPrompt(section) {
+    return promptHeader(section) +
+      'Return ONLY this JSON object:\n' +
+      '{"correctedText": "the full corrected script, as continuous text, keeping the original paragraph breaks", "changeCount": 0, "summary": "one or two sentences describing what kind of corrections you made, in plain language", "misheard": [{"heard": "what the transcript said", "likely": "what it was probably supposed to be", "note": "why, in a few words"}], "verses": [{"reference": "", "quote": "", "canonical": "", "confidence": "high", "note": ""}], ' + (repairParagraphs ? '"joins": [{"endsWith": "", "startsWith": ""}], ' : '') + '"nonsensical": [{"original": "the confusing sentence or phrase, quoted", "issue": "what does not add up and your best guess at the fix"}]}\n' +
+      versesSpec() + joinsSpec() +
+      'Use empty arrays when there is nothing to report. Do not include any text outside the JSON object.\n\n' +
+      'TRANSCRIPT:\n"""\n' + textForEdit(section) + '\n"""';
+  }
+
+  function sampleErrorMessage(err) {
+    var code = err && err.code;
+    if (code === 'not_granted') return 'permission to use Claude was declined';
+    if (code === 'rate_limited') return 'too many requests right now — try again shortly';
+    if (code === 'prompt_too_large') return 'this script is too long for one pass — try splitting it into two sections';
+    if (code === 'invalid_json') return 'the response could not be read — try again';
+    if (code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') return 'editing isn’t available in this view';
+    if (code === 'refused' || code === 'empty_completion') return 'Claude could not produce a result for this one — try again';
+    return (err && err.message) || 'something went wrong';
+  }
+
+  // Stage cues and pause marks are notes to the narrator, not spoken words: take them out before editing.
+  function stripCues(text) {
+    var removed = [];
+    var out = String(text || '').replace(/[ \t]*\[[^\]\n]{1,120}\][ \t]*/g, function (m) { removed.push(m.trim()); return ' '; });
+    out = out.replace(/(^|\s)_+(?=\s|$)/g, function (m, lead) { removed.push('_'); return lead; });
+    out = out.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    return { text: out, removed: removed };
+  }
+  function textForEdit(s) { return stripCues(s.raw).text; }
+
+  // Safety net: whatever the editor returns, no sentence or paragraph may start lowercase.
+  // Abbreviations, initials, decimals and trailing-off dots are left alone.
+  var ABBREV = /(?:\b(?:mr|mrs|ms|dr|st|vs|etc|jr|sr|no|cf|approx|dept|inc|co|ch|vv?)|\be\.g|\bi\.e|\ba\.k\.a|\b[A-Za-z])\.$/i;
+  function fixCapitals(text, intoEdits) {
+    var count = 0;
+    function note(before, after) {
+      count += 1;
+      if (count <= 20) intoEdits.push({ find: before, replace: after, kind: 'capitalization', note: 'sentence start' });
+    }
+    text = text.replace(/(^|\n[ \t]*\n[ \t]*)(["“'(]*)([a-z])(\S{0,24})/g, function (m, lead, open, ch, rest) {
+      note(open + ch + rest, open + ch.toUpperCase() + rest);
+      return lead + open + ch.toUpperCase() + rest;
+    });
+    text = text.replace(/([.!?])(["”')\]]*)([ \t]+)(["“'(]*)([a-z])(\S{0,24})/g, function (m, p, close, sp, open, ch, rest, offset, whole) {
+      var before = whole.slice(Math.max(0, offset - 14), offset + 1);
+      if (p === '.' && (ABBREV.test(before) || /\.\.$/.test(before))) return m;
+      note(p + close + ' ' + open + ch + rest, p + close + ' ' + open + ch.toUpperCase() + rest);
+      return p + close + sp + open + ch.toUpperCase() + rest;
+    });
+    if (count > 20) intoEdits.push({ find: '(' + (count - 20) + ' more)', replace: '', kind: 'capitalization', note: 'further sentence starts capitalized' });
+    return text;
+  }
+  function cueEdits(s) {
+    var r = stripCues(s.raw);
+    if (!r.removed.length) return [];
+    var shown = r.removed.slice(0, 12).join(' ') + (r.removed.length > 12 ? ' …' : '');
+    return [{ find: shown, replace: '', kind: 'cue', note: 'removed ' + r.removed.length + ' stage cue' + plural(r.removed.length) + ' / pause mark' + plural(r.removed.length) }];
+  }
+
+  function cleanVerses(list) {
+    return Array.isArray(list) ? list.map(function (v) {
+      var conf = String((v && v.confidence) || '').toLowerCase() === 'low' ? 'low' : 'high';
+      return { reference: String((v && v.reference) || '').trim(), quote: String((v && v.quote) || '').trim().replace(/^["\u201C]+|["\u201D]+$/g, ''),
+               canonical: String((v && v.canonical) || '').trim(), confidence: conf, note: String((v && v.note) || '').trim() };
+    }).filter(function (v) { return v.quote; }) : [];
+  }
+
+  // Close the paragraph breaks the editor says fall mid-thought. Each join becomes a visible "paragraph" edit.
+  function applyJoins(text, joins, intoEdits) {
+    if (!repairParagraphs || !Array.isArray(joins)) return text;
+    joins.forEach(function (j) {
+      var a = String((j && j.endsWith) || '').trim(), b = String((j && j.startsWith) || '').trim();
+      if (!a || !b) return;
+      var ha = locate(text, a, 0, false); if (!ha) return;
+      var gap = text.slice(ha.end).match(/^\s*\n\s*\n\s*/); if (!gap) return;
+      var hb = locate(text, b, ha.end + gap[0].length, false);
+      if (!hb || hb.start !== ha.end + gap[0].length) return;
+      text = text.slice(0, ha.end) + ' ' + text.slice(hb.start);
+      intoEdits.push({ find: a + ' ¶ ' + b, replace: a + ' ' + b, kind: 'paragraph', note: 'joined a mid-thought break' });
+    });
+    return text;
+  }
+  function cleanNonsense(list) {
+    return Array.isArray(list) ? list.map(function (n) { return { original: String((n && n.original) || ''), issue: String((n && n.issue) || '') }; }) : [];
+  }
+
+  function finishSection(s, fields) {
+    s.corrected = fields.corrected; s.summary = fields.summary; s.changeCount = fields.changeCount;
+    s.misheard = fields.misheard; s.nonsensical = fields.nonsensical; s.edits = fields.edits; s.unapplied = fields.unapplied;
+    s.verses = fields.verses; s.method = fields.method;
+    s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null;
+  }
+
+  function runEditOnSection(s, sample, signal) {
+    if (s.raw.length > 55000) {
+      s.status = 'error'; s.error = 'this script is too long for one pass — try splitting it into two sections';
+      return Promise.resolve();
+    }
+    var opts = { modelTier: 'quick', cache: false, signal: signal };
+    return sample.json(buildEditsPrompt(s), opts).then(function (data) {
+      data = data || {};
+      var result = applyEdits(textForEdit(s), Array.isArray(data.edits) ? data.edits : []);
+      result.applied = cueEdits(s).concat(result.applied);
+      var total = result.applied.length + result.unapplied.length;
+      // A few unplaceable edits are reported for a hand check; a lot means the list is unreliable — fall back.
+      if (result.unapplied.length > Math.max(2, Math.floor(total * 0.15))) return runFullEdit(s, sample, opts);
+      var joined = fixCapitals(applyJoins(result.text, data.joins, result.applied), result.applied);
+      finishSection(s, {
+        corrected: joined, summary: String(data.summary || ''), changeCount: result.applied.length,
+        misheard: result.applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; }),
+        nonsensical: cleanNonsense(data.nonsensical), edits: result.applied, unapplied: result.unapplied,
+        verses: cleanVerses(data.verses), method: 'edits'
+      });
+    }).catch(function (err) {
+      if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
+      // Anything else about the edit list (bad JSON, cut short) — try the full-text route once.
+      if (err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runFullEdit(s, sample, opts);
+      s.status = 'error'; s.error = sampleErrorMessage(err);
+    });
+  }
+
+  function runFullEdit(s, sample, opts) {
+    return sample.json(buildFullPrompt(s), opts).then(function (data) {
+      data = data || {};
+      var joinEdits = cueEdits(s);
+      var text = fixCapitals(applyJoins(String(data.correctedText || ''), data.joins, joinEdits), joinEdits);
+      finishSection(s, {
+        corrected: text, summary: String(data.summary || ''), changeCount: Number(data.changeCount) || 0,
+        misheard: Array.isArray(data.misheard) ? data.misheard.map(function (m) { return { heard: String((m && m.heard) || ''), likely: String((m && m.likely) || ''), note: String((m && m.note) || '') }; }) : [],
+        nonsensical: cleanNonsense(data.nonsensical), edits: joinEdits, unapplied: [], verses: cleanVerses(data.verses), method: 'full'
+      });
+    }).catch(function (err) {
+      s.status = 'error';
+      s.error = (err && err.code === 'cancelled') ? '__stopped__' : sampleErrorMessage(err);
+    });
+  }
+
+  // Runs `concurrency` scripts at once (1 or 2). Each finished script is saved on its own
+  // before the worker picks up the next, so an interruption costs at most what was in flight.
+  function editAll() {
+    syncFieldsFromDom();
+    if (dbStatus === 'loading') { showFlash('Still loading your saved scripts — give it a second and try again.'); return; }
+    useCap('sample').then(function (sample) {
+      if (!sample) { showFlash('This page needs permission to use Claude for editing. Open it in a Claude viewer that allows that, then try again.'); return; }
+      var toProcess = state.sections.filter(needsEdit);
+      if (!toProcess.length) {
+        showFlash(state.sections.some(function (s) { return s.raw.trim(); }) ? 'Every script with text is already up to date.' : 'Add a transcript to at least one script first.');
+        return;
+      }
+      var queue = toProcess.slice(), stoppedFlag = false;
+      editControllers = [];
+      editState = { total: toProcess.length, done: 0 };
+      paint();
+
+      function worker() {
+        if (stoppedFlag) return Promise.resolve();
+        var item = queue.shift();
+        if (!item) return Promise.resolve();
+        var ctl = new AbortController();
+        editControllers.push(ctl);
+        item.status = 'editing'; item.error = null;
+        paintSection(item.id); paintStatus();
+        return runEditOnSection(item, sample, ctl.signal).then(function () {
+          editControllers = editControllers.filter(function (c) { return c !== ctl; });
+          if (item.status === 'error' && item.error === '__stopped__') stoppedFlag = true;
+          editState.done += 1;
+          paintSection(item.id); paintStatus();
+          return saveSection(item.id).then(worker);
+        });
+      }
+
+      var workers = [];
+      for (var i = 0; i < concurrency; i++) workers.push(worker());
+      return Promise.all(workers).then(function () {
+        editState = null; editControllers = [];
+        state.lastEditAt = Date.now(); state.approved = false;
+        paint();
+        return saveMeta();
+      });
+    });
+  }
+
+  function stopEdit() { editControllers.forEach(function (c) { try { c.abort(); } catch (e) {} }); }
+
+  function redoSection(id) {
+    syncFieldsFromDom();
+    var s = findSection(id);
+    if (!s || !s.raw.trim()) return;
+    useCap('sample').then(function (sample) {
+      if (!sample) { showFlash('This page needs permission to use Claude for editing.'); return; }
+      var ctl = new AbortController();
+      editControllers.push(ctl);
+      s.status = 'editing'; paintSection(id);
+      return runEditOnSection(s, sample, ctl.signal).then(function () {
+        editControllers = editControllers.filter(function (c) { return c !== ctl; });
+        state.approved = false;
+        paint();
+        return saveSection(s.id).then(saveMeta);
+      });
+    });
+  }
+
+  function toggleApprove(checked) { state.approved = !!checked; paint(); saveMeta(); }
+
+  /* ---- Clearing the workbench for the next book ---- */
+
+  function openConfirm(opts) {
+    confirmState = opts; paint();
+    var cancel = root.querySelector('[data-action="confirm-cancel"].btn');
+    if (cancel) { try { cancel.focus(); } catch (e) {} }
+  }
+  function closeConfirm() { confirmState = null; paint(); }
+
+  function askClearAll() {
+    syncFieldsFromDom();
+    var count = state.sections.length;
+    var unedited = state.sections.filter(function (s) { return s.raw.trim() && s.status !== 'edited'; }).length;
+    openConfirm({
+      title: 'Remove all ' + count + ' script' + plural(count) + '?',
+      body: 'This deletes every script here, including the corrected text and the words flagged in each one, and it can’t be undone. Your book title and Words to Search For list stay put for the next book, and any Google Doc you already created is untouched.',
+      warn: unedited ? unedited + ' of them ' + (unedited === 1 ? 'has' : 'have') + ' not been edited yet.' : '',
+      confirmLabel: 'Remove all ' + count + ' script' + plural(count),
+      onConfirm: clearAllScripts
+    });
+  }
+
+  function clearAllScripts() {
+    var ids = state.sections.map(function (s) { return s.id; });
+    var fresh = newSection();
+    state.sections = [fresh];
+    state.lastEditAt = null; state.approved = false; state.docResult = null;
+    collapsed = {}; persistCollapsed();
+    confirmState = null; clearing = true;
+    paint();
+    var failed = 0, chain = Promise.resolve();
+    if (dbApi) {
+      ids.forEach(function (id) { chain = chain.then(function () { return dbApi.doc('scripts/' + id).delete().catch(function () { failed += 1; }); }); });
+      chain = chain.then(function () { return saveSection(fresh.id); }).then(function () { return saveMeta(); });
+    }
+    return chain.then(function () {
+      clearing = false;
+      flash = failed
+        ? 'Cleared the workbench, but ' + failed + ' script' + plural(failed) + ' could not be removed from storage and may come back when you reload. Try Clear All once more.'
+        : 'Cleared ' + ids.length + ' script' + plural(ids.length) + '. Your book title and word list are still here — paste in the next book whenever you’re ready.';
+      paint();
+    });
+  }
+
+  /* ---- Building the Google Doc ---- */
+
+  function docTitle() { return (state.bookTitle.trim() || 'Untitled') + ' — Audio Guide Scripts'; }
+
+  function scriptBody(s, withHeading) {
+    var edited = s.status === 'edited';
+    var body = withHeading ? '<h2>' + esc(s.name || 'Untitled script') + '</h2>' : '';
+    if (!edited) body += '<p><em>Not run through the edit pass — shown as originally entered.</em></p>';
+    if (edited) return body + blocksToHtml(layoutBlocks(s), true);
+    var paras = [];
+    String(s.raw || '').split(/\n{2,}/).forEach(function (para) { if (para.trim()) paras.push('<p>' + esc(para).replace(/\n/g, '<br>') + '</p>'); });
+    return body + paras.join(DOC_GAP);
+  }
+  function docBody() {
+    return '<h1>' + esc(docTitle()) + '</h1>' + state.sections.map(function (s) { return scriptBody(s, true); }).join('');
+  }
+  function docHtml() { return '<html><body>' + docBody() + '</body></html>'; }
+  function scriptDocHtml(s) { return '<html><body><h1>' + esc(s.name || 'Untitled script') + '</h1>' + scriptBody(s, false) + '</body></html>'; }
+  var DOC_STYLE = '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.55;color:#222}p{margin:0}h1{font-size:26px}h2{font-size:19px;margin-top:36px}em{color:#777}blockquote{margin:0 0 0 24px;padding-left:12px;border-left:3px solid #c9b48a}</style>';
+  function downloadHtml() {
+    return '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(docTitle()) + '</title>' + DOC_STYLE + '</head><body>' + docBody() + '</body></html>';
+  }
+  function downloadName() { return ((state.bookTitle.trim() || 'audio-guide').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'audio-guide') + '-scripts.html'; }
+
+  function saveDownload(isFallback) {
+    return useCap('downloads').then(function (downloads) {
+      if (!downloads) { state.docResult = { method: 'error', message: 'Downloads aren’t available in this view — use Copy on each corrected script instead.' }; return; }
+      return downloads.save({ filename: downloadName(), data: downloadHtml() }).then(function () {
+        state.docResult = { method: 'download', at: Date.now() };
+      }).catch(function (err) {
+        if (err && err.code === 'declined') state.docResult = isFallback ? { method: 'error', message: 'Google Drive isn’t connected, and the file save was declined. Connect Google Drive in Settings → Connectors, or try again.' } : null;
+        else state.docResult = { method: 'error', message: 'Couldn’t save a copy: ' + ((err && err.message) || 'unknown error') };
+      });
+    });
+  }
+
+  function paintDocResult() {
+    var footer = root.querySelector('.conclude-bar');
+    if (!footer) return;
+    var old = footer.querySelector('.doc-result, .doc-link-line');
+    var html = renderDocResult();
+    if (old) old.outerHTML = html; else footer.insertAdjacentHTML('beforeend', html);
+  }
+
+  function driveTool(mcp) {
+    return mcp.listTools().then(function (list) {
+      var servers = (list && list.servers) || [];
+      var server = servers.filter(function (sv) { return sv.server === 'Google Drive'; })[0];
+      var tool = server && server.tools.filter(function (t) { return /create.*file/i.test(t.name); })[0];
+      return (server && tool) ? tool.name : null;
+    });
+  }
+  function payloadOf(res) {
+    var payload = res && res.payload;
+    if (!payload && res && res.content && res.content[0] && res.content[0].text) { try { payload = JSON.parse(res.content[0].text); } catch (e) {} }
+    return payload || {};
+  }
+  function urlOf(p) { return p && (p.viewUrl || p.webViewLink || p.url) || ''; }
+
+  function conclude() {
+    syncFieldsFromDom();
+    state.docResult = { method: 'pending', progress: docMode === 'perScript' ? 'Creating a folder in your Google Drive…' : 'Building your Google Doc…' };
+    paint();
+    useCap('mcp').then(function (mcp) {
+      if (!mcp) return false;
+      return driveTool(mcp).then(function (toolName) {
+        if (!toolName) return false;
+        if (docMode !== 'perScript') {
+          return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: docHtml(), contentMimeType: 'text/html' }).then(function (res) {
+            var url = urlOf(payloadOf(res));
+            state.docResult = { method: 'drive', url: url || '#', at: Date.now() };
+            if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }
+            return true;
+          });
+        }
+        // One Doc per script, inside a new folder named for the book.
+        return mcp.callTool('Google Drive', toolName, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.folder' }).then(function (res) {
+          var folder = payloadOf(res), folderId = folder && folder.id, folderUrl = urlOf(folder);
+          if (!folderId) throw { code: 'no_folder' };
+          var queue = state.sections.slice(), done = 0, failed = 0;
+          function next() {
+            var s = queue.shift();
+            if (!s) return Promise.resolve();
+            state.docResult = { method: 'pending', progress: 'Creating Doc ' + (done + failed + 1) + ' of ' + state.sections.length + ' — ' + (s.name || 'Untitled script') + '…' };
+            paintDocResult();
+            return mcp.callTool('Google Drive', toolName, { title: s.name || 'Untitled script', textContent: scriptDocHtml(s), contentMimeType: 'text/html', parentId: folderId })
+              .then(function () { done += 1; }, function (err) { failed += 1; console.warn('Scriptorium: doc failed for ' + s.name, err); })
+              .then(next);
+          }
+          return next().then(function () {
+            state.docResult = { method: 'drive', url: folderUrl || '#', at: Date.now(), count: done, failed: failed };
+            if (folderUrl) { state.lastDoc = { url: folderUrl, at: Date.now(), kind: 'folder' }; saveMeta(); }
+            return true;
+          });
+        });
+      }).catch(function (err) { console.warn('Scriptorium: Drive create failed', err); return false; });
+    }).then(function (driveOk) { if (!driveOk) return saveDownload(true); })
+      .then(function () { paint(); });
+  }
+
+  /* ==================================================================
+     Events
+     ================================================================== */
+
+  root.addEventListener('click', function (e) {
+    if (e.target.closest('[data-stop-click]') && !e.target.closest('.modal-actions')) return;
+    var btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    var action = btn.dataset.action, id = btn.dataset.id;
+    if (action === 'confirm-cancel') { closeConfirm(); return; }
+    if (action === 'confirm-ok') { var fn = confirmState && confirmState.onConfirm; if (fn) fn(); return; }
+    if (action === 'dismiss-flash') { flash = null; paint(); return; }
+    if (action === 'clear-all') { askClearAll(); return; }
+    if (action === 'add-section') addSection();
+    else if (action === 'remove-section') removeSection(id);
+    else if (action === 'toggle-collapse') toggleCollapse(id);
+    else if (action === 'collapse-edited') collapseEdited();
+    else if (action === 'expand-all') expandAll();
+    else if (action === 'copy-corrected') copyCorrected(id, btn);
+    else if (action === 'edit-all') editAll();
+    else if (action === 'stop-edit') stopEdit();
+    else if (action === 'redo-section') redoSection(id);
+    else if (action === 'conclude') conclude();
+    else if (action === 'download-copy') { syncFieldsFromDom(); saveDownload(false).then(function () { paint(); }); }
+  });
+
+  root.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || !t.dataset) return;
+    if (t.dataset.action === 'toggle-approve') toggleApprove(t.checked);
+    if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
+    if (t.dataset.action === 'set-repair') { repairParagraphs = !!t.checked; prefSet('repairParagraphs', repairParagraphs); }
+    if (t.dataset.action === 'set-docmode') { docMode = t.value === 'one' ? 'one' : 'perScript'; prefSet('docMode', docMode); paint(); }
+  });
+
+  function fieldTouched(el) {
+    if (!el || !el.dataset || !el.dataset.field || dbStatus === 'loading') return;
+    syncOneField(el);
+    if (el.dataset.id) saveSectionSoon(el.dataset.id); else saveMetaSoon();
+    if (el.dataset.field === 'raw' && el.dataset.id) { var s = findSection(el.dataset.id); if (s && s.status === 'edited') paintChipOnly(s); }
+  }
+  root.addEventListener('input', function (e) { fieldTouched(e.target); });
+  root.addEventListener('focusout', function (e) { fieldTouched(e.target); });
+
+  root.addEventListener('keydown', function (e) {
+    // Enter in a script's title moves on to its transcript box.
+    if (e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.field === 'name') {
+      e.preventDefault();
+      var ta = root.querySelector('[data-field="raw"][data-id="' + e.target.dataset.id + '"]');
+      if (ta) { try { ta.focus(); } catch (err) {} }
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!confirmState) return;
+    if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); return; }
+    if (e.key === 'Tab') {
+      var buttons = Array.prototype.slice.call(root.querySelectorAll('.modal-actions .btn'));
+      if (!buttons.length) return;
+      var idx = buttons.indexOf(document.activeElement);
+      e.preventDefault();
+      var next = e.shiftKey ? (idx <= 0 ? buttons.length - 1 : idx - 1) : (idx === -1 || idx === buttons.length - 1 ? 0 : idx + 1);
+      try { buttons[next].focus(); } catch (err) {}
+    }
+  });
+
+  window.addEventListener('pagehide', flushSaves);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(); });
+
+  paint();
+  initStore();
+})();
+</script>
+
+</body></html>

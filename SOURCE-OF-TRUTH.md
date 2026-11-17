@@ -73,15 +73,6 @@ rows. A change the reviewer cannot see is a change they cannot catch.
 Editing a script again must be safe. Previous work is never silently thrown
 away, and an interrupted run costs at most the scripts in flight.
 
-**4.6 Nothing is paid for twice.**
-The only thing in this tool that spends usage is the edit call. One script is
-one call. The page never asks Claude to do what it can do itself (stripping
-stage cues, capitalizing sentence starts, finding a verse in the text), never
-asks for text it already has (a verse is returned as two short anchors, not
-re-typed), and never makes a second call for a script except a single retry
-when the answer could not be read. A full-rewrite fallback is not allowed: it
-costs a whole script's worth of output and hides the edit table.
-
 ## 5. The editing instructions
 
 The editing behaviour lives in `src/app/09-prompts.js`. It is the heart of the
@@ -102,11 +93,6 @@ tool. The instructions cover, in this order of priority:
    misheard words corrected inside the quote.
 4. **Flagging** — anything that still does not make sense, with a best guess
    at what is wrong.
-
-The page does three things locally so the prompt never has to ask for them:
-stage cues and pause marks are stripped before the text is sent, sentence
-starts are capitalized as a safety net after the answer comes back, and each
-verse is located in the corrected text from the short anchors Claude returns.
 
 Changing this file changes what the tool produces. Treat it as the highest-risk
 change in the repository: make one adjustment at a time, run it against a
@@ -139,8 +125,6 @@ Things that are deliberately *not* in the tool, and why:
 | Rewriting or improving prose | See 4.1 — that is a different tool. |
 | Audio or Descript integration | The transcript is the input; keep the surface small. |
 | Metadata, summaries, plan ads | Those live in the per-book metadata Google Doc, not here. |
-| A second "full rewrite" call when edits don't place | See 4.6. Unplaced edits are shown for a hand check instead; Redo is the user's call. |
-| Instructions for things the page does locally | Every character of the prompt is paid for on every script. |
 
 ## 8. Before you change anything
 
@@ -149,8 +133,6 @@ Things that are deliberately *not* in the tool, and why:
 - [ ] Does it fall on the wrong side of section 7?
 - [ ] If it touches `09-prompts.js`, has it been run against a script whose
       correct output is already known?
-- [ ] Does it add tokens to every call? If so, is each one earning its place
-      (section 4.6)?
 - [ ] Does `node build.js --check` pass, with `src/` and `dist/` committed
       together?
 - [ ] Is the previous `dist/index.html` still reachable in git history, so the
