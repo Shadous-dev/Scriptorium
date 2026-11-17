@@ -1,5 +1,6 @@
 /* 01-state.js — App root element and the in-memory state shape. */
   var root = document.getElementById('app-root');
+  var VERSION = '1.0.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -12,7 +13,7 @@
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
-             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null };
+             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null, createdAt: 0 };
   }
   function loadSeed() {
     try {
@@ -29,7 +30,8 @@
   var confirmState = null;     // { title, body, warn, confirmLabel, onConfirm }
   var clearing = false;
 
-  function uid() { var id = 's' + state.nextId; state.nextId += 1; return id; }
+  // Not a counter: two people adding a script to the same book at the same moment must not get the same id.
+  function uid() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function newSection() { return newSectionRaw(uid()); }
   function findSection(id) { return state.sections.filter(function (x) { return x.id === id; })[0]; }
 

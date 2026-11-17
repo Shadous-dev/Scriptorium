@@ -33,6 +33,9 @@ YouVersion, plus caption files that make every word of the guide searchable.
 
 ## Using it
 
+0. **Pick a book, or start one.** The front page lists every book the team
+   has. Each is its own workbench, shared with everyone: open one to pick up
+   where anyone left off, or use **+ New Book**.
 1. **Paste in the transcripts.** One card per script — an intro, each chapter, a
    conclusion. Name the book and list the names the speaker uses that Descript
    is likely to mangle.
@@ -69,9 +72,11 @@ YouVersion, plus caption files that make every word of the guide searchable.
 
 ### Known limits
 
-- **One shared workbench.** Everyone who can edit the artifact sees and changes
-  the same set of scripts. **Clear All** clears it for everyone. Work on one
-  book at a time, as a team.
+- **Books are shared, not live.** Everyone sees the same books, but a book is
+  read when you open it. If two people type in the same script at the same
+  time, the last save wins. Different scripts in the same book are safe.
+- **Saving needs Contributor access.** Someone who can only view the artifact
+  can read the books but not change them.
 - **Captions are pasted in by hand for now.** Pulling transcripts and captions
   straight from the TTW Drive in Descript is in scope (see
   `SOURCE-OF-TRUTH.md`) but not built yet.
@@ -115,7 +120,7 @@ src/
     03-text.js        locating and applying edits; verse quoting and layout
     04-render.js      all HTML rendering, plus focus-preserving repaints
     05-capabilities.js runtime capability lookup
-    06-store.js       persistence — one small document per script, one per script's captions
+    06-store.js       persistence — the shared library of books; per book, a document per script and per script's captions
     07-fields.js      reading form fields back out of the DOM
     08-actions.js     add, remove, collapse, copy
     09-prompts.js     THE EDITING INSTRUCTIONS — see SOURCE-OF-TRUTH.md
@@ -160,7 +165,7 @@ them (with that feature switched off):
 | Capability | Used for |
 |---|---|
 | `sample` | the edit pass — the one thing that spends usage |
-| `db` | saving the workbench (`state/meta`, `scripts/<id>`, `captions/<id>`) |
+| `db` | saving the library (`books/<book>`, and under it `scripts/<script>` and `captions/<script>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
 
@@ -182,17 +187,22 @@ be rolled back — the built file at any commit is a working Scriptorium.
 
 ## Versions
 
-Tags mark publishable states. `git show v1:dist/index.html` gets you back to
-any of them.
+Version numbers start at 1.0.0, the first release meant for the whole team.
+The page shows its version at the foot, and that number matches the git tag it
+was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
-| `v1` | The tool as first published. Still has the full-rewrite fallback. |
-| `v3` | Mechanical fixes (spacing, quotes, capitals, names) moved into free local code. |
-| `v4` | Caption files (`.srt`, `.vtt`), and this repository made the one source of truth. _Not tagged until it is published._ |
+| `v1.0.0` | The first team release: a shared library of books, caption files (`.srt`, `.vtt`), and this repository as the one source of truth. _Tagged when it is published._ |
+| `prototype-3` | The last prototype: mechanical fixes moved into free local code. |
+| `prototype-1` | The first prototype, as first published. Still has the full-rewrite fallback. |
 
-`v2` (the cost-reduction pass) was never committed as a complete tree, so it
-cannot be restored. What it changed is in `CHANGELOG.md`.
+Prototype 2 (the cost-reduction pass) was never committed as a complete tree,
+so it cannot be restored. What it changed is in `CHANGELOG.md`.
+
+To release a new version: change `VERSION` in `src/app/01-state.js`, add a
+section to `CHANGELOG.md`, run `node build.js`, commit, publish
+`dist/index.html`, then tag that commit.
 
 ## Before changing anything
 

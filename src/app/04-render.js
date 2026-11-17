@@ -172,7 +172,55 @@
     return everSaved ? 'All changes saved' : '';
   }
 
-  function renderApp() {
+  function versionLine() { return '<p class="version-line">The Scriptorium ' + esc(VERSION) + '</p>'; }
+
+  function noticeHtml() {
+    var notice = '';
+    if (dbStatus === 'unavailable') notice = '<p class="notice notice-warn">Saved work can’t be reached in this view, so anything you change here won’t be kept. Reload the page, or open the artifact from your Claude gallery.</p>';
+    else if (saveError) notice = '<p class="notice notice-warn">' + esc(saveError) + '</p>';
+    if (flash) notice += '<div class="notice notice-info"><span>' + esc(flash) + '</span><button type="button" class="notice-dismiss" data-action="dismiss-flash" aria-label="Dismiss">×</button></div>';
+    return notice;
+  }
+
+  function renderBookRow(b) {
+    var busy = deletingBook === b.id;
+    var bits = [b.scripts + ' script' + plural(b.scripts)];
+    if (b.scripts) bits.push(b.edited + ' edited');
+    if (b.at) bits.push('last worked on ' + relTime(b.at));
+    return '<article class="book-row' + (busy ? ' is-busy' : '') + '">' +
+      '<button type="button" class="book-open" data-action="open-book" data-id="' + escAttr(b.id) + '"' + (busy ? ' disabled' : '') + '>' +
+      '<span class="book-name' + (b.title ? '' : ' is-untitled') + '">' + esc(b.title || 'Untitled book') + '</span>' +
+      '<span class="book-meta">' + esc(busy ? 'Deleting…' : bits.join(' · ')) + '</span></button>' +
+      '<button type="button" class="link-btn book-delete" data-action="delete-book" data-id="' + escAttr(b.id) + '"' + (busy ? ' disabled' : '') + '>Delete</button>' +
+      '</article>';
+  }
+
+  // The front page: every book the team has, each one its own workbench.
+  function renderLibrary() {
+    var loading = dbStatus === 'loading';
+    return (
+      '<div class="wrap">' +
+      '<header class="hero">' +
+      '<p class="eyebrow">Through the Word · Script Workbench</p>' +
+      '<h1 class="library-title">The Scriptorium</h1>' +
+      '<p class="dek">Turn Descript’s AI transcript of each audio guide into a clean, accurate script and searchable caption files. Every book below is shared with the whole team: open one to pick up where anyone left off.</p>' +
+      '</header>' +
+      noticeHtml() +
+      '<div class="action-bar">' +
+      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="new-book"' + (loading ? ' disabled' : '') + '>+ New Book</button></div>' +
+      '<p class="status-line">' + (loading ? 'Loading the team’s books…' : library.length + ' book' + plural(library.length)) + '</p>' +
+      '</div>' +
+      (loading ? renderSkeleton() :
+        library.length ? '<div class="book-list">' + library.map(renderBookRow).join('') + '</div>' :
+        '<p class="library-empty">No books yet. Start one with <strong>+ New Book</strong> — everyone on the team will see it here.</p>') +
+      versionLine() +
+      '</div>' + renderModal()
+    );
+  }
+
+  function renderApp() { return view === 'library' ? renderLibrary() : renderBook(); }
+
+  function renderBook() {
     var loading = dbStatus === 'loading';
     var anyEdited = state.sections.some(function (s) { return s.status === 'edited'; });
     var editRunning = !!editState || state.sections.some(function (s) { return s.status === 'editing'; });
@@ -185,16 +233,14 @@
     var dis = loading ? ' disabled' : '';
     var anyCaptions = state.sections.some(function (s) { return s.status === 'edited' && (s.captions || '').trim(); });
 
-    var notice = '';
-    if (dbStatus === 'unavailable') notice = '<p class="notice notice-warn">Saved work can’t be reached in this view, so anything you change here won’t be kept. Reload the page, or open the artifact from your Claude gallery.</p>';
-    else if (saveError) notice = '<p class="notice notice-warn">' + esc(saveError) + '</p>';
-    if (flash) notice += '<div class="notice notice-info"><span>' + esc(flash) + '</span><button type="button" class="notice-dismiss" data-action="dismiss-flash" aria-label="Dismiss">×</button></div>';
+    var notice = noticeHtml();
 
     var editLabel = editRunning ? 'Editing…' : (toEdit && toEdit < state.sections.length ? 'Edit ' + toEdit + ' Script' + plural(toEdit) : 'Edit All Scripts');
     var saveLabel = saveStateLabel();
 
     return (
       '<div class="wrap">' +
+      (dbRoot ? '<p class="back-line"><button type="button" class="link-btn" data-action="go-library">← All books</button></p>' : '') +
       '<header class="hero">' +
       '<p class="eyebrow">Through the Word · Script Workbench</p>' +
       '<input class="title-field" data-field="bookTitle" type="text" placeholder="Untitled book or plan" value="' + escAttr(state.bookTitle) + '" aria-label="Book or plan title"' + dis + '>' +
@@ -242,6 +288,7 @@
         '<p class="hint">An .srt and a .vtt for every edited script that has timed captions, in one .zip.</p>' +
         '</div>' +
         '</footer>') +
+      versionLine() +
       '</div>' + renderModal()
     );
   }

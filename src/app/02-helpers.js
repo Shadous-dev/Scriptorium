@@ -23,9 +23,8 @@
   function prefGet(key, fallback) { try { var v = localStorage.getItem('scriptorium.' + key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }
   function prefSet(key, value) { try { localStorage.setItem('scriptorium.' + key, JSON.stringify(value)); } catch (e) {} }
 
-  var collapsed = {};
-  (prefGet('collapsed', []) || []).forEach(function (id) { collapsed[id] = true; });
-  function persistCollapsed() { prefSet('collapsed', Object.keys(collapsed)); }
+  var collapsed = {};          // filled per book when one is opened (loadCollapsed)
+  function persistCollapsed() { if (bookId) prefSet('collapsed.' + bookId, Object.keys(collapsed)); }
   var concurrency = prefGet('concurrency', 2) === 1 ? 1 : 2;
   var repairParagraphs = prefGet('repairParagraphs', true) !== false;
   var docMode = prefGet('docMode', 'perScript') === 'one' ? 'one' : 'perScript';

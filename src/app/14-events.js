@@ -12,6 +12,10 @@
     if (action === 'confirm-ok') { var fn = confirmState && confirmState.onConfirm; if (fn) fn(); return; }
     if (action === 'dismiss-flash') { flash = null; paint(); return; }
     if (action === 'clear-all') { askClearAll(); return; }
+    if (action === 'new-book') { createBook(); return; }
+    if (action === 'open-book') { openBook(id); return; }
+    if (action === 'delete-book') { askDeleteBook(id); return; }
+    if (action === 'go-library') { leaveBook(); return; }
     if (action === 'add-section') addSection();
     else if (action === 'remove-section') removeSection(id);
     else if (action === 'toggle-collapse') toggleCollapse(id);
