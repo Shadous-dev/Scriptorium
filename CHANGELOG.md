@@ -21,6 +21,7 @@ Captions
 
 Source of truth
 - `SOURCE-OF-TRUTH.md` amended first, in its own commits: reading from Descript, caption files and the shared library are in scope; rules 4.7 and 4.8 added.
+- The live artifact was carrying a redesign that was never committed: the page published on 2026-11-13 had the same code as prototype 3 but a different stylesheet and fonts (IBM Plex Sans, a neutral palette, a teal accent for scripture). That design is now `src/styles.css`, with the caption and library styles written to match it, so publishing from the repo no longer undoes it.
 - The repository is now a real working tree. The two archives, `files/`, and the loose module copies at the root are gone; the two prototypes that could be recovered are git tags (`prototype-1`, `prototype-3`) instead.
 - `.gitattributes` keeps every text file LF so `node build.js --check` compares the same bytes on every machine.
 - GitHub runs `node build.js --check` and the caption tests on every push.
