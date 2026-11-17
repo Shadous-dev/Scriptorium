@@ -110,6 +110,14 @@ be rolled back — the built file at any commit is a working Scriptorium.
 before committing; if it fails, the two have drifted and the revert path is no
 longer trustworthy.
 
+## Versions
+
+Tags mark publishable states. `v1` is the tool exactly as it was first
+published; `v2` is the cost-reduction pass (one call per script, no
+full-rewrite fallback, verses by anchor, prompt trimmed); `v3` moves the
+mechanical fixes (spacing, quotes, capitals, names) into free local code. `git show v1:dist/index.html`
+gets you back to any of them.
+
 ## Before changing anything
 
 Read `SOURCE-OF-TRUTH.md`. It states what this tool is for and which behaviours

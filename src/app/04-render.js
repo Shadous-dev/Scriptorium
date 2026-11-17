@@ -12,12 +12,13 @@
   function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : 'chip-' + s.status; }
 
   function changeTable(rows, h1, h2) {
-    return '<table class="misheard-table"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th><th>Why</th></tr></thead><tbody>' +
-      rows.map(function (m) { return '<tr><td class="mono was">' + esc(m.find != null ? m.find : m.heard) + '</td><td class="mono now">' + esc(m.replace != null ? m.replace : m.likely) + '</td><td>' + esc(m.note || '') + '</td></tr>'; }).join('') +
+    var why = rows.some(function (m) { return m.note; });
+    return '<table class="misheard-table"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th>' + (why ? '<th>Why</th>' : '') + '</tr></thead><tbody>' +
+      rows.map(function (m) { return '<tr><td class="mono was">' + esc(m.find != null ? m.find : m.heard) + '</td><td class="mono now">' + esc(m.replace != null ? m.replace : m.likely) + '</td>' + (why ? '<td>' + esc(m.note || '') + '</td>' : '') + '</tr>'; }).join('') +
       '</tbody></table>';
   }
 
-  function renderSectionDetails(s) {
+  function renderSectionDetails(s, blocks) {
     var edits = s.edits || [];
     var misheardRows = edits.length ? edits.filter(function (e) { return e.kind === 'misheard'; }) : (s.misheard || []);
     var verseFixRows = edits.filter(function (e) { return e.kind === 'verse-fix'; });
@@ -29,15 +30,17 @@
     var capCount = grammarRows.filter(function (e) { return e.kind === 'capitalization'; }).length;
     var grammarHtml = grammarRows.length ? '<details class="detail-block detail-fold"><summary>' + grammarRows.length + ' grammar, punctuation &amp; paragraph change' + plural(grammarRows.length) + (joinCount ? ' (' + joinCount + ' paragraph' + plural(joinCount) + ' joined)' : '') + (cueCount ? ' (stage cues removed)' : '') + (capCount ? ' (' + capCount + ' capitalization fix' + (capCount === 1 ? '' : 'es') + ')' : '') + '</summary>' + changeTable(grammarRows, 'Before', 'After') + '</details>' : '';
     var unappliedHtml = (s.unapplied && s.unapplied.length) ? '<div class="detail-block"><h4>Suggested but couldn’t be placed — check by hand</h4>' + changeTable(s.unapplied, 'Looked for', 'Wanted to make it') + '</div>' : '';
-    var placed = (s.verses && s.verses.length) ? layoutBlocks(s).filter(function (b) { return b.type === 'verse'; }).length : 0;
+    var placed = blocks.filter(function (b) { return b.type === 'verse'; }).length;
     var versesHtml = (s.verses && s.verses.length) ?
       '<div class="detail-block"><h4>Scripture used — ' + placed + ' of ' + s.verses.length + ' set in bold' + (placed < s.verses.length ? ' (the rest could not be found in the text)' : '') + '</h4><ul class="verse-list">' +
       s.verses.map(function (v) {
-        var q = String(v.quote || ''); var short = q.length > 90 ? q.slice(0, 88).replace(/\s+\S*$/, '') + '…' : q;
+        var q = v.startsWith ? v.startsWith + ' … ' + v.endsWith : String(v.quote || '');
+        var short = q.length > 90 ? q.slice(0, 88).replace(/\s+\S*$/, '') + '…' : q;
         var label = v.canonical ? esc(refLabel(v)) : '<em>reference unknown — check</em>';
         if (v.reference) label += '<span class="verse-spoken">spoken: ' + esc(v.reference) + '</span>';
-        var warn = (v.confidence === 'low' || !v.canonical) ? '<span class="verse-warn">' + esc(v.note || (v.canonical ? 'Not sure of this reference' : 'Could not work out the reference')) + '</span>' : '';
-        return '<li' + ((v.confidence === 'low' || !v.canonical) ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + '</span></li>';
+        var unsure = isUncertain(v);
+        var warn = unsure ? '<span class="verse-warn">' + esc(v.note || (v.canonical ? 'Not sure of this reference' : 'Could not work out the reference')) + '</span>' : '';
+        return '<li' + (unsure ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + '</span></li>';
       }).join('') + '</ul></div>' : '';
     var nonsenseHtml = (s.nonsensical && s.nonsensical.length) ?
       '<div class="detail-block"><h4>Doesn’t quite make sense</h4><ul class="flag-list">' +
@@ -50,7 +53,7 @@
     if (s.status !== 'edited') return '';
     var bits = [];
     if (s.verses && s.verses.length) {
-      var unsure = s.verses.filter(function (v) { return v.confidence === 'low' || !v.canonical; }).length;
+      var unsure = s.verses.filter(isUncertain).length;
       bits.push(s.verses.length + ' verse' + plural(s.verses.length) + (unsure ? ' (' + unsure + ' to check)' : ''));
     }
     if (s.misheard && s.misheard.length) bits.push(s.misheard.length + ' misheard');
@@ -70,11 +73,12 @@
       '</div>';
     if (isCollapsed) return '<article class="section-card is-collapsed" data-section="' + s.id + '">' + head + '</article>';
 
-    var corrected = s.corrected ? blocksToHtml(layoutBlocks(s), false) : 'Not edited yet — click “Edit All Scripts” above.';
+    var blocks = s.corrected ? layoutBlocks(s) : [];
+    var corrected = s.corrected ? blocksToHtml(blocks, false) : 'Not edited yet — click “Edit All Scripts” above.';
     var extra = '';
     if (s.status === 'edited') {
       extra = (isStale(s) ? '<p class="stale-note">The transcript has changed since this was edited — run Edit again to refresh the corrected script.</p>' : '') +
-        renderSectionDetails(s) +
+        renderSectionDetails(s, blocks) +
         '<p class="redo-line"><button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Redo this one</button></p>';
     }
     if (s.status === 'error' && s.error === '__stopped__') extra = '<p class="section-error">Stopped before this one finished. <button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Try again</button></p>';
@@ -97,7 +101,7 @@
     var rows = state.sections.map(function (s) {
       var detail;
       if (s.status === 'edited') {
-        var unsureRefs = (s.verses || []).filter(function (v) { return v.confidence === 'low' || !v.canonical; }).length;
+        var unsureRefs = (s.verses || []).filter(isUncertain).length;
         detail = (s.verses || []).length + ' verse' + plural((s.verses || []).length) + (unsureRefs ? ' (' + unsureRefs + ' reference' + plural(unsureRefs) + ' to check)' : '') + ', ' + s.misheard.length + ' misheard word' + plural(s.misheard.length) + ', ' + s.nonsensical.length + ' sentence' + plural(s.nonsensical.length) + ' to double-check' + (isStale(s) ? ' — transcript changed since' : '');
       }
       else if (s.status === 'error' && s.error === '__stopped__') detail = 'stopped before finishing';

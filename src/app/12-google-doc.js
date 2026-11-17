@@ -15,18 +15,18 @@
   function docBody() {
     return '<h1>' + esc(docTitle()) + '</h1>' + state.sections.map(function (s) { return scriptBody(s, true); }).join('');
   }
-  function docHtml() { return '<html><body>' + docBody() + '</body></html>'; }
-  function scriptDocHtml(s) { return '<html><body><h1>' + esc(s.name || 'Untitled script') + '</h1>' + scriptBody(s, false) + '</body></html>'; }
   var DOC_STYLE = '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.55;color:#222}p{margin:0}h1{font-size:26px}h2{font-size:19px;margin-top:36px}em{color:#777}blockquote{margin:0 0 0 24px;padding-left:12px;border-left:3px solid #c9b48a}</style>';
-  function downloadHtml() {
-    return '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(docTitle()) + '</title>' + DOC_STYLE + '</head><body>' + docBody() + '</body></html>';
+  // One wrapper for every document the tool emits: Drive gets a bare document, the download a styled one.
+  function wrapDoc(body, styled) {
+    return styled ? '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(docTitle()) + '</title>' + DOC_STYLE + '</head><body>' + body + '</body></html>' : '<html><body>' + body + '</body></html>';
   }
+  function scriptDocHtml(s) { return wrapDoc('<h1>' + esc(s.name || 'Untitled script') + '</h1>' + scriptBody(s, false), false); }
   function downloadName() { return ((state.bookTitle.trim() || 'audio-guide').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'audio-guide') + '-scripts.html'; }
 
   function saveDownload(isFallback) {
     return useCap('downloads').then(function (downloads) {
       if (!downloads) { state.docResult = { method: 'error', message: 'Downloads aren’t available in this view — use Copy on each corrected script instead.' }; return; }
-      return downloads.save({ filename: downloadName(), data: downloadHtml() }).then(function () {
+      return downloads.save({ filename: downloadName(), data: wrapDoc(docBody(), true) }).then(function () {
         state.docResult = { method: 'download', at: Date.now() };
       }).catch(function (err) {
         if (err && err.code === 'declined') state.docResult = isFallback ? { method: 'error', message: 'Google Drive isn’t connected, and the file save was declined. Connect Google Drive in Settings → Connectors, or try again.' } : null;
@@ -67,7 +67,7 @@
       return driveTool(mcp).then(function (toolName) {
         if (!toolName) return false;
         if (docMode !== 'perScript') {
-          return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: docHtml(), contentMimeType: 'text/html' }).then(function (res) {
+          return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: wrapDoc(docBody(), false), contentMimeType: 'text/html' }).then(function (res) {
             var url = urlOf(payloadOf(res));
             state.docResult = { method: 'drive', url: url || '#', at: Date.now() };
             if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }

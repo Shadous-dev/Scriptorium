@@ -84,17 +84,32 @@
     return '"' + inner + '"';
   }
 
+  function isUncertain(v) { return v.confidence === 'low' || !v.canonical; }
+
+  // Where a verse sits in the corrected text. New results carry two short anchors (the first
+  // and last few words); older saved results carry the whole quote. Either way the text itself
+  // is the source — the span is found here, not re-typed by the editor.
+  function verseSpan(text, v) {
+    if (v.startsWith) {
+      var head = locate(text, v.startsWith, 0, true); if (!head) return null;
+      var tail = v.endsWith ? locate(text, v.endsWith, head.start, true) : null;
+      if (!tail || tail.start < head.start || tail.end - head.start > 2500) return null;
+      return { start: head.start, end: tail.end };
+    }
+    var quote = String(v.quote || ''); if (!quote) return null;
+    var q = locate(text, quote, 0, true);
+    if (!q && quote.length > 60) {
+      var h = locate(text, quote.slice(0, 50), 0, true);
+      if (h) q = { start: h.start, end: Math.min(text.length, h.start + quote.length) };
+    }
+    return q;
+  }
+
   function layoutBlocks(s) {
     var text = String(s.corrected || '');
     var hits = [];
     (s.verses || []).forEach(function (v) {
-      var quote = String((v && v.quote) || ''); if (!quote) return;
-      var q = locate(text, quote, 0, true);
-      if (!q && quote.length > 60) {
-        var head = locate(text, quote.slice(0, 50), 0, true);
-        if (head) q = { start: head.start, end: Math.min(text.length, head.start + quote.length) };
-      }
-      if (!q) return;
+      var q = v && verseSpan(text, v); if (!q) return;
       var st = q.start, en = q.end;
       while (st > 0 && /["“]/.test(text[st - 1])) st--;
       while (en < text.length && /["”]/.test(text[en])) en++;
@@ -120,7 +135,7 @@
       // turn any double quotes still inside it into single quotes for the speech within the verse,
       // then wrap the whole verse in one clean pair of double quotes.
       inner = normalizeVerseQuotes(inner);
-      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: h.verse.confidence === 'low' || !h.verse.canonical, note: String(h.verse.note || '') });
+      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: isUncertain(h.verse), note: String(h.verse.note || '') });
       pos = h.end;
     });
     prose(text.slice(pos));

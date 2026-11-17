@@ -409,17 +409,32 @@ input:disabled, textarea:disabled { cursor: wait; }
     return '"' + inner + '"';
   }
 
+  function isUncertain(v) { return v.confidence === 'low' || !v.canonical; }
+
+  // Where a verse sits in the corrected text. New results carry two short anchors (the first
+  // and last few words); older saved results carry the whole quote. Either way the text itself
+  // is the source — the span is found here, not re-typed by the editor.
+  function verseSpan(text, v) {
+    if (v.startsWith) {
+      var head = locate(text, v.startsWith, 0, true); if (!head) return null;
+      var tail = v.endsWith ? locate(text, v.endsWith, head.start, true) : null;
+      if (!tail || tail.start < head.start || tail.end - head.start > 2500) return null;
+      return { start: head.start, end: tail.end };
+    }
+    var quote = String(v.quote || ''); if (!quote) return null;
+    var q = locate(text, quote, 0, true);
+    if (!q && quote.length > 60) {
+      var h = locate(text, quote.slice(0, 50), 0, true);
+      if (h) q = { start: h.start, end: Math.min(text.length, h.start + quote.length) };
+    }
+    return q;
+  }
+
   function layoutBlocks(s) {
     var text = String(s.corrected || '');
     var hits = [];
     (s.verses || []).forEach(function (v) {
-      var quote = String((v && v.quote) || ''); if (!quote) return;
-      var q = locate(text, quote, 0, true);
-      if (!q && quote.length > 60) {
-        var head = locate(text, quote.slice(0, 50), 0, true);
-        if (head) q = { start: head.start, end: Math.min(text.length, head.start + quote.length) };
-      }
-      if (!q) return;
+      var q = v && verseSpan(text, v); if (!q) return;
       var st = q.start, en = q.end;
       while (st > 0 && /["“]/.test(text[st - 1])) st--;
       while (en < text.length && /["”]/.test(text[en])) en++;
@@ -445,7 +460,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       // turn any double quotes still inside it into single quotes for the speech within the verse,
       // then wrap the whole verse in one clean pair of double quotes.
       inner = normalizeVerseQuotes(inner);
-      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: h.verse.confidence === 'low' || !h.verse.canonical, note: String(h.verse.note || '') });
+      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: isUncertain(h.verse), note: String(h.verse.note || '') });
       pos = h.end;
     });
     prose(text.slice(pos));
@@ -479,12 +494,13 @@ input:disabled, textarea:disabled { cursor: wait; }
   function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : 'chip-' + s.status; }
 
   function changeTable(rows, h1, h2) {
-    return '<table class="misheard-table"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th><th>Why</th></tr></thead><tbody>' +
-      rows.map(function (m) { return '<tr><td class="mono was">' + esc(m.find != null ? m.find : m.heard) + '</td><td class="mono now">' + esc(m.replace != null ? m.replace : m.likely) + '</td><td>' + esc(m.note || '') + '</td></tr>'; }).join('') +
+    var why = rows.some(function (m) { return m.note; });
+    return '<table class="misheard-table"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th>' + (why ? '<th>Why</th>' : '') + '</tr></thead><tbody>' +
+      rows.map(function (m) { return '<tr><td class="mono was">' + esc(m.find != null ? m.find : m.heard) + '</td><td class="mono now">' + esc(m.replace != null ? m.replace : m.likely) + '</td>' + (why ? '<td>' + esc(m.note || '') + '</td>' : '') + '</tr>'; }).join('') +
       '</tbody></table>';
   }
 
-  function renderSectionDetails(s) {
+  function renderSectionDetails(s, blocks) {
     var edits = s.edits || [];
     var misheardRows = edits.length ? edits.filter(function (e) { return e.kind === 'misheard'; }) : (s.misheard || []);
     var verseFixRows = edits.filter(function (e) { return e.kind === 'verse-fix'; });
@@ -496,15 +512,17 @@ input:disabled, textarea:disabled { cursor: wait; }
     var capCount = grammarRows.filter(function (e) { return e.kind === 'capitalization'; }).length;
     var grammarHtml = grammarRows.length ? '<details class="detail-block detail-fold"><summary>' + grammarRows.length + ' grammar, punctuation &amp; paragraph change' + plural(grammarRows.length) + (joinCount ? ' (' + joinCount + ' paragraph' + plural(joinCount) + ' joined)' : '') + (cueCount ? ' (stage cues removed)' : '') + (capCount ? ' (' + capCount + ' capitalization fix' + (capCount === 1 ? '' : 'es') + ')' : '') + '</summary>' + changeTable(grammarRows, 'Before', 'After') + '</details>' : '';
     var unappliedHtml = (s.unapplied && s.unapplied.length) ? '<div class="detail-block"><h4>Suggested but couldn’t be placed — check by hand</h4>' + changeTable(s.unapplied, 'Looked for', 'Wanted to make it') + '</div>' : '';
-    var placed = (s.verses && s.verses.length) ? layoutBlocks(s).filter(function (b) { return b.type === 'verse'; }).length : 0;
+    var placed = blocks.filter(function (b) { return b.type === 'verse'; }).length;
     var versesHtml = (s.verses && s.verses.length) ?
       '<div class="detail-block"><h4>Scripture used — ' + placed + ' of ' + s.verses.length + ' set in bold' + (placed < s.verses.length ? ' (the rest could not be found in the text)' : '') + '</h4><ul class="verse-list">' +
       s.verses.map(function (v) {
-        var q = String(v.quote || ''); var short = q.length > 90 ? q.slice(0, 88).replace(/\s+\S*$/, '') + '…' : q;
+        var q = v.startsWith ? v.startsWith + ' … ' + v.endsWith : String(v.quote || '');
+        var short = q.length > 90 ? q.slice(0, 88).replace(/\s+\S*$/, '') + '…' : q;
         var label = v.canonical ? esc(refLabel(v)) : '<em>reference unknown — check</em>';
         if (v.reference) label += '<span class="verse-spoken">spoken: ' + esc(v.reference) + '</span>';
-        var warn = (v.confidence === 'low' || !v.canonical) ? '<span class="verse-warn">' + esc(v.note || (v.canonical ? 'Not sure of this reference' : 'Could not work out the reference')) + '</span>' : '';
-        return '<li' + ((v.confidence === 'low' || !v.canonical) ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + '</span></li>';
+        var unsure = isUncertain(v);
+        var warn = unsure ? '<span class="verse-warn">' + esc(v.note || (v.canonical ? 'Not sure of this reference' : 'Could not work out the reference')) + '</span>' : '';
+        return '<li' + (unsure ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + '</span></li>';
       }).join('') + '</ul></div>' : '';
     var nonsenseHtml = (s.nonsensical && s.nonsensical.length) ?
       '<div class="detail-block"><h4>Doesn’t quite make sense</h4><ul class="flag-list">' +
@@ -517,7 +535,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (s.status !== 'edited') return '';
     var bits = [];
     if (s.verses && s.verses.length) {
-      var unsure = s.verses.filter(function (v) { return v.confidence === 'low' || !v.canonical; }).length;
+      var unsure = s.verses.filter(isUncertain).length;
       bits.push(s.verses.length + ' verse' + plural(s.verses.length) + (unsure ? ' (' + unsure + ' to check)' : ''));
     }
     if (s.misheard && s.misheard.length) bits.push(s.misheard.length + ' misheard');
@@ -537,11 +555,12 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</div>';
     if (isCollapsed) return '<article class="section-card is-collapsed" data-section="' + s.id + '">' + head + '</article>';
 
-    var corrected = s.corrected ? blocksToHtml(layoutBlocks(s), false) : 'Not edited yet — click “Edit All Scripts” above.';
+    var blocks = s.corrected ? layoutBlocks(s) : [];
+    var corrected = s.corrected ? blocksToHtml(blocks, false) : 'Not edited yet — click “Edit All Scripts” above.';
     var extra = '';
     if (s.status === 'edited') {
       extra = (isStale(s) ? '<p class="stale-note">The transcript has changed since this was edited — run Edit again to refresh the corrected script.</p>' : '') +
-        renderSectionDetails(s) +
+        renderSectionDetails(s, blocks) +
         '<p class="redo-line"><button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Redo this one</button></p>';
     }
     if (s.status === 'error' && s.error === '__stopped__') extra = '<p class="section-error">Stopped before this one finished. <button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Try again</button></p>';
@@ -564,7 +583,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var rows = state.sections.map(function (s) {
       var detail;
       if (s.status === 'edited') {
-        var unsureRefs = (s.verses || []).filter(function (v) { return v.confidence === 'low' || !v.canonical; }).length;
+        var unsureRefs = (s.verses || []).filter(isUncertain).length;
         detail = (s.verses || []).length + ' verse' + plural((s.verses || []).length) + (unsureRefs ? ' (' + unsureRefs + ' reference' + plural(unsureRefs) + ' to check)' : '') + ', ' + s.misheard.length + ' misheard word' + plural(s.misheard.length) + ', ' + s.nonsensical.length + ' sentence' + plural(s.nonsensical.length) + ' to double-check' + (isStale(s) ? ' — transcript changed since' : '');
       }
       else if (s.status === 'error' && s.error === '__stopped__') detail = 'stopped before finishing';
@@ -968,66 +987,62 @@ input:disabled, textarea:disabled { cursor: wait; }
       } catch (e) { plainOnly(); }
     } else plainOnly();
   }
+  /* ------------------------------------------------------------------
+     One prompt, sent once per script. Every character here is paid for on
+     every call, so it says each rule once and nothing the page already
+     does itself: cues, spacing, quote marks, ellipses, missing full stops,
+     sentence-start capitals, "I", God/Lord, Bible books and listed names
+     are all fixed locally before the text is sent (see mechanics,
+     fixNames and fixCapitals).
+     ------------------------------------------------------------------ */
 
   function promptHeader(section) {
-    return 'You are proofreading an AI-generated transcript of a spoken audio guide. The transcript was produced by Descript listening to a real recording, so it captures the SOUND of the words, not necessarily the correct words — especially unfamiliar names, which often get replaced with an ordinary word or phrase that sounds similar.\n\n' +
+    return 'Proofread this Descript AI transcript of a spoken audio guide. Descript captures the SOUND of words, not always the right words — unfamiliar names often come through as an ordinary phrase that sounds similar.\n\n' +
       'Book or plan: ' + (state.bookTitle || '(untitled)') + '\n' +
       'Script name: ' + (section.name || '(untitled section)') + '\n' +
-      'Names or terms likely to have been misheard (the speaker uses these; the transcript may not): ' + (state.wordsToSearchFor || '(none listed)') + '\n\n' +
-      'What to fix:\n' +
-      '1. GRAMMAR AND PUNCTUATION — the main job. WITHOUT changing the speaker’s wording, meaning, tone, or intent, make every sentence correctly punctuated:\n' +
-      '   - Every question ends with a question mark, including rhetorical questions in mid-flow ("Or was it a Big Bang?"). Transcription usually flattens these to periods; fix them.\n' +
-      '   - Commas where grammar needs them: direct address ("Welcome back, my friends"), introductory phrases, interrupting phrases ("And that, my friends, is how"), and items in a list, with the serial comma ("a, b, and c").\n' +
-      '   - Periods end statements; a full sentence inside parentheses keeps its period inside the parentheses. "?!" is fine where the speaker is clearly exclaiming a question.\n' +
-      '   - Hyphenate compound modifiers before a noun ("so-called", "science-minded", "well-meaning").\n' +
-      '   - CAPITALIZATION must be flawless: the first word of every sentence and of every paragraph is capitalized (transcripts often leave a sentence starting lowercase after a period or a pause — fix every one); "I" is always capital; names, places, books of the Bible, and titles are capitalized consistently (God, Jesus, the Bible, Genesis 1, Big Bang, Young Earth Creationism); ordinary nouns mid-sentence stay lowercase ("my dad", "the church"). Before you finish, scan the whole script once more for any sentence that still begins with a lowercase letter.\n' +
-      '   - Keep deliberate sentence fragments and the speaker’s casual voice ("No soapbox." "Then, 1964."). Do not merge or complete them.\n' +
-      '   - RUN-ON SENTENCES: speech chains clauses together with "and", "so", "but", "because". Where a sentence runs on past two or three clauses, break it up using only punctuation and capitalization, not new words: end a sentence at a natural boundary and start the next with the conjunction ("…tell anyone. But the angel…"), use a semicolon between two closely linked statements, or set off an aside or a sharp turn with an em dash (—). Keep the speaker’s words in their order.\n' +
-      '   - Keep dashes the transcript already has. Add a dash only where it does grammatical work (an aside, a break in thought, a run-on repair), never just to mark a pause.\n' +
-      '   - Use straight double quotes (") for quotations and the single … character for a trailing-off pause, consistently throughout.\n' +
-      '   - Remove anything that is not spoken: bracketed delivery cues such as [HOOK] or [lively], stray pause marks such as a lone underscore, and a standalone section label in capital letters (for example a line reading only BEARINGS). Words spoken in capitals for emphasis stay.\n' +
-      '2. Words or short phrases that are plausible mishearings of a listed name or term (for example "Elihu" heard as "Eli who", or "Zophar" heard as "so far"), and mishearings of other names where the sentence only makes sense with a different word.\n' +
-      '3. SCRIPTURE: the speaker quotes Bible verses, usually introduced by a reference such as "Verse one", "Job 2:4", "Proverbs twenty" or "Isaiah 3 verses two through four". Inside a quoted verse, fix ONLY misheard words (for example "the land of us" to "the land of Uz", "the sabians" to "the Sabeans"). Change nothing else inside a verse — not wording, word order, capitalization, or punctuation, not even a comma you think should be a question mark. Bible translations read oddly on purpose; leave them.\n' +
-      '4. Flag any sentence that still doesn’t make sense after your changes, with your best guess at what is wrong.\n\n';
+      'Names or terms the speaker uses that may be misheard: ' + (state.wordsToSearchFor || '(none listed)') + '\n\n' +
+      'Fix the following WITHOUT changing the speaker’s wording, meaning, tone, or intent:\n' +
+      '1. GRAMMAR AND PUNCTUATION — the main job.\n' +
+      '- Every question ends with a question mark, including rhetorical ones mid-flow ("Or was it a Big Bang?"); transcription flattens these to periods.\n' +
+      '- Commas for direct address ("Welcome back, my friends"), introductory and interrupting phrases, and lists (serial comma).\n' +
+      '- Statements end with periods; a full sentence in parentheses keeps its period inside. "?!" is fine for an exclaimed question.\n' +
+      '- Hyphenate compound modifiers before a noun ("so-called", "well-meaning").\n' +
+      '- CAPITALIZATION: names, places, and titles, consistently; ordinary nouns stay lowercase ("my dad", "the church").\n' +
+      '- Keep deliberate fragments and the casual voice ("No soapbox." "Then, 1964."). Never merge or complete them.\n' +
+      '- RUN-ONS: where a sentence chains past two or three clauses on "and", "so", "but", "because", break it with punctuation and capitalization only — never new words: end at a natural boundary and start the next sentence with the conjunction, use a semicolon between closely linked statements, or set off an aside with an em dash (—). Keep the words in their order.\n' +
+      '- Keep the dashes already there; add one only where it does grammatical work, never just for a pause.\n' +
+      '- Remove a line that is only a section label in capitals (e.g. BEARINGS). Words spoken in capitals for emphasis stay.\n' +
+      '2. MISHEARD WORDS: plausible mishearings of a listed name or term ("Eli who" for Elihu, "so far" for Zophar), and other names where the sentence only makes sense with a different word.\n' +
+      '3. SCRIPTURE: the speaker quotes Bible verses, usually after a reference ("Verse one", "Job 2:4", "Isaiah 3 verses two through four"). Inside a quoted verse fix ONLY misheard words ("the land of us" to "the land of Uz"); change nothing else — not wording, order, capitalization, or punctuation, even where it looks wrong. Translations read oddly on purpose.\n' +
+      '4. Flag any sentence that still makes no sense after your edits, with your best guess at what is wrong.\n\n';
   }
 
+  // Verses come back as short anchors, not the whole quotation: the page finds the span between
+  // them in the corrected text itself (layoutBlocks), so Claude is never paid to re-type a verse.
   function versesSpec() {
-    return '"verses": every Bible quotation in the script, in order, each with:\n' +
-      ' - "reference": the reference phrase exactly as the speaker says it, copied from the text (for example "Verse one", "Job 2:4", "Proverbs twenty"), or "" if none is spoken nearby. Read it carefully — "In verse four" means verse four.\n' +
-      ' - "quote": the quoted verse text, copied exactly as it reads AFTER your corrections, from its first word to its last, WITHOUT the surrounding quotation marks. If the Bible verse itself contains narration (for example: "How will this be," Mary asked the angel, "since I am a virgin?"), include that narration — the quote is the whole verse as it appears in the Bible. Never include the speaker’s own commentary. In the corrected text itself, every quoted verse is wrapped in double quotation marks, and any speech inside a verse uses single quotation marks (\'Do not be afraid, Zechariah; your prayer has been heard.\').\n' +
-      ' - "canonical": the standard reference — Book Chapter:Verse, or Chapter:Verse-Verse for a span (for example "Luke 1:30-33") — worked out from the book or chapter this script covers (see the script name), the spoken reference, and the quoted words themselves: count how many verses the quotation actually runs through.\n' +
-      ' - "confidence": "high" only when you are sure of the canonical reference; otherwise "low".\n' +
-      ' - "note": "" when confident; otherwise a few words on the doubt (the spoken reference and the quoted words disagree, the book is unclear, the span is uncertain).\n';
+    return '"verses": every Bible quotation, in order. Each: "reference" — the reference phrase as spoken nearby, copied from the text ("Verse one", "Job 2:4"), or "" if none; ' +
+      '"startsWith" — the first 4 to 6 words of the quoted verse as it reads after your edits, copied exactly, without the opening quotation mark; "endsWith" — its last 4 to 6 words, likewise; ' +
+      '"canonical" — Book Chapter:Verse, or Chapter:Verse-Verse for a span ("Luke 1:30-33"), worked out from the book this script covers, the spoken reference, and the quoted words (count the verses it runs through); ' +
+      '"confidence" — "high" only when sure of the canonical reference, else "low"; "note" — "" when confident, else a few words on the doubt.\n' +
+      'A quotation is the whole verse as it appears in the Bible, including narration inside it ("How will this be," Mary asked, "since I am a virgin?"), never the speaker’s commentary. In the corrected text each quoted verse is wrapped in double quotation marks; speech inside a verse uses single quotation marks.\n';
   }
   function joinsSpec() {
     if (!repairParagraphs) return '';
-    return '"joins": places where the transcript breaks a paragraph in the middle of a continuous thought (a pause for breath, not a real change of paragraph). Give each as {"endsWith": "the last five or so words before the break", "startsWith": "the first five or so words after it"}, copied exactly as the text reads after your corrections. Join only breaks that split one flowing thought; leave genuine paragraph changes alone, and never join across the start or end of a quoted verse.\n';
+    return '"joins": paragraph breaks that fall in the middle of one continuous thought (a breath, not a real new paragraph). Each: {"endsWith": "the last five or so words before the break", "startsWith": "the first five or so words after it"}, copied exactly as the text reads after your edits. Leave genuine paragraph changes alone, and never join across the start or end of a quoted verse.\n';
   }
 
-  // Preferred: ask only for the changes. Far less text comes back, so each script finishes much sooner.
-  function buildEditsPrompt(section) {
+  function buildEditsPrompt(section, text) {
     return promptHeader(section) +
-      'Return your corrections as a list of EDITS — do not rewrite the script.\n' +
-      'Each edit has "find": a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes and spacing), long enough to be unambiguous — usually 3 to 15 words, never crossing a blank line — and "replace": the corrected version of exactly that run. List edits in the order they occur. If the same mistake appears several times, give one edit per occurrence. "kind" is "misheard" for a misheard word or name, "verse-fix" for a misheard word inside a quoted verse, otherwise "grammar". Keep "note" to a few words.\n' +
+      'Return your corrections as a list of EDITS, not a rewrite. Each: "find" — a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes, spacing), long enough to be unambiguous, usually 3 to 15 words, never crossing a blank line; "replace" — the corrected version of exactly that run. In order, one per occurrence. ' +
+      'Add "kind": "misheard" for a misheard word or name, or "verse-fix" for one inside a quoted verse, each with a "note" of a few words; grammar edits need neither.\n' +
       versesSpec() +
       joinsSpec() +
-      '"nonsensical": sentences that still don’t make sense after your edits. "summary": one or two plain-language sentences on what kind of corrections you made.\n\n' +
+      '"nonsensical": sentences that still make no sense after your edits. "summary": one or two plain sentences on what you corrected.\n\n' +
       'Return ONLY this JSON object:\n' +
-      '{"edits":[{"find":"","replace":"","kind":"grammar","note":""}],"verses":[{"reference":"","quote":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
+      '{"edits":[{"find":"","replace":""}],"verses":[{"reference":"","startsWith":"","endsWith":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
       'Use empty arrays when there is nothing to report. No text outside the JSON.\n\n' +
-      'TRANSCRIPT:\n"""\n' + textForEdit(section) + '\n"""';
+      'TRANSCRIPT:\n"""\n' + text + '\n"""';
   }
-
-  // Fallback: the whole corrected script, used when the edit list could not be placed cleanly.
-  function buildFullPrompt(section) {
-    return promptHeader(section) +
-      'Return ONLY this JSON object:\n' +
-      '{"correctedText": "the full corrected script, as continuous text, keeping the original paragraph breaks", "changeCount": 0, "summary": "one or two sentences describing what kind of corrections you made, in plain language", "misheard": [{"heard": "what the transcript said", "likely": "what it was probably supposed to be", "note": "why, in a few words"}], "verses": [{"reference": "", "quote": "", "canonical": "", "confidence": "high", "note": ""}], ' + (repairParagraphs ? '"joins": [{"endsWith": "", "startsWith": ""}], ' : '') + '"nonsensical": [{"original": "the confusing sentence or phrase, quoted", "issue": "what does not add up and your best guess at the fix"}]}\n' +
-      versesSpec() + joinsSpec() +
-      'Use empty arrays when there is nothing to report. Do not include any text outside the JSON object.\n\n' +
-      'TRANSCRIPT:\n"""\n' + textForEdit(section) + '\n"""';
-  }
-
   function sampleErrorMessage(err) {
     var code = err && err.code;
     if (code === 'not_granted') return 'permission to use Claude was declined';
@@ -1039,25 +1054,73 @@ input:disabled, textarea:disabled { cursor: wait; }
     return (err && err.message) || 'something went wrong';
   }
 
-  // Stage cues and pause marks are notes to the narrator, not spoken words: take them out before editing.
-  function stripCues(text) {
-    var removed = [];
-    var out = String(text || '').replace(/[ \t]*\[[^\]\n]{1,120}\][ \t]*/g, function (m) { removed.push(m.trim()); return ' '; });
-    out = out.replace(/(^|\s)_+(?=\s|$)/g, function (m, lead) { removed.push('_'); return lead; });
-    out = out.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
-    return { text: out, removed: removed };
-  }
-  function textForEdit(s) { return stripCues(s.raw).text; }
+  /* ------------------------------------------------------------------
+     Local mechanics — everything with a deterministic answer is done here,
+     free, BEFORE the text is sent, so Claude is never paid to find it or to
+     return it. Judgment calls (run-ons, comma splices, misheard words,
+     scripture) stay with the editor. Each pass records what it did so the
+     change table stays complete (SSOT 4.4).
+     ------------------------------------------------------------------ */
 
-  // Safety net: whatever the editor returns, no sentence or paragraph may start lowercase.
-  // Abbreviations, initials, decimals and trailing-off dots are left alone.
+  var CUE_RE = /[ \t]*\[[^\]\n]{1,120}\][ \t]*/g, PAUSE_RE = /(^|\s)_+(?=\s|$)/g;
+  var MECH = [                                   // [pattern, replacement] — spacing, marks, sentence ends
+    [/[“”]/g, '"'], [/\.\s?\.\s?\.|\u2026+/g, '…'], [/--/g, '—'],
+    [/[ \t]+([,.;:!?…])/g, '$1'],                // no space before punctuation
+    [/([,;!?])(?=[A-Za-z])/g, '$1 '],            // a space after it
+    [/(\w{2,})\.(?=[A-Z][a-z])/g, '$1. ']        // "word.Next" — but not "a.m."
+  ];
+  // A paragraph that just stops gets its period — AFTER joins, so a mid-thought break is closed up, not ended.
+  var END_RE = /([A-Za-z0-9])("?)(?=[ \t]*(?:\n[ \t]*\n|$))/g;
+  function endSentences(text, intoEdits) {
+    var hits = text.match(END_RE);
+    if (hits) { text = text.replace(END_RE, '$1.$2'); tally(intoEdits, 'spacing', hits.length, 'period added where a paragraph just stopped'); }
+    return text;
+  }
   var ABBREV = /(?:\b(?:mr|mrs|ms|dr|st|vs|etc|jr|sr|no|cf|approx|dept|inc|co|ch|vv?)|\be\.g|\bi\.e|\ba\.k\.a|\b[A-Za-z])\.$/i;
+  var BOOKS = 'genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|samuel|kings|chronicles|ezra|nehemiah|esther|job|psalms?|proverbs|ecclesiastes|song of songs|song of solomon|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|corinthians|galatians|ephesians|philippians|colossians|thessalonians|timothy|titus|philemon|hebrews|james|peter|jude|revelation';
+  var BOOK_RE = new RegExp('\\b([123] )?(' + BOOKS + ')(?= \\d)', 'gi');   // a book name followed by a chapter
+  var SURE = 'jesus christ bible israel jerusalem satan moses abraham isaac jacob joseph david solomon elijah elisha isaiah jeremiah ezekiel daniel paul peter pharisees egypt babylon bethlehem nazareth galilee'.split(' ');
+  var SURE_RE = new RegExp('\\b(' + SURE.join('|') + ')\\b', 'gi');
+  var GOD_RE = /\b(?<!\b(?:a|an|false|other|their|your|no|any|strange|pagan|greek|roman)\s)god\b(?!s)/gi;
+  var LORD_RE = /\blord\b(?!s)/gi, SPIRIT_RE = /\bholy spirit\b/gi, I_RE = /\bi(?=['’\s]|$)/g;
+
+  function cap(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }
+  function tally(intoEdits, kind, count, label) {
+    if (count) intoEdits.push({ find: label, replace: '', kind: kind, note: count + ' place' + plural(count) });
+  }
+
+  // Cues and pause marks out; spacing, quote marks, ellipses and sentence ends made regular.
+  function mechanics(text, intoEdits) {
+    var cues = [];
+    text = String(text || '').replace(CUE_RE, function (m) { cues.push(m.trim()); return ' '; }).replace(PAUSE_RE, function (m, lead) { cues.push('_'); return lead; });
+    if (cues.length) intoEdits.push({ find: cues.slice(0, 12).join(' ') + (cues.length > 12 ? ' …' : ''), replace: '', kind: 'cue', note: 'removed ' + cues.length + ' stage cue' + plural(cues.length) + ' / pause mark' + plural(cues.length) });
+    text = text.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+    var n = 0;
+    MECH.forEach(function (r) { var hits = text.match(r[0]); if (hits) { n += hits.length; text = text.replace(r[0], r[1]); } });
+    tally(intoEdits, 'spacing', n, 'spacing, quote marks, ellipses, sentence ends');
+    return text;
+  }
+
+  // Names that are never ordinary words, God and the Lord, "I", Bible books before a chapter
+  // number, and the names the user listed. Each distinct fix is one visible row.
+  function fixNames(text, intoEdits) {
+    var seen = {};
+    function note(from, to) { if (from !== to && !seen[from + '>' + to]) { seen[from + '>' + to] = 1; intoEdits.push({ find: from, replace: to, kind: 'capitalization', note: 'name or title' }); } }
+    function sub(re, fn) { text = text.replace(re, function () { var out = fn.apply(null, arguments); note(arguments[0], out); return out; }); }
+    sub(SURE_RE, function (m) { return cap(m); });
+    sub(BOOK_RE, function (m, num, book) { return (num || '') + book.split(' ').map(cap).join(' '); });
+    sub(GOD_RE, function () { return 'God'; }); sub(LORD_RE, function () { return 'Lord'; }); sub(SPIRIT_RE, function () { return 'Holy Spirit'; }); sub(I_RE, function () { return 'I'; });
+    String(state.wordsToSearchFor || '').split(/[,\n;]+/).forEach(function (w) {
+      w = w.trim(); if (w.length < 2) return;
+      sub(new RegExp('\\b' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi'), function () { return w; });
+    });
+    return text;
+  }
+
+  // No sentence or paragraph may start lowercase. Abbreviations, initials, decimals and trailing-off dots are left alone.
   function fixCapitals(text, intoEdits) {
     var count = 0;
-    function note(before, after) {
-      count += 1;
-      if (count <= 20) intoEdits.push({ find: before, replace: after, kind: 'capitalization', note: 'sentence start' });
-    }
+    function note(before, after) { count += 1; if (count <= 20) intoEdits.push({ find: before, replace: after, kind: 'capitalization', note: 'sentence start' }); }
     text = text.replace(/(^|\n[ \t]*\n[ \t]*)(["“'(]*)([a-z])(\S{0,24})/g, function (m, lead, open, ch, rest) {
       note(open + ch + rest, open + ch.toUpperCase() + rest);
       return lead + open + ch.toUpperCase() + rest;
@@ -1071,26 +1134,24 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (count > 20) intoEdits.push({ find: '(' + (count - 20) + ' more)', replace: '', kind: 'capitalization', note: 'further sentence starts capitalized' });
     return text;
   }
-  function cueEdits(s) {
-    var r = stripCues(s.raw);
-    if (!r.removed.length) return [];
-    var shown = r.removed.slice(0, 12).join(' ') + (r.removed.length > 12 ? ' …' : '');
-    return [{ find: shown, replace: '', kind: 'cue', note: 'removed ' + r.removed.length + ' stage cue' + plural(r.removed.length) + ' / pause mark' + plural(r.removed.length) }];
-  }
 
+  function str(v) { return String(v == null ? '' : v).trim(); }
   function cleanVerses(list) {
     return Array.isArray(list) ? list.map(function (v) {
-      var conf = String((v && v.confidence) || '').toLowerCase() === 'low' ? 'low' : 'high';
-      return { reference: String((v && v.reference) || '').trim(), quote: String((v && v.quote) || '').trim().replace(/^["\u201C]+|["\u201D]+$/g, ''),
-               canonical: String((v && v.canonical) || '').trim(), confidence: conf, note: String((v && v.note) || '').trim() };
-    }).filter(function (v) { return v.quote; }) : [];
+      v = v || {};
+      return { reference: str(v.reference), startsWith: str(v.startsWith).replace(/^["\u201C]+/, ''), endsWith: str(v.endsWith).replace(/["\u201D]+$/, ''),
+               canonical: str(v.canonical), confidence: str(v.confidence).toLowerCase() === 'low' ? 'low' : 'high', note: str(v.note) };
+    }).filter(function (v) { return v.startsWith; }) : [];
+  }
+  function cleanNonsense(list) {
+    return Array.isArray(list) ? list.map(function (n) { n = n || {}; return { original: str(n.original), issue: str(n.issue) }; }) : [];
   }
 
   // Close the paragraph breaks the editor says fall mid-thought. Each join becomes a visible "paragraph" edit.
   function applyJoins(text, joins, intoEdits) {
     if (!repairParagraphs || !Array.isArray(joins)) return text;
     joins.forEach(function (j) {
-      var a = String((j && j.endsWith) || '').trim(), b = String((j && j.startsWith) || '').trim();
+      var a = str(j && j.endsWith), b = str(j && j.startsWith);
       if (!a || !b) return;
       var ha = locate(text, a, 0, false); if (!ha) return;
       var gap = text.slice(ha.end).match(/^\s*\n\s*\n\s*/); if (!gap) return;
@@ -1101,58 +1162,34 @@ input:disabled, textarea:disabled { cursor: wait; }
     });
     return text;
   }
-  function cleanNonsense(list) {
-    return Array.isArray(list) ? list.map(function (n) { return { original: String((n && n.original) || ''), issue: String((n && n.issue) || '') }; }) : [];
-  }
 
-  function finishSection(s, fields) {
-    s.corrected = fields.corrected; s.summary = fields.summary; s.changeCount = fields.changeCount;
-    s.misheard = fields.misheard; s.nonsensical = fields.nonsensical; s.edits = fields.edits; s.unapplied = fields.unapplied;
-    s.verses = fields.verses; s.method = fields.method;
-    s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null;
-  }
-
-  function runEditOnSection(s, sample, signal) {
+  // One route: ask for the edit list, apply it here. Edits that cannot be placed are kept and
+  // shown for a hand check — never silently dropped, and never traded for a full rewrite
+  // (which costs a whole script's worth of output and shows no edit table).
+  function runEditOnSection(s, sample, signal, isRetry) {
     if (s.raw.length > 55000) {
       s.status = 'error'; s.error = 'this script is too long for one pass — try splitting it into two sections';
       return Promise.resolve();
     }
-    var opts = { modelTier: 'quick', cache: false, signal: signal };
-    return sample.json(buildEditsPrompt(s), opts).then(function (data) {
+    var local = [];
+    var prepared = fixCapitals(fixNames(mechanics(s.raw, local), local), local);
+    return sample.json(buildEditsPrompt(s, prepared), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
-      var result = applyEdits(textForEdit(s), Array.isArray(data.edits) ? data.edits : []);
-      result.applied = cueEdits(s).concat(result.applied);
-      var total = result.applied.length + result.unapplied.length;
-      // A few unplaceable edits are reported for a hand check; a lot means the list is unreliable — fall back.
-      if (result.unapplied.length > Math.max(2, Math.floor(total * 0.15))) return runFullEdit(s, sample, opts);
-      var joined = fixCapitals(applyJoins(result.text, data.joins, result.applied), result.applied);
-      finishSection(s, {
-        corrected: joined, summary: String(data.summary || ''), changeCount: result.applied.length,
-        misheard: result.applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; }),
-        nonsensical: cleanNonsense(data.nonsensical), edits: result.applied, unapplied: result.unapplied,
-        verses: cleanVerses(data.verses), method: 'edits'
-      });
+      var result = applyEdits(prepared, Array.isArray(data.edits) ? data.edits : []);
+      var applied = local.concat(result.applied);
+      var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied), applied), applied);
+      var summary = str(data.summary);
+      if (result.unapplied.length > 2) summary += (summary ? ' ' : '') + result.unapplied.length + ' suggested changes could not be placed and are listed below for a hand check — Redo this one if that seems like too many.';
+      s.corrected = text; s.summary = summary; s.changeCount = applied.length;
+      s.edits = applied; s.unapplied = result.unapplied;
+      s.misheard = applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; });
+      s.nonsensical = cleanNonsense(data.nonsensical); s.verses = cleanVerses(data.verses); s.method = 'edits';
+      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null;
     }).catch(function (err) {
       if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
-      // Anything else about the edit list (bad JSON, cut short) — try the full-text route once.
-      if (err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runFullEdit(s, sample, opts);
+      // A garbled or empty answer is not cached, so one more ask is a genuine second attempt.
+      if (!isRetry && err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runEditOnSection(s, sample, signal, true);
       s.status = 'error'; s.error = sampleErrorMessage(err);
-    });
-  }
-
-  function runFullEdit(s, sample, opts) {
-    return sample.json(buildFullPrompt(s), opts).then(function (data) {
-      data = data || {};
-      var joinEdits = cueEdits(s);
-      var text = fixCapitals(applyJoins(String(data.correctedText || ''), data.joins, joinEdits), joinEdits);
-      finishSection(s, {
-        corrected: text, summary: String(data.summary || ''), changeCount: Number(data.changeCount) || 0,
-        misheard: Array.isArray(data.misheard) ? data.misheard.map(function (m) { return { heard: String((m && m.heard) || ''), likely: String((m && m.likely) || ''), note: String((m && m.note) || '') }; }) : [],
-        nonsensical: cleanNonsense(data.nonsensical), edits: joinEdits, unapplied: [], verses: cleanVerses(data.verses), method: 'full'
-      });
-    }).catch(function (err) {
-      s.status = 'error';
-      s.error = (err && err.code === 'cancelled') ? '__stopped__' : sampleErrorMessage(err);
     });
   }
 
@@ -1222,7 +1259,6 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
 
   function toggleApprove(checked) { state.approved = !!checked; paint(); saveMeta(); }
-
   /* ---- Clearing the workbench for the next book ---- */
 
   function openConfirm(opts) {
@@ -1283,18 +1319,18 @@ input:disabled, textarea:disabled { cursor: wait; }
   function docBody() {
     return '<h1>' + esc(docTitle()) + '</h1>' + state.sections.map(function (s) { return scriptBody(s, true); }).join('');
   }
-  function docHtml() { return '<html><body>' + docBody() + '</body></html>'; }
-  function scriptDocHtml(s) { return '<html><body><h1>' + esc(s.name || 'Untitled script') + '</h1>' + scriptBody(s, false) + '</body></html>'; }
   var DOC_STYLE = '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.55;color:#222}p{margin:0}h1{font-size:26px}h2{font-size:19px;margin-top:36px}em{color:#777}blockquote{margin:0 0 0 24px;padding-left:12px;border-left:3px solid #c9b48a}</style>';
-  function downloadHtml() {
-    return '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(docTitle()) + '</title>' + DOC_STYLE + '</head><body>' + docBody() + '</body></html>';
+  // One wrapper for every document the tool emits: Drive gets a bare document, the download a styled one.
+  function wrapDoc(body, styled) {
+    return styled ? '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(docTitle()) + '</title>' + DOC_STYLE + '</head><body>' + body + '</body></html>' : '<html><body>' + body + '</body></html>';
   }
+  function scriptDocHtml(s) { return wrapDoc('<h1>' + esc(s.name || 'Untitled script') + '</h1>' + scriptBody(s, false), false); }
   function downloadName() { return ((state.bookTitle.trim() || 'audio-guide').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'audio-guide') + '-scripts.html'; }
 
   function saveDownload(isFallback) {
     return useCap('downloads').then(function (downloads) {
       if (!downloads) { state.docResult = { method: 'error', message: 'Downloads aren’t available in this view — use Copy on each corrected script instead.' }; return; }
-      return downloads.save({ filename: downloadName(), data: downloadHtml() }).then(function () {
+      return downloads.save({ filename: downloadName(), data: wrapDoc(docBody(), true) }).then(function () {
         state.docResult = { method: 'download', at: Date.now() };
       }).catch(function (err) {
         if (err && err.code === 'declined') state.docResult = isFallback ? { method: 'error', message: 'Google Drive isn’t connected, and the file save was declined. Connect Google Drive in Settings → Connectors, or try again.' } : null;
@@ -1335,7 +1371,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       return driveTool(mcp).then(function (toolName) {
         if (!toolName) return false;
         if (docMode !== 'perScript') {
-          return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: docHtml(), contentMimeType: 'text/html' }).then(function (res) {
+          return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: wrapDoc(docBody(), false), contentMimeType: 'text/html' }).then(function (res) {
             var url = urlOf(payloadOf(res));
             state.docResult = { method: 'drive', url: url || '#', at: Date.now() };
             if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }
