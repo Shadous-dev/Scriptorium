@@ -91,7 +91,7 @@
       '<div class="pane pane-corrected"><div class="pane-head"><label>Corrected script</label>' +
       (s.corrected ? '<button type="button" class="copy-btn" data-action="copy-corrected" data-id="' + s.id + '" title="Copies the script with bold verses and block quotes, ready to paste">Copy for YouVersion</button>' : '') + '</div>' +
       '<div class="corrected-output' + (s.corrected ? ' is-blocks' : ' is-empty') + '">' + corrected + '</div></div>' +
-      '</div>' + extra +
+      '</div>' + renderCaptionFold(s) + extra +
       '</article>'
     );
   }
@@ -168,7 +168,7 @@
 
   function saveStateLabel() {
     if (dbStatus !== 'ready') return '';
-    if (savesInFlight > 0 || Object.keys(pendingSaves).length || metaTimer) return 'Saving…';
+    if (savesInFlight > 0 || Object.keys(pendingSaves).length || Object.keys(pendingCaptionSaves).length || metaTimer) return 'Saving…';
     return everSaved ? 'All changes saved' : '';
   }
 
@@ -183,6 +183,7 @@
     var anyCollapsed = state.sections.some(function (s) { return collapsed[s.id]; });
     var concludeDisabled = (!anyEdited || !state.approved || editRunning || pending || loading) ? ' disabled' : '';
     var dis = loading ? ' disabled' : '';
+    var anyCaptions = state.sections.some(function (s) { return s.status === 'edited' && (s.captions || '').trim(); });
 
     var notice = '';
     if (dbStatus === 'unavailable') notice = '<p class="notice notice-warn">Saved work can’t be reached in this view, so anything you change here won’t be kept. Reload the page, or open the artifact from your Claude gallery.</p>';
@@ -204,6 +205,7 @@
       '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
       '<li>Click <strong>Edit All Scripts</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished script is saved on its own, so you can stop and resume anytime without losing what’s already done.</li>' +
       '<li>Review the overview, check the approval box, then click <strong>Create Google Docs</strong> — one Doc per script in a folder, or one Doc for the book. Or use <strong>Copy for YouVersion</strong> on any script to paste it straight in with the verses already formatted.</li>' +
+      '<li>For searchable captions, open <strong>Timed captions for search</strong> on a script and paste in the .srt file Descript exports. After the edit pass, download an .srt and a .vtt that carry the corrected words on Descript’s timings.</li>' +
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
@@ -235,6 +237,10 @@
         '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per script, in a folder</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc for the whole book</option></select></label>' +
         '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (anyEdited ? '' : ' disabled') + '>Download a copy instead</button>' +
         '</div>' + renderDocResult() +
+        '<div class="conclude-row caption-row">' +
+        '<button type="button" class="btn btn-ghost" data-action="download-all-captions"' + (anyCaptions ? '' : ' disabled') + '>Download all caption files</button>' +
+        '<p class="hint">An .srt and a .vtt for every edited script that has timed captions, in one .zip.</p>' +
+        '</div>' +
         '</footer>') +
       '</div>' + renderModal()
     );

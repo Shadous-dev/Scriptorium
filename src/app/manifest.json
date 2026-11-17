@@ -11,5 +11,6 @@
   "10-edit-pipeline.js",
   "11-clear.js",
   "12-google-doc.js",
-  "13-events.js"
+  "13-captions.js",
+  "14-events.js"
 ]

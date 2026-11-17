@@ -14,7 +14,7 @@
     var unedited = state.sections.filter(function (s) { return s.raw.trim() && s.status !== 'edited'; }).length;
     openConfirm({
       title: 'Remove all ' + count + ' script' + plural(count) + '?',
-      body: 'This deletes every script here, including the corrected text and the words flagged in each one, and it can’t be undone. Your book title and Words to Search For list stay put for the next book, and any Google Doc you already created is untouched.',
+      body: 'This deletes every script here, including the corrected text, the words flagged in each one, and any timed captions, and it can’t be undone. Your book title and Words to Search For list stay put for the next book, and any Google Doc you already created is untouched.',
       warn: unedited ? unedited + ' of them ' + (unedited === 1 ? 'has' : 'have') + ' not been edited yet.' : '',
       confirmLabel: 'Remove all ' + count + ' script' + plural(count),
       onConfirm: clearAllScripts
@@ -26,12 +26,12 @@
     var fresh = newSection();
     state.sections = [fresh];
     state.lastEditAt = null; state.approved = false; state.docResult = null;
-    collapsed = {}; persistCollapsed();
+    collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {};
     confirmState = null; clearing = true;
     paint();
     var failed = 0, chain = Promise.resolve();
     if (dbApi) {
-      ids.forEach(function (id) { chain = chain.then(function () { return dbApi.doc('scripts/' + id).delete().catch(function () { failed += 1; }); }); });
+      ids.forEach(function (id) { chain = chain.then(function () { return dbApi.doc('scripts/' + id).delete().catch(function () { failed += 1; }); }).then(function () { return dbApi.doc('captions/' + id).delete().catch(function () {}); }); });
       chain = chain.then(function () { return saveSection(fresh.id); }).then(function () { return saveMeta(); });
     }
     return chain.then(function () {

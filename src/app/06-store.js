@@ -10,6 +10,7 @@
   var dbStatus = 'loading'; // loading | ready | unavailable
   var saveError = null;
   var pendingSaves = {};
+  var pendingCaptionSaves = {};
   var metaTimer = null;
   var savesInFlight = 0;
   var everSaved = false;
@@ -21,9 +22,9 @@
              edits: s.edits || [], unapplied: s.unapplied || [], verses: s.verses || [], method: s.method || '',
              status: s.status || 'draft', error: s.error || '', editedAt: s.editedAt || 0 };
   }
-  function docToSection(id, d) {
+  function docToSection(id, d, captions) {
     d = d || {};
-    return { id: id, name: String(d.name || ''), raw: String(d.raw || ''), corrected: String(d.corrected || ''),
+    return { id: id, captions: String(captions || ''), name: String(d.name || ''), raw: String(d.raw || ''), corrected: String(d.corrected || ''),
              editedFromRaw: d.hasEditedFrom ? String(d.editedFromRaw || '') : null,
              summary: String(d.summary || ''), changeCount: Number(d.changeCount) || 0,
              misheard: Array.isArray(d.misheard) ? d.misheard : [], nonsensical: Array.isArray(d.nonsensical) ? d.nonsensical : [],
@@ -58,6 +59,18 @@
     var s = findSection(id);
     return (dbApi && s) ? trackSave('s:' + id, dbApi.doc('scripts/' + id).set(sectionToDoc(s)), function () { saveSection(id); }) : Promise.resolve();
   }
+  // Timed captions are kept beside the script, not inside it: captions/<id> holds { srt }.
+  function saveCaptions(id) {
+    var s = findSection(id);
+    if (!dbApi || !s || String(s.captions || '').length > CAPTION_MAX) return Promise.resolve();
+    return trackSave('c:' + id, dbApi.doc('captions/' + id).set({ srt: String(s.captions || '') }), function () { saveCaptions(id); });
+  }
+  function saveCaptionsSoon(id) {
+    if (!dbApi) return;
+    if (pendingCaptionSaves[id]) clearTimeout(pendingCaptionSaves[id]);
+    pendingCaptionSaves[id] = setTimeout(function () { delete pendingCaptionSaves[id]; saveCaptions(id); }, 1200);
+    paintStatus();
+  }
   function saveSectionSoon(id) {
     if (!dbApi) return;
     if (pendingSaves[id]) clearTimeout(pendingSaves[id]);
@@ -72,6 +85,7 @@
   }
   function flushSaves() {
     Object.keys(pendingSaves).forEach(function (id) { clearTimeout(pendingSaves[id]); delete pendingSaves[id]; saveSection(id); });
+    Object.keys(pendingCaptionSaves).forEach(function (id) { clearTimeout(pendingCaptionSaves[id]); delete pendingCaptionSaves[id]; saveCaptions(id); });
     if (metaTimer) { clearTimeout(metaTimer); metaTimer = null; saveMeta(); }
   }
   function dbErrorMessage(err) {
@@ -89,7 +103,8 @@
     return chain;
   }
 
-  function applyStored(meta, byId) {
+  function applyStored(meta, byId, captionsById) {
+    captionsById = captionsById || {};
     state.bookTitle = String(meta.bookTitle || '');
     state.wordsToSearchFor = String(meta.wordsToSearchFor || '');
     state.nextId = Number(meta.nextId) || state.nextId;
@@ -98,11 +113,11 @@
     state.lastDoc = (meta.lastDoc && meta.lastDoc.url) ? { url: String(meta.lastDoc.url), at: Number(meta.lastDoc.at) || 0, kind: String(meta.lastDoc.kind || 'doc') } : null;
     var order = Array.isArray(meta.order) ? meta.order : [];
     var rebuilt = [];
-    order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id])); });
+    order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id], captionsById[id])); });
     // A script saved but missing from the order list is kept only if it holds a real transcript;
     // an empty stray (the old half-loaded-page bug) is dropped rather than resurrected.
     Object.keys(byId).forEach(function (id) {
-      if (order.indexOf(id) === -1 && byId[id] && String(byId[id].raw || '').trim()) rebuilt.push(docToSection(id, byId[id]));
+      if (order.indexOf(id) === -1 && byId[id] && String(byId[id].raw || '').trim()) rebuilt.push(docToSection(id, byId[id], captionsById[id]));
     });
     if (!rebuilt.length) rebuilt.push(newSection());
     state.sections = rebuilt;
@@ -119,7 +134,12 @@
           return db.collection('scripts').get().then(function (qs) {
             var byId = {};
             (qs.docs || []).forEach(function (d) { byId[d.id] = d.data(); });
-            applyStored(snap.data() || {}, byId);
+            // Captions are optional: if they cannot be read, the scripts still load.
+            return db.collection('captions').get().then(function (cs) {
+              var caps = {};
+              (cs.docs || []).forEach(function (d) { caps[d.id] = (d.data() || {}).srt; });
+              return caps;
+            }, function () { return {}; }).then(function (caps) { applyStored(snap.data() || {}, byId, caps); });
           });
         }
         return seedStore(db);

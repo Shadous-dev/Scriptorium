@@ -1,5 +1,28 @@
 # Changelog
 
+## v4 — caption files, and one source of truth (unreleased)
+
+Captions
+- Each script can hold the timed captions Descript exports (`.srt`; `.vtt` is read too). After the edit pass the tool builds an `.srt` and a `.vtt` that carry the corrected script on Descript's timings. `SOURCE-OF-TRUTH.md` 4.7.
+- Built in code, free: no call to Claude. Words are lined up with a standard diff; a corrected word takes the caption of the words it replaced. Timings are copied, never computed.
+- Captions that belong to a different script are refused (under 70% of words lining up) rather than forced to fit.
+- Downloads are a `.zip` holding both formats — per script, or the whole book — because the Claude viewer does not let a page save `.srt` or `.vtt` directly.
+- Captions are saved beside each script (`captions/<id>`), so a script's own document stays well under the store's size cap. Removing a script or Clear All removes its captions.
+
+Source of truth
+- `SOURCE-OF-TRUTH.md` amended first, in its own commit: reading from Descript and caption files are in scope; rules 4.7 and 4.8 added.
+- The repository is now a real working tree. The two archives, `files/`, and the loose module copies at the root are gone; `v1` and `v3` are git tags instead.
+- `.gitattributes` keeps every text file LF so `node build.js --check` compares the same bytes on every machine.
+- GitHub runs `node build.js --check` and the caption tests on every push.
+
+Code
+- New `src/app/13-captions.js`; `13-events.js` renamed `14-events.js` so start-up still runs last.
+- New `test/captions.test.js` — 19 checks, no dependencies.
+
+Not done yet
+- Pulling transcripts and captions from Descript. In scope, not built: the Descript connector's tool names and arguments are not published, and the artifact runtime forbids guessing them.
+- Separate workbenches per book or per person. Today everyone shares one.
+
 ## v3 — local mechanics pass (2026-11-13)
 
 Credits

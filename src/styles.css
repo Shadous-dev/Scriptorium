@@ -250,3 +250,19 @@ input:disabled, textarea:disabled { cursor: wait; }
 .verse-spoken { display: block; font-weight: 400; font-size: 12px; color: var(--ink-faint); }
 .verse-warn { display: block; font-family: var(--font-body); font-size: 12.5px; color: var(--warn); margin-top: 2px; }
 .speed-pick input[type=checkbox] { accent-color: var(--accent); margin: 0 2px 0 0; }
+
+/* Timed captions */
+.caption-fold { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.caption-fold > summary { cursor: pointer; font: 600 12px var(--font-body); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); }
+.caption-fold > summary:hover { color: var(--accent-ink); }
+.caption-optional { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.caption-fold .hint { margin: 8px 0; font-size: 13.5px; color: var(--ink-soft); max-width: 68ch; }
+.caption-fold textarea { width: 100%; min-height: 110px; resize: vertical; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 13px/1.5 var(--font-mono); padding: 10px 12px; }
+.caption-fold textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.caption-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.caption-note { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.caption-note.is-warn { color: var(--warn); }
+.caption-bar .copy-btn { flex: none; padding: 6px 10px; font-size: 12.5px; }
+.caption-bar .copy-btn:disabled { opacity: .5; cursor: default; }
+.caption-row { margin-top: 14px; }
+.caption-row .hint { margin: 0; font-size: 13.5px; color: var(--ink-soft); }

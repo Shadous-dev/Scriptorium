@@ -1,14 +1,17 @@
 # The Scriptorium
 
-**TTW transcript editor — for active audio guide scripts from Descript.**
+**Through the Word's transcript editor for audio guide scripts from Descript.**
 
-Observes, edits, and corrects grammatical and capitalization errors. Resets and
-prepares the format to be ready for third-party platforms. Analyzes and
-fact-checks the Bible references and research info carried in the source, and
-flags anything that does not hold up.
+It turns Descript's raw transcript of an audio guide into clean, publishable
+text and searchable caption files, without changing what the speaker said. It
+runs as a Claude artifact: one web page, opened inside Claude.
 
-This repository holds the source of the Scriptorium, which runs as a Claude
-artifact. `dist/index.html` is the exact file that gets published.
+> **This repository is the only copy of the Scriptorium.** The `main` branch
+> is the tool. If something is not here, it is not part of the tool. See
+> [One source of truth](#one-source-of-truth).
+
+**Live tool:** _link to be added when the team artifact is published — see
+[Publishing](#publishing)._
 
 ---
 
@@ -26,9 +29,9 @@ sentence.
 Cleaning one script by hand is a slow afternoon. A book like Job is 44 of them,
 each 6,000–15,000 characters. The Scriptorium does the pass in one go, shows
 exactly what it changed, and hands back text that can be pasted straight into
-YouVersion with as little hand-editing as possible.
+YouVersion, plus caption files that make every word of the guide searchable.
 
-## What it does
+## Using it
 
 1. **Paste in the transcripts.** One card per script — an intro, each chapter, a
    conclusion. Name the book and list the names the speaker uses that Descript
@@ -45,6 +48,58 @@ YouVersion with as little hand-editing as possible.
    and a confidence flag so uncertain references are easy to spot.
 5. **Copy or publish.** Copy a single script with its verses already bold and
    block-quoted, or build the whole book into one Google Doc.
+6. **Download caption files.** On any script, open **Timed captions for
+   search** and paste in the `.srt` file Descript exports for that audio guide
+   (in Descript: Export › Subtitles › .srt). After the edit pass, download an
+   `.srt` and a `.vtt`. Both carry the *corrected* words on Descript's own
+   timings, so a search for "Uz" finds it even though Descript heard "us".
+   **Download all caption files** at the bottom gives the whole book in one
+   `.zip`.
+
+### What a caption file is, and is not
+
+- Every word of the corrected script appears once, in order.
+- The timings are Descript's. The Scriptorium never moves or invents one.
+- The `.srt` and the `.vtt` hold the same words and times; only the file format
+  differs. Making them costs nothing — no call to Claude.
+- Timings are per caption (a few seconds), not per word, because that is what
+  Descript exports. A search lands on the caption a word is in.
+- If the captions pasted in belong to a different script, the tool says so and
+  builds nothing.
+
+### Known limits
+
+- **One shared workbench.** Everyone who can edit the artifact sees and changes
+  the same set of scripts. **Clear All** clears it for everyone. Work on one
+  book at a time, as a team.
+- **Captions are pasted in by hand for now.** Pulling transcripts and captions
+  straight from the TTW Drive in Descript is in scope (see
+  `SOURCE-OF-TRUTH.md`) but not built yet.
+- **Caption files download as a `.zip`.** The Claude viewer does not allow a
+  page to save `.srt` or `.vtt` directly.
+- **Verse references are worked out, not looked up.** The edit pass infers each
+  reference from the text and flags the ones it is unsure of. It does not check
+  the quoted words against a Bible.
+
+## One source of truth
+
+There has been more than one copy of this tool: archives inside the repo, loose
+files beside them, and folders on people's machines. From here on there is one.
+
+- **`main` on GitHub is the Scriptorium.** Not a zip, not a folder on a laptop,
+  not a file sent in a message.
+- **`SOURCE-OF-TRUTH.md` says what the tool is for.** When a change and that
+  document disagree, the document wins or is changed first, on purpose.
+- **The published artifact is always built from `main`.** Publish
+  `dist/index.html` from a commit that is on `main`, and nothing else.
+- **Nothing is uploaded through the GitHub website.** Clone the repo, change
+  files, commit, push. Uploading files or archives by hand is how the copies
+  drifted apart.
+- **No archives, no "final", "v2", or "copy" files.** An older version is a
+  git tag (see [Versions](#versions)), never a second file.
+- **`src/` and `dist/` are committed together.** `node build.js --check` must
+  pass. GitHub runs it on every push.
+- **Every change gets a line in `CHANGELOG.md`.**
 
 ## Repository layout
 
@@ -60,17 +115,22 @@ src/
     03-text.js        locating and applying edits; verse quoting and layout
     04-render.js      all HTML rendering, plus focus-preserving repaints
     05-capabilities.js runtime capability lookup
-    06-store.js       persistence — one small document per script
+    06-store.js       persistence — one small document per script, one per script's captions
     07-fields.js      reading form fields back out of the DOM
     08-actions.js     add, remove, collapse, copy
     09-prompts.js     THE EDITING INSTRUCTIONS — see SOURCE-OF-TRUTH.md
     10-edit-pipeline.js  the edit run: cues, capitals, joins, concurrency
     11-clear.js       clearing the workbench for the next book
     12-google-doc.js  building the Google Doc, with an HTML fallback
-    13-events.js      event delegation, shortcuts, start-up
+    13-captions.js    timed captions: reading .srt/.vtt, building .srt, .vtt and .zip
+    14-events.js      event delegation, shortcuts, start-up
+test/
+  captions.test.js    checks the caption rules (SOURCE-OF-TRUTH 4.7)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
 SOURCE-OF-TRUTH.md    what this tool is for, and the lines not to cross
+CHANGELOG.md          what changed in each version
+.github/workflows/    the checks GitHub runs on every push
 ```
 
 **The split is for reviewing, not for modules.** `build.js` pastes every file in
@@ -78,20 +138,34 @@ SOURCE-OF-TRUTH.md    what this tool is for, and the lines not to cross
 in one file is visible in all of them. There is no bundler, no imports, and no
 build step beyond concatenation.
 
-## Building
+## Building and checking
 
 ```sh
-node build.js            # write dist/index.html from src/
-node build.js --check    # verify dist/index.html matches src/ — exits 1 if not
+node build.js                 # write dist/index.html from src/
+node build.js --check         # verify dist/index.html matches src/ — exits 1 if not
+node test/captions.test.js    # check the caption rules
 ```
 
-No dependencies. Node is only used to copy text around.
+No dependencies. Node is only used to copy text around and run the checks.
 
 ## Publishing
 
 `dist/index.html` is the whole artifact: one self-contained file, no external
-assets beyond Google Fonts. To publish, hand `dist/index.html` to Claude and
-ask for it to be published to the existing Scriptorium artifact.
+assets beyond Google Fonts. To publish, hand `dist/index.html` from `main` to
+Claude and ask for it to be published to the existing Scriptorium artifact.
+
+The page asks the Claude viewer for four things, and works without any one of
+them (with that feature switched off):
+
+| Capability | Used for |
+|---|---|
+| `sample` | the edit pass — the one thing that spends usage |
+| `db` | saving the workbench (`state/meta`, `scripts/<id>`, `captions/<id>`) |
+| `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
+| `downloads` | the HTML copy of the book, and the caption `.zip` |
+
+There should be exactly one published Scriptorium artifact, shared with the
+team, and its link belongs at the top of this file.
 
 ## Reverting
 
@@ -106,17 +180,19 @@ git show <commit>:dist/index.html > index.html
 Then publish that file. Nothing needs to be rebuilt and nothing else needs to
 be rolled back — the built file at any commit is a working Scriptorium.
 
-**Always commit `src/` and `dist/` together.** Run `node build.js --check`
-before committing; if it fails, the two have drifted and the revert path is no
-longer trustworthy.
-
 ## Versions
 
-Tags mark publishable states. `v1` is the tool exactly as it was first
-published; `v2` is the cost-reduction pass (one call per script, no
-full-rewrite fallback, verses by anchor, prompt trimmed); `v3` moves the
-mechanical fixes (spacing, quotes, capitals, names) into free local code. `git show v1:dist/index.html`
-gets you back to any of them.
+Tags mark publishable states. `git show v1:dist/index.html` gets you back to
+any of them.
+
+| Tag | What it is |
+|---|---|
+| `v1` | The tool as first published. Still has the full-rewrite fallback. |
+| `v3` | Mechanical fixes (spacing, quotes, capitals, names) moved into free local code. |
+| `v4` | Caption files (`.srt`, `.vtt`), and this repository made the one source of truth. _Not tagged until it is published._ |
+
+`v2` (the cost-reduction pass) was never committed as a complete tree, so it
+cannot be restored. What it changed is in `CHANGELOG.md`.
 
 ## Before changing anything
 

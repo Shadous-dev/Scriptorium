@@ -30,6 +30,8 @@
         showFlash('“' + ((victim && victim.name) || 'That script') + '” was removed from view but could not be deleted from storage — it may reappear when you reload. Try removing it again then.');
       });
     }
+    if (dbApi) dbApi.doc('captions/' + id).delete().catch(function () {});
+    delete captionOpen[id]; delete captionMemo[id];
     if (replacement) saveSection(replacement.id);
     saveMeta();
   }

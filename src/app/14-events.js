@@ -1,4 +1,4 @@
-/* 13-events.js — Event delegation, keyboard shortcuts, and start-up. */
+/* 14-events.js — Event delegation, keyboard shortcuts, and start-up. */
   /* ==================================================================
      Events
      ================================================================== */
@@ -22,6 +22,8 @@
     else if (action === 'stop-edit') stopEdit();
     else if (action === 'redo-section') redoSection(id);
     else if (action === 'conclude') conclude();
+    else if (action === 'download-captions') downloadCaptions(id);
+    else if (action === 'download-all-captions') downloadAllCaptions();
     else if (action === 'download-copy') { syncFieldsFromDom(); saveDownload(false).then(function () { paint(); }); }
   });
 
@@ -37,10 +39,23 @@
   function fieldTouched(el) {
     if (!el || !el.dataset || !el.dataset.field || dbStatus === 'loading') return;
     syncOneField(el);
+    if (el.dataset.field === 'captions' && el.dataset.id) {
+      var cs = findSection(el.dataset.id);
+      saveCaptionsSoon(el.dataset.id);
+      if (cs) paintCaptionNote(cs);
+      var all = root.querySelector('[data-action="download-all-captions"]');
+      if (all) all.disabled = !state.sections.some(function (s) { return s.status === 'edited' && (s.captions || '').trim(); });
+      return;
+    }
     if (el.dataset.id) saveSectionSoon(el.dataset.id); else saveMetaSoon();
     if (el.dataset.field === 'raw' && el.dataset.id) { var s = findSection(el.dataset.id); if (s && s.status === 'edited') paintChipOnly(s); }
   }
   root.addEventListener('input', function (e) { fieldTouched(e.target); });
+  // Remember which captions boxes are unfolded, so a repaint does not fold one the user just opened.
+  root.addEventListener('toggle', function (e) {
+    var id = e.target && e.target.dataset && e.target.dataset.captionFold;
+    if (id) captionOpen[id] = !!e.target.open;
+  }, true);
   root.addEventListener('focusout', function (e) { fieldTouched(e.target); });
 
   root.addEventListener('keydown', function (e) {

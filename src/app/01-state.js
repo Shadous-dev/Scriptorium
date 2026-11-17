@@ -8,7 +8,7 @@
   function newSectionRaw(id) {
     return { id: id, name: '', raw: '', corrected: '', editedFromRaw: null, summary: '', changeCount: 0,
              misheard: [], nonsensical: [], edits: [], unapplied: [], verses: [], method: '',
-             status: 'draft', error: null, editedAt: null };
+             status: 'draft', error: null, editedAt: null, captions: '' };
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
