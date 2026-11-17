@@ -22,6 +22,8 @@ what the speaker said.**
 ## 2. What it is for
 
 - Through the Word audio guide scripts, book by book or plan by plan.
+- The whole team at once: a shared library of books, each one its own
+  workbench, so work on one book never disturbs another.
 - A set of scripts at a time: an intro, each chapter, a conclusion. Roughly
   6,000–15,000 characters each.
 - Output that goes straight into YouVersion for an audience to read, with as
