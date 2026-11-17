@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 — the first team release (unreleased)
+## 1.0.0 — the first team release (2026-11-16)
 
 The first version meant for the whole team, and the point where version numbers start over. Everything before it is a prototype (below).
 

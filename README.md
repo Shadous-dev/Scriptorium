@@ -10,8 +10,9 @@ runs as a Claude artifact: one web page, opened inside Claude.
 > is the tool. If something is not here, it is not part of the tool. See
 > [One source of truth](#one-source-of-truth).
 
-**Live tool:** _link to be added when the team artifact is published — see
-[Publishing](#publishing)._
+**Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
+version 1.0.0. It opens for members of the Through the Word organization on
+Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
 
@@ -193,7 +194,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
-| `v1.0.0` | The first team release: a shared library of books, caption files (`.srt`, `.vtt`), and this repository as the one source of truth. _Tagged when it is published._ |
+| `v1.0.0` | The first team release: a shared library of books, caption files (`.srt`, `.vtt`), and this repository as the one source of truth. Published 2026-11-16. |
 | `prototype-3` | The last prototype: mechanical fixes moved into free local code. |
 | `prototype-1` | The first prototype, as first published. Still has the full-rewrite fallback. |
 
