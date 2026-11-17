@@ -22,12 +22,19 @@ what the speaker said.**
 ## 2. What it is for
 
 - Through the Word audio guide scripts, book by book or plan by plan.
+- The whole team at once: a shared library of books, each one its own
+  workbench, so work on one book never disturbs another.
 - A set of scripts at a time: an intro, each chapter, a conclusion. Roughly
   6,000–15,000 characters each.
 - Output that goes straight into YouVersion for an audience to read, with as
   little hand-editing afterward as possible.
 - Collecting a finished book into one Google Doc, one section per script,
   named to match.
+- Timed caption files (`.srt` and `.vtt`) for each audio guide: the corrected
+  script carried on Descript's own timings, so every word of every guide can
+  be found by search.
+- Reading a guide's transcript and timed captions from the TTW Drive in
+  Descript, so nobody has to export and paste them by hand.
 
 ## 3. What it is not for
 
@@ -82,6 +89,19 @@ re-typed), and never makes a second call for a script except a single retry
 when the answer could not be read. A full-rewrite fallback is not allowed: it
 costs a whole script's worth of output and hides the edit table.
 
+**4.7 A caption file is the corrected script on Descript's timings, and
+nothing else.**
+Every word of the corrected script appears in the caption file once, in
+order. Timings are Descript's and are never moved, stretched, or invented:
+code decides only which timed caption each word belongs to. Building captions
+and converting `.srt` to `.vtt` is done in code and costs nothing (4.6). If
+the timed captions do not match the script, the tool says so and builds
+nothing rather than guessing.
+
+**4.8 Descript is read, never written.**
+The tool may list projects and read transcripts and captions from Descript.
+It never edits, imports into, publishes from, or deletes anything in Descript.
+
 ## 5. The editing instructions
 
 The editing behaviour lives in `src/app/09-prompts.js`. It is the heart of the
@@ -103,10 +123,20 @@ tool. The instructions cover, in this order of priority:
 4. **Flagging** — anything that still does not make sense, with a best guess
    at what is wrong.
 
-The page does three things locally so the prompt never has to ask for them:
-stage cues and pause marks are stripped before the text is sent, sentence
-starts are capitalized as a safety net after the answer comes back, and each
-verse is located in the corrected text from the short anchors Claude returns.
+The page does the mechanical work locally, before the text is sent, so the
+prompt never has to ask for it and the answer never has to carry it:
+stage cues and pause marks are stripped; spacing, quote marks, ellipses and
+dashes are made regular; sentence starts, "I", God, the Lord, the Holy Spirit,
+names that are never ordinary words, Bible books before a chapter number, and
+the user's listed names are capitalized. After the answer comes back, joins
+are applied, sentence starts are re-checked, a paragraph that just stops gets
+its period, and each verse is located from the short anchors Claude returns.
+Every local change is a row in the change table.
+
+The line between local and model is judgment: anything with one right answer
+(a space, a capital on "Jesus") is code; anything that depends on meaning
+(where a run-on breaks, whether a comma is a splice, which word was misheard,
+where a verse starts) is the model. Code never guesses at structure.
 
 Changing this file changes what the tool produces. Treat it as the highest-risk
 change in the repository: make one adjustment at a time, run it against a
@@ -128,6 +158,16 @@ This is the published format, taken from the Luke 1 model:
 The point of the bolding is so it is obvious at a glance where scripture is
 used. That is a review feature as much as a publishing one.
 
+Caption files are the exception to all of the above, because they follow the
+audio rather than the page:
+
+- Plain text only: no bold, no block quotes, no added references. A caption
+  holds what was said, and the reference in parentheses was not said.
+- One caption per Descript caption, with Descript's start and end times.
+- A caption left with no words (a stage cue, for example) is dropped.
+- `.srt` and `.vtt` carry identical text and timings; only the file format
+  differs.
+
 ## 7. Scope boundaries
 
 Things that are deliberately *not* in the tool, and why:
@@ -137,7 +177,9 @@ Things that are deliberately *not* in the tool, and why:
 | Automatic publishing to YouVersion | The human copy-paste step is the last review gate. |
 | Editing without showing changes | See 4.4. |
 | Rewriting or improving prose | See 4.1 — that is a different tool. |
-| Audio or Descript integration | The transcript is the input; keep the surface small. |
+| Audio processing, transcription, or re-timing | Descript does the listening and the timing. The tool works on Descript's text and Descript's timings (4.7). |
+| Writing to Descript | See 4.8. Reading is in scope; changing a project is not. |
+| Word-by-word timings | Descript's captions are timed per caption, not per word. The tool does not estimate timings it was not given (4.7). |
 | Metadata, summaries, plan ads | Those live in the per-book metadata Google Doc, not here. |
 | A second "full rewrite" call when edits don't place | See 4.6. Unplaced edits are shown for a hand check instead; Redo is the user's call. |
 | Instructions for things the page does locally | Every character of the prompt is paid for on every script. |

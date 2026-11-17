@@ -2,8 +2,10 @@
   /* ------------------------------------------------------------------
      One prompt, sent once per script. Every character here is paid for on
      every call, so it says each rule once and nothing the page already
-     does itself (stage cues and pause marks are stripped locally before
-     the text is sent — see stripCues).
+     does itself: cues, spacing, quote marks, ellipses, missing full stops,
+     sentence-start capitals, "I", God/Lord, Bible books and listed names
+     are all fixed locally before the text is sent (see mechanics,
+     fixNames and fixCapitals).
      ------------------------------------------------------------------ */
 
   function promptHeader(section) {
@@ -17,11 +19,10 @@
       '- Commas for direct address ("Welcome back, my friends"), introductory and interrupting phrases, and lists (serial comma).\n' +
       '- Statements end with periods; a full sentence in parentheses keeps its period inside. "?!" is fine for an exclaimed question.\n' +
       '- Hyphenate compound modifiers before a noun ("so-called", "well-meaning").\n' +
-      '- CAPITALIZATION: the first word of every sentence and paragraph (fix every one left lowercase after a period or pause); "I"; names, places, books of the Bible, and titles, consistently (God, Jesus, the Bible, Genesis 1); ordinary nouns stay lowercase ("my dad", "the church").\n' +
+      '- CAPITALIZATION: names, places, and titles, consistently; ordinary nouns stay lowercase ("my dad", "the church").\n' +
       '- Keep deliberate fragments and the casual voice ("No soapbox." "Then, 1964."). Never merge or complete them.\n' +
       '- RUN-ONS: where a sentence chains past two or three clauses on "and", "so", "but", "because", break it with punctuation and capitalization only — never new words: end at a natural boundary and start the next sentence with the conjunction, use a semicolon between closely linked statements, or set off an aside with an em dash (—). Keep the words in their order.\n' +
       '- Keep the dashes already there; add one only where it does grammatical work, never just for a pause.\n' +
-      '- Straight double quotes (") for quotations; the single … character for trailing off.\n' +
       '- Remove a line that is only a section label in capitals (e.g. BEARINGS). Words spoken in capitals for emphasis stay.\n' +
       '2. MISHEARD WORDS: plausible mishearings of a listed name or term ("Eli who" for Elihu, "so far" for Zophar), and other names where the sentence only makes sense with a different word.\n' +
       '3. SCRIPTURE: the speaker quotes Bible verses, usually after a reference ("Verse one", "Job 2:4", "Isaiah 3 verses two through four"). Inside a quoted verse fix ONLY misheard words ("the land of us" to "the land of Uz"); change nothing else — not wording, order, capitalization, or punctuation, even where it looks wrong. Translations read oddly on purpose.\n' +
