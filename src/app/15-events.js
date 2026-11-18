@@ -1,4 +1,4 @@
-/* 14-events.js — Event delegation, keyboard shortcuts, and start-up. */
+/* 15-events.js — Event delegation, keyboard shortcuts, and start-up. */
   /* ==================================================================
      Events
      ================================================================== */
@@ -16,6 +16,13 @@
     if (action === 'open-book') { openBook(id); return; }
     if (action === 'delete-book') { askDeleteBook(id); return; }
     if (action === 'go-library') { leaveBook(); return; }
+    if (action === 'pull-descript') { openPull(); return; }
+    if (action === 'pull-close') { closePull(); return; }
+    if (action === 'pull-open') { pullOpenFolder(btn.dataset.path || ''); return; }
+    if (action === 'pull-more') { pullOpenFolder(pull ? pull.path : ''); return; }
+    if (action === 'pull-start') { pullStart(); return; }
+    if (action === 'pull-stop') { pullStop(); return; }
+    if (action === 'pull-pick' || action === 'pull-all') return;      // checkboxes: handled on change
     if (action === 'add-section') addSection();
     else if (action === 'remove-section') removeSection(id);
     else if (action === 'toggle-collapse') toggleCollapse(id);
@@ -35,6 +42,8 @@
     var t = e.target;
     if (!t || !t.dataset) return;
     if (t.dataset.action === 'toggle-approve') toggleApprove(t.checked);
+    if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
+    if (t.dataset.action === 'pull-all') pullPickAll(t.checked);
     if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
     if (t.dataset.action === 'set-repair') { repairParagraphs = !!t.checked; prefSet('repairParagraphs', repairParagraphs); }
     if (t.dataset.action === 'set-docmode') { docMode = t.value === 'one' ? 'one' : 'perScript'; prefSet('docMode', docMode); paint(); }

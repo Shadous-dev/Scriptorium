@@ -231,6 +231,7 @@
     var anyCollapsed = state.sections.some(function (s) { return collapsed[s.id]; });
     var concludeDisabled = (!anyEdited || !state.approved || editRunning || pending || loading) ? ' disabled' : '';
     var dis = loading ? ' disabled' : '';
+    var pulling = !!(pull && pull.step === 'pulling');
     var anyCaptions = state.sections.some(function (s) { return s.status === 'edited' && (s.captions || '').trim(); });
 
     var notice = noticeHtml();
@@ -247,11 +248,11 @@
       '<p class="dek">Turn Descript’s AI transcript of each audio guide into a clean, accurate script — grammar fixed, misheard names caught, nothing about how it sounds changed.</p>' +
       '</header>' +
       '<details class="tip"><summary>How this works</summary><ol>' +
-      '<li>Paste each chapter’s Descript transcript into its own script below — use <strong>+ Add Script</strong> for as many as the plan needs.</li>' +
+      '<li>Click <strong>Pull from Descript</strong> and pick the audio guides to bring in. Each becomes a script below, with its transcript and its timed captions. Or paste a transcript into a script by hand — use <strong>+ Add Script</strong> for as many as the plan needs.</li>' +
       '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
       '<li>Click <strong>Edit All Scripts</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished script is saved on its own, so you can stop and resume anytime without losing what’s already done.</li>' +
       '<li>Review the overview, check the approval box, then click <strong>Create Google Docs</strong> — one Doc per script in a folder, or one Doc for the book. Or use <strong>Copy for YouVersion</strong> on any script to paste it straight in with the verses already formatted.</li>' +
-      '<li>For searchable captions, open <strong>Timed captions for search</strong> on a script and paste in the .srt file Descript exports. After the edit pass, download an .srt and a .vtt that carry the corrected words on Descript’s timings.</li>' +
+      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a script once it is edited. Both files carry the corrected words on Descript’s timings. Pulling from Descript fills the timings in; for a pasted transcript, paste in the .srt file Descript exports.</li>' +
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
@@ -260,7 +261,8 @@
       '<div class="action-bar">' +
       '<div class="bar-group">' +
       '<button type="button" class="btn btn-add" data-action="add-section"' + dis + '>+ Add Script</button>' +
-      '<button type="button" class="btn btn-quiet-danger" data-action="clear-all"' + (loading || editRunning || clearing || !hasAnything ? ' disabled' : '') + '>' + (clearing ? 'Clearing…' : 'Clear All') + '</button>' +
+      '<button type="button" class="btn" data-action="pull-descript"' + (loading || editRunning || pulling || dbStatus === 'unavailable' ? ' disabled' : '') + '>Pull from Descript</button>' +
+      '<button type="button" class="btn btn-quiet-danger" data-action="clear-all"' + (loading || editRunning || pulling || clearing || !hasAnything ? ' disabled' : '') + '>' + (clearing ? 'Clearing…' : 'Clear All') + '</button>' +
       (anyCollapsible ? '<button type="button" class="btn btn-ghost btn-sm" data-action="collapse-edited"' + dis + '>Collapse edited</button>' : '') +
       (anyCollapsed ? '<button type="button" class="btn btn-ghost btn-sm" data-action="expand-all"' + dis + '>Expand all</button>' : '') +
       '</div>' +
@@ -269,10 +271,11 @@
       '<div class="action-bar-end">' +
       '<label class="speed-pick" title="Close paragraph breaks that fall mid-thought (Descript breaks on pauses)"><input type="checkbox" data-action="set-repair"' + (repairParagraphs ? ' checked' : '') + (editRunning ? ' disabled' : '') + '> Fix mid-thought breaks</label>' +
       '<label class="speed-pick" title="How many scripts to edit at the same time">Speed <select data-action="set-concurrency"' + (editRunning ? ' disabled' : '') + '><option value="1"' + (concurrency === 1 ? ' selected' : '') + '>1 at a time</option><option value="2"' + (concurrency === 2 ? ' selected' : '') + '>2 at a time</option></select></label>' +
-      '<button type="button" class="btn btn-edit" data-action="edit-all"' + (editRunning || loading ? ' disabled' : '') + '>' + editLabel + '</button>' +
+      '<button type="button" class="btn btn-edit" data-action="edit-all"' + (editRunning || loading || pulling ? ' disabled' : '') + '>' + editLabel + '</button>' +
       (editRunning ? '<button type="button" class="btn btn-ghost" data-action="stop-edit">Stop</button>' : '') + '</div>' +
       '</div>' +
       (loading ? renderSkeleton() :
+        renderPull() +
         renderOverview() +
         '<div class="sections">' + state.sections.map(renderSection).join('') + '</div>' +
         '<footer class="conclude-bar">' +

@@ -247,3 +247,27 @@ input:disabled, textarea:disabled { cursor: wait; }
 .library-empty { margin: 0; padding: 28px 20px; border: 1px dashed var(--line-strong); border-radius: 6px; color: var(--ink-soft); font-size: 14px; text-align: center; }
 .back-line { margin: 0 0 -8px; }
 .version-line { margin: 0; font-size: 12px; color: var(--ink-faint); text-align: right; }
+
+/* Pull from Descript */
+.pull-panel { border: 1px solid var(--line-strong); border-radius: 6px; padding: 14px 16px; background: var(--paper-raised); display: flex; flex-direction: column; gap: 10px; }
+.pull-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.pull-head h3 { margin: 0; font: 600 14px var(--font-body); color: var(--ink); }
+.pull-panel .hint { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 72ch; }
+.pull-path { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.pull-path strong { color: var(--ink); font-weight: 600; }
+.pull-sep { color: var(--ink-faint); }
+.pull-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 5px; max-height: 340px; overflow-y: auto; }
+.pull-list li + li { border-top: 1px solid var(--line); }
+.pull-folder { display: block; width: 100%; text-align: left; border: none; background: none; padding: 8px 12px; cursor: pointer; font: 500 13.5px var(--font-body); color: var(--ink); }
+.pull-folder:hover { background: var(--paper); color: var(--accent-ink); }
+.pull-folder:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.pull-item { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 7px 12px; cursor: pointer; font-size: 13.5px; color: var(--ink); }
+.pull-item:hover { background: var(--paper); }
+.pull-item input { accent-color: var(--ink); margin: 0; align-self: center; }
+.pull-name { font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.pull-tag { font-size: 12px; color: var(--ink-faint); }
+.pull-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pull-count { font-size: 13px; color: var(--ink-soft); }
+.pull-progress { margin: 0; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pull-failed { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+.pull-failed strong { color: var(--ink); font-weight: 600; }

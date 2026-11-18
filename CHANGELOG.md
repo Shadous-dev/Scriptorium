@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0 — Pull from Descript (2026-11-18)
+
+Descript
+- **Pull from Descript** brings audio guides straight into a book: browse the TTW Drive's folders, tick the projects, pull. Each becomes a script with its transcript (Descript's plain-text export) and its timed captions (Descript's `.srt` export). `SOURCE-OF-TRUTH.md` 4.8.
+- Reading only. The page may call three Descript tools — `list_folders`, `list_projects`, `export_transcript` — and no others.
+- No call to Claude, so pulling costs no usage.
+- Paced to Descript's limit of ten exports a minute (two per audio guide), with one retry for a failure that waiting can fix. An access problem stops the run instead of failing every remaining guide.
+- Pulling the same audio guide again updates its script rather than adding a second. Each guide is saved as it arrives.
+- Audio guides are listed in number order (chapter 2 before chapter 10).
+- Each kind of failure says what fixes it: connect Descript, reconnect it, allow it for the page, or wait.
+
+Runtime
+- The live artifact moves from runtime contract 0.2.35 to the newest. The older contract does not let a page save a `.zip`, so the caption download added in 1.0.0 was refused there.
+
+Code
+- New `src/app/14-descript.js`; `14-events.js` renamed `15-events.js` so start-up still runs last.
+- New `test/descript.test.js` — 12 checks against a stand-in connector that answers in the shapes the real one was seen to use.
+
 ## 1.0.0 — the first team release (2026-11-16)
 
 The first version meant for the whole team, and the point where version numbers start over. Everything before it is a prototype (below).

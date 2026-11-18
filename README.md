@@ -11,7 +11,7 @@ runs as a Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.0.0. It opens for members of the Through the Word organization on
+version 1.1.0. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -37,9 +37,12 @@ YouVersion, plus caption files that make every word of the guide searchable.
 0. **Pick a book, or start one.** The front page lists every book the team
    has. Each is its own workbench, shared with everyone: open one to pick up
    where anyone left off, or use **+ New Book**.
-1. **Paste in the transcripts.** One card per script — an intro, each chapter, a
-   conclusion. Name the book and list the names the speaker uses that Descript
-   is likely to mangle.
+1. **Pull the audio guides from Descript.** Click **Pull from Descript**, open
+   the book's folder in the TTW Drive, tick the audio guides you want, and
+   pull them. Each becomes a script with its transcript and its timed
+   captions. Nothing in Descript is changed. You can also paste a transcript
+   into a script by hand. Then name the book and list the names the speaker
+   uses that Descript is likely to mangle.
 2. **Run the edit pass.** Each script is corrected for punctuation,
    capitalization, run-on sentences, and misheard names — *without* changing the
    speaker's wording, meaning, tone, or intent. Stage cues and pause marks are
@@ -52,9 +55,10 @@ YouVersion, plus caption files that make every word of the guide searchable.
    and a confidence flag so uncertain references are easy to spot.
 5. **Copy or publish.** Copy a single script with its verses already bold and
    block-quoted, or build the whole book into one Google Doc.
-6. **Download caption files.** On any script, open **Timed captions for
-   search** and paste in the `.srt` file Descript exports for that audio guide
-   (in Descript: Export › Subtitles › .srt). After the edit pass, download an
+6. **Download caption files.** A script pulled from Descript already has its
+   timed captions. For one pasted by hand, open **Timed captions for search**
+   and paste in the `.srt` file Descript exports for that audio guide (in
+   Descript: Export › Subtitles › .srt). After the edit pass, download an
    `.srt` and a `.vtt`. Both carry the *corrected* words on Descript's own
    timings, so a search for "Uz" finds it even though Descript heard "us".
    **Download all caption files** at the bottom gives the whole book in one
@@ -78,9 +82,14 @@ YouVersion, plus caption files that make every word of the guide searchable.
   time, the last save wins. Different scripts in the same book are safe.
 - **Saving needs Contributor access.** Someone who can only view the artifact
   can read the books but not change them.
-- **Captions are pasted in by hand for now.** Pulling transcripts and captions
-  straight from the TTW Drive in Descript is in scope (see
-  `SOURCE-OF-TRUTH.md`) but not built yet.
+- **Pulling from Descript is paced.** Descript allows a page about five audio
+  guides a minute, so a 44-chapter book takes around ten minutes. Keep the
+  page open; each guide is saved as it arrives, and Stop is safe.
+- **Each person connects Descript once.** The pull uses your own Descript
+  connector in Claude (Settings › Connectors), and Claude asks you to allow
+  it the first time.
+- **One composition per project.** If a Descript project holds more than one
+  composition, the first is pulled.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
 - **Verse references are worked out, not looked up.** The edit pass infers each
@@ -129,9 +138,11 @@ src/
     11-clear.js       clearing the workbench for the next book
     12-google-doc.js  building the Google Doc, with an HTML fallback
     13-captions.js    timed captions: reading .srt/.vtt, building .srt, .vtt and .zip
-    14-events.js      event delegation, shortcuts, start-up
+    14-descript.js    pulling transcripts and captions from Descript (reading only)
+    15-events.js      event delegation, shortcuts, start-up
 test/
   captions.test.js    checks the caption rules (SOURCE-OF-TRUTH 4.7)
+  descript.test.js    checks the Descript pull against a stand-in connector (4.8)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
 SOURCE-OF-TRUTH.md    what this tool is for, and the lines not to cross
@@ -150,6 +161,7 @@ build step beyond concatenation.
 node build.js                 # write dist/index.html from src/
 node build.js --check         # verify dist/index.html matches src/ — exits 1 if not
 node test/captions.test.js    # check the caption rules
+node test/descript.test.js    # check the Descript pull, against a stand-in connector
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
@@ -168,7 +180,12 @@ them (with that feature switched off):
 | `sample` | the edit pass — the one thing that spends usage |
 | `db` | saving the library (`books/<book>`, and under it `scripts/<script>` and `captions/<script>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
+| `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
+
+The artifact must run on a runtime contract that lets a page save a `.zip`
+(0.2.96 or newer). On the older contract it started on, the caption download
+is refused.
 
 There should be exactly one published Scriptorium artifact, shared with the
 team, and its link belongs at the top of this file.
@@ -194,6 +211,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.1.0` | Pull from Descript: transcripts and timed captions straight from the TTW Drive. Published 2026-11-18. |
 | `v1.0.0` | The first team release: a shared library of books, caption files (`.srt`, `.vtt`), and this repository as the one source of truth. Published 2026-11-16. |
 | `prototype-3` | The last prototype: mechanical fixes moved into free local code. |
 | `prototype-1` | The first prototype, as first published. Still has the full-rewrite fallback. |

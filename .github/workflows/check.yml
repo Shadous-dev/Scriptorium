@@ -18,3 +18,5 @@ jobs:
         run: node build.js --check
       - name: Caption rules hold
         run: node test/captions.test.js
+      - name: Descript pull holds
+        run: node test/descript.test.js
