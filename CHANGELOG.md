@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.2.0 — the speaker's words, enforced (2026-11-19)
+
+From Jared's review of real edits. `SOURCE-OF-TRUTH.md` was amended first, in its own commit.
+
+The wording guard (4.1, 4.2)
+- The edit pass changed a teacher's "wine vinegar" to "sour wine" to match a verse. Until now the rule against that lived only in the instructions. Now the page checks every edit the editor proposes, word by word: it may change punctuation, capitals, spacing, hyphens, or how a number is written, or replace words with words that sound the same. Anything else is **not applied** and is listed under "Suggested but not applied".
+- A change cannot hide inside a longer edit: each run of changed words is judged on its own.
+- A sound-alike swap the editor did not label is still shown as a misheard word.
+- The instructions say the same: a correction must sound like what was transcribed, and a quotation is never changed to match a verse.
+
+For the teacher (4.2)
+- TTW teachers quote the NIV and sometimes the ESV. A quotation that seems to match neither is reported under "For the teacher" and left exactly as spoken.
+
+References in digits (6)
+- A number spelled out beside a reference colon is fixed in code: `Isaiah thirty-five:1` becomes `Isaiah 35:1`.
+- Elsewhere the edit pass is told to write references in digits and keep the spoken words "chapter" and "verse". Code does not guess here: "Peter three times denied him" is not a reference. The guard checks that only the notation changed.
+
+Names from Descript (6)
+- A pulled script is named from its project: `ED_Isaiah_24_Jones_v1_DS` becomes `Isaiah – Chapter 24`. A project that does not start with a Bible book keeps its name. The Descript project name is kept and shown under the captions.
+- An untitled book takes the name of the folder pulled from.
+
+Hand corrections (4.4, 4.5)
+- **Edit by hand** on a corrected script. Each change saved is listed under "Changed by hand" and carries into the Google Doc, the copy for YouVersion and the caption files.
+- Redoing or re-editing a script that has hand corrections asks first. A book cannot be left with an unsaved hand correction.
+
+Credits
+- Fixed instructions are now about 5,470 characters (≈1,370 tokens), up from about 4,790: three sentences and one answer field. Hand corrections, the guard, names and the colon fix are code and cost nothing.
+
+Code
+- New `test/edit-rules.test.js` — 13 checks. `test/descript.test.js` grew to 14.
+
+Not done
+- Stray quotation marks outside verses: waiting on an example.
+- The archive, search and backup ideas: not started.
+
 ## 1.1.0 — Pull from Descript (2026-11-18)
 
 Descript

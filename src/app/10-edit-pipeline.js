@@ -91,6 +91,133 @@
     return text;
   }
 
+  /* ------------------------------------------------------------------
+     Numbers in Bible references — SOURCE-OF-TRUTH 6. A reference is
+     written in digits, never number words or a mix ("Isaiah thirty-five:1").
+
+     Code fixes only the case with one right answer: a number spelled out
+     on either side of a reference colon. Whether "verse one" or "Peter
+     three" is a reference at all depends on meaning ("Peter three times
+     denied him"), so that judgment is the editor's — and the guard below
+     checks that all it changed was how the number is written.
+     ------------------------------------------------------------------ */
+
+  var NUM_UNITS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+                    thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+  var NUM_TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+  var NUM_ONES = 'one|two|three|four|five|six|seven|eight|nine';
+  var NUM_ANY = 'thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|ten|eleven|twelve|' + NUM_ONES + '|' + Object.keys(NUM_TENS).join('|');
+  var NUM_SMALL = '(?:(?:' + Object.keys(NUM_TENS).join('|') + ')(?:[ -](?:' + NUM_ONES + '))?|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|ten|eleven|twelve|' + NUM_ONES + ')';
+  // One whole number in words, up to 999 — and not the first half of two numbers said back to back ("thirty-five one").
+  var NUM_PHRASE = '(?:(?:' + NUM_ONES + ') hundred(?:(?: and)? ' + NUM_SMALL + ')?|' + NUM_SMALL + ')(?![ -](?:' + NUM_ANY + '|hundred)\\b)';
+  var NUM_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '\\b', 'gi');
+  var REF_LEFT_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '(?=:\\s?(?:\\d|(?:' + NUM_ANY + ')\\b))', 'gi');   // "thirty-five:1"
+  var REF_RIGHT_RE = new RegExp('(?<=\\d:\\s?)' + NUM_PHRASE + '\\b', 'gi');                                        // "35:one"
+
+  function numberFromWords(phrase) {
+    var t = String(phrase).toLowerCase().split(/[ -]+/), i = 0, total = 0;
+    if (NUM_UNITS[t[0]] < 10 && t[1] === 'hundred') {
+      total = NUM_UNITS[t[0]] * 100; i = 2;
+      if (i === t.length) return total;
+      if (t[i] === 'and') i += 1;
+    }
+    if (NUM_TENS[t[i]]) { total += NUM_TENS[t[i]]; i += 1; if (NUM_UNITS[t[i]] < 10) { total += NUM_UNITS[t[i]]; i += 1; } }
+    else if (NUM_UNITS[t[i]]) { total += NUM_UNITS[t[i]]; i += 1; }
+    else return null;
+    return i === t.length ? total : null;
+  }
+  function digitsForWords(text) { return String(text).replace(NUM_RE, function (m) { var n = numberFromWords(m); return n == null ? m : String(n); }); }
+
+  // A number spelled out on either side of a reference colon becomes digits. Each distinct fix is one visible row.
+  function fixReferences(text, intoEdits) {
+    var seen = {};
+    function swap(m) {
+      var n = numberFromWords(m);
+      if (n == null) return m;
+      if (!seen[m.toLowerCase()]) { seen[m.toLowerCase()] = 1; intoEdits.push({ find: m, replace: String(n), kind: 'reference', note: 'reference number written in digits' }); }
+      return String(n);
+    }
+    return text.replace(REF_LEFT_RE, swap).replace(REF_RIGHT_RE, swap);
+  }
+
+  /* ------------------------------------------------------------------
+     The wording guard — SOURCE-OF-TRUTH 4.1 and 4.2, enforced here and
+     not left to the edit pass.
+
+     An edit the editor proposes is applied only if every word it touches
+     either stays the same word (punctuation, capitals, spacing, hyphens
+     and number notation may change), or is replaced by words that sound
+     the same — which is what a mishearing is. Anything else would change
+     what the speaker said. It is held back and shown as a suggestion.
+     ------------------------------------------------------------------ */
+
+  // The words of a run with everything that is not wording removed: "So-called," and "so called" are the same wording.
+  function wordingKey(text) { return digitsForWords(String(text).toLowerCase()).replace(/[^a-z0-9\u00C0-\u024F]+/g, ''); }
+
+  // A rough ear: consonant sounds only, with the spellings that share a sound folded together.
+  function soundKey(text) {
+    return String(text).toLowerCase().replace(/[^a-z]+/g, '')
+      .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
+      .replace(/x/g, 'ks').replace(/z/g, 's').replace(/v/g, 'f').replace(/j/g, 'g')
+      .replace(/[aeiouyhw]+/g, '').replace(/(.)\1+/g, '$1');
+  }
+  function editDistance(a, b) {
+    var prev = [], cur, i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      cur = [i];
+      for (j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  // Could Descript have heard one as the other? Short words must match exactly by sound; longer runs may differ a little.
+  function soundsAlike(a, b) {
+    if (!String(a).trim() || !String(b).trim()) return false;
+    var x = soundKey(a), y = soundKey(b), longest = Math.max(x.length, y.length);
+    if (!longest) return true;                                   // both are vowel sounds only: "a" / "I", "oh" / "owe"
+    return editDistance(x, y) <= (longest <= 3 ? 0 : Math.floor(longest * 0.4));
+  }
+
+  // Why an edit may not be applied, or '' when it may. Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled.
+  function wordingProblem(e) {
+    var find = String((e && e.find) || ''), repl = String((e && e.replace) || '');
+    if (wordingKey(find) === wordingKey(repl)) return '';
+    if (!repl.trim() && !/[a-z]/.test(find)) return '';          // a section label in capitals, removed whole
+    var a = find.match(/\S+/g) || [], b = repl.match(/\S+/g) || [];
+    var pairs = matchWords(a.map(wordingKey), b.map(wordingKey), 2000);
+    if (!pairs) return 'changes the wording';
+    var swapsSound = false, problem = '', pa = -1, pb = -1;
+    function check(toA, toB) {
+      if (problem || (toA - pa <= 1 && toB - pb <= 1)) return;
+      var was = a.slice(pa + 1, toA).join(' '), now = b.slice(pb + 1, toB).join(' ');
+      if (wordingKey(was) === wordingKey(now)) return;
+      if (soundsAlike(was, now)) { swapsSound = true; return; }
+      problem = !was ? 'adds words the speaker did not say' : !now ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
+    }
+    pairs.forEach(function (p) { check(p[0], p[1]); pa = p[0]; pb = p[1]; });
+    check(a.length, b.length);
+    if (!problem && swapsSound && e.kind !== 'misheard' && e.kind !== 'verse-fix') { e.kind = 'misheard'; e.note = e.note || 'sounds the same'; }
+    return problem;
+  }
+  function guardEdits(edits) {
+    var ok = [], held = [];
+    (edits || []).forEach(function (e) {
+      if (!e || typeof e !== 'object') return;
+      var why = wordingProblem(e);
+      if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'), note: why + (e.note ? ' — ' + String(e.note) : '') });
+      else ok.push(e);
+    });
+    return { ok: ok, held: held };
+  }
+
+  function cleanMisquotes(list) {
+    return Array.isArray(list) ? list.map(function (q) {
+      q = q || {};
+      return { said: str(q.said), verse: str(q.verse), reference: str(q.reference) };
+    }).filter(function (q) { return q.said; }) : [];
+  }
+
   function str(v) { return String(v == null ? '' : v).trim(); }
   function cleanVerses(list) {
     return Array.isArray(list) ? list.map(function (v) {
@@ -128,18 +255,21 @@
       return Promise.resolve();
     }
     var local = [];
-    var prepared = fixCapitals(fixNames(mechanics(s.raw, local), local), local);
+    var prepared = fixCapitals(fixNames(fixReferences(mechanics(s.raw, local), local), local), local);
     return sample.json(buildEditsPrompt(s, prepared), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
-      var result = applyEdits(prepared, Array.isArray(data.edits) ? data.edits : []);
+      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : []);       // 4.1: only what keeps the speaker's words
+      var result = applyEdits(prepared, guard.ok);
       var applied = local.concat(result.applied);
       var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied), applied), applied);
       var summary = str(data.summary);
       if (result.unapplied.length > 2) summary += (summary ? ' ' : '') + result.unapplied.length + ' suggested changes could not be placed and are listed below for a hand check — Redo this one if that seems like too many.';
+      if (guard.held.length) summary += (summary ? ' ' : '') + guard.held.length + ' suggested change' + plural(guard.held.length) + ' would have altered the speaker’s words and ' + (guard.held.length === 1 ? 'was' : 'were') + ' not applied — listed below.';
       s.corrected = text; s.summary = summary; s.changeCount = applied.length;
       s.edits = applied; s.unapplied = result.unapplied;
       s.misheard = applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; });
       s.nonsensical = cleanNonsense(data.nonsensical); s.verses = cleanVerses(data.verses); s.method = 'edits';
+      s.suggested = guard.held; s.misquotes = cleanMisquotes(data.misquotes); delete s.handDraft;
       s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null;
     }).catch(function (err) {
       if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
@@ -151,12 +281,22 @@
 
   // Runs `concurrency` scripts at once (1 or 2). Each finished script is saved on its own
   // before the worker picks up the next, so an interruption costs at most what was in flight.
-  function editAll() {
+  function editAll(force) {
     syncFieldsFromDom();
     if (dbStatus === 'loading') { showFlash('Still loading your saved scripts — give it a second and try again.'); return; }
     useCap('sample').then(function (sample) {
       if (!sample) { showFlash('This page needs permission to use Claude for editing. Open it in a Claude viewer that allows that, then try again.'); return; }
       var toProcess = state.sections.filter(needsEdit);
+      var byHand = toProcess.filter(hasHandWork).length;
+      if (force !== true && byHand) {                          // 4.5: hand corrections are never silently replaced
+        openConfirm({
+          title: 'Edit ' + byHand + ' script' + plural(byHand) + ' again?',
+          body: byHand + ' of the scripts about to be edited ' + (byHand === 1 ? 'has' : 'have') + ' corrections made by hand. Their transcript has changed, so the edit pass will replace the corrected script, and those corrections are lost.',
+          warn: '', confirmLabel: 'Edit and replace',
+          onConfirm: function () { confirmState = null; editAll(true); }
+        });
+        return;
+      }
       if (!toProcess.length) {
         showFlash(state.sections.some(function (s) { return s.raw.trim(); }) ? 'Every script with text is already up to date.' : 'Add a transcript to at least one script first.');
         return;

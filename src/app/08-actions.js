@@ -57,3 +57,50 @@
       } catch (e) { plainOnly(); }
     } else plainOnly();
   }
+
+  /* ---- Correcting a finished script by hand ---- */
+
+  function hasHandWork(s) { return s.handDraft != null || (s.edits || []).some(function (e) { return e.kind === 'hand'; }); }
+
+  function startHandEdit(id) {
+    syncFieldsFromDom();
+    var s = findSection(id);
+    if (!s || !s.corrected || s.status === 'editing') return;
+    s.handDraft = s.corrected;
+    paintSection(id);
+    var box = root.querySelector('[data-field="handDraft"][data-id="' + id + '"]');
+    if (box) { try { box.focus(); } catch (e) {} }
+  }
+  function cancelHandEdit(id) { var s = findSection(id); if (s) { delete s.handDraft; paintSection(id); } }
+
+  // Keep the change, and list it: every run of words that differs becomes a row under "Changed by hand".
+  function saveHandEdit(id) {
+    syncFieldsFromDom();
+    var s = findSection(id);
+    if (!s || s.handDraft == null) return;
+    var text = String(s.handDraft).replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!text) { showFlash('The corrected script can’t be left empty. Cancel to keep it as it was.'); return; }
+    if (text !== s.corrected) {
+      s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));
+      s.changeCount = s.edits.length;
+      s.corrected = text;
+      state.approved = false;
+    }
+    delete s.handDraft;
+    paint();
+    saveSection(id).then(saveMeta);
+  }
+
+  // Redoing the edit pass replaces the corrected script, hand corrections included — so ask first (4.5).
+  function askRedo(id) {
+    var s = findSection(id);
+    if (!s) return;
+    if (!hasHandWork(s)) { redoSection(id); return; }
+    openConfirm({
+      title: 'Redo “' + (s.name || 'this script') + '”?',
+      body: 'This script has corrections made by hand. Redoing the edit pass replaces the corrected script with a fresh result, and those corrections are lost.',
+      warn: '',
+      confirmLabel: 'Redo and replace',
+      onConfirm: function () { confirmState = null; delete s.handDraft; redoSection(id); }
+    });
+  }

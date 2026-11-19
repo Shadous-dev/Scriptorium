@@ -271,3 +271,14 @@ input:disabled, textarea:disabled { cursor: wait; }
 .pull-progress { margin: 0; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .pull-failed { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
 .pull-failed strong { color: var(--ink); font-weight: 600; }
+
+/* Hand corrections, suggestions held back, and notes for the teacher */
+.pane-actions { display: inline-flex; align-items: center; gap: 6px; }
+.copy-btn:disabled { opacity: .45; cursor: not-allowed; }
+.copy-btn.is-primary { background: var(--edit); border-color: var(--edit); color: var(--paper); font-weight: 600; }
+.copy-btn.is-primary:hover { background: var(--edit-hover); border-color: var(--edit-hover); color: var(--paper); }
+.hand-hint { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-soft); }
+.detail-note { margin: -2px 0 8px; font-size: 12.5px; color: var(--ink-soft); max-width: 72ch; }
+.caption-source { font-family: var(--font-mono); font-size: 12px; color: var(--ink); overflow-wrap: anywhere; }
+.misheard-table.is-kept td.was { text-decoration: none; color: var(--ink); font-weight: 500; }
+.misheard-table.is-kept td.now { color: var(--ink-soft); font-weight: 400; }

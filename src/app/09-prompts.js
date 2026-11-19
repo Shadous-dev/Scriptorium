@@ -24,8 +24,9 @@
       '- RUN-ONS: where a sentence chains past two or three clauses on "and", "so", "but", "because", break it with punctuation and capitalization only — never new words: end at a natural boundary and start the next sentence with the conjunction, use a semicolon between closely linked statements, or set off an aside with an em dash (—). Keep the words in their order.\n' +
       '- Keep the dashes already there; add one only where it does grammatical work, never just for a pause.\n' +
       '- Remove a line that is only a section label in capitals (e.g. BEARINGS). Words spoken in capitals for emphasis stay.\n' +
-      '2. MISHEARD WORDS: plausible mishearings of a listed name or term ("Eli who" for Elihu, "so far" for Zophar), and other names where the sentence only makes sense with a different word.\n' +
-      '3. SCRIPTURE: the speaker quotes Bible verses, usually after a reference ("Verse one", "Job 2:4", "Isaiah 3 verses two through four"). Inside a quoted verse fix ONLY misheard words ("the land of us" to "the land of Uz"); change nothing else — not wording, order, capitalization, or punctuation, even where it looks wrong. Translations read oddly on purpose.\n' +
+      '- Bible references in digits, never number words or a mix ("Isaiah 35:1", "chapter 12", "verse 3"); keep the words "chapter" and "verse" where spoken. Other numbers stay as spoken.\n' +
+      '2. MISHEARD WORDS: plausible mishearings of a listed name or term ("Eli who" for Elihu, "so far" for Zophar), and other names where the sentence only makes sense with a different word. A correction must SOUND like what was transcribed — never swap in a different word that means the same.\n' +
+      '3. SCRIPTURE: the speaker quotes Bible verses, usually after a reference ("Verse one", "Job 2:4", "Isaiah 3 verses two through four"). Inside a quoted verse fix ONLY misheard words ("the land of us" to "the land of Uz"); change nothing else — not wording, order, capitalization, or punctuation, even where it looks wrong. Translations read oddly on purpose. The speaker quotes the NIV, sometimes the ESV: never change a quotation to match a verse. If one matches neither translation in meaning or a key word, leave it and report it under "misquotes".\n' +
       '4. Flag any sentence that still makes no sense after your edits, with your best guess at what is wrong.\n\n';
   }
 
@@ -49,9 +50,10 @@
       'Add "kind": "misheard" for a misheard word or name, or "verse-fix" for one inside a quoted verse, each with a "note" of a few words; grammar edits need neither.\n' +
       versesSpec() +
       joinsSpec() +
+      '"misquotes": quotations that match neither the NIV nor the ESV. Each: "said" — the speaker’s words, copied; "verse" — how the verse reads; "reference".\n' +
       '"nonsensical": sentences that still make no sense after your edits. "summary": one or two plain sentences on what you corrected.\n\n' +
       'Return ONLY this JSON object:\n' +
-      '{"edits":[{"find":"","replace":""}],"verses":[{"reference":"","startsWith":"","endsWith":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
+      '{"edits":[{"find":"","replace":""}],"verses":[{"reference":"","startsWith":"","endsWith":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"misquotes":[{"said":"","verse":"","reference":""}],"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
       'Use empty arrays when there is nothing to report. No text outside the JSON.\n\n' +
       'TRANSCRIPT:\n"""\n' + text + '\n"""';
   }

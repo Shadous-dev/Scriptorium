@@ -16,6 +16,9 @@
     if (action === 'open-book') { openBook(id); return; }
     if (action === 'delete-book') { askDeleteBook(id); return; }
     if (action === 'go-library') { leaveBook(); return; }
+    if (action === 'hand-edit') { startHandEdit(id); return; }
+    if (action === 'hand-save') { saveHandEdit(id); return; }
+    if (action === 'hand-cancel') { cancelHandEdit(id); return; }
     if (action === 'pull-descript') { openPull(); return; }
     if (action === 'pull-close') { closePull(); return; }
     if (action === 'pull-open') { pullOpenFolder(btn.dataset.path || ''); return; }
@@ -31,7 +34,7 @@
     else if (action === 'copy-corrected') copyCorrected(id, btn);
     else if (action === 'edit-all') editAll();
     else if (action === 'stop-edit') stopEdit();
-    else if (action === 'redo-section') redoSection(id);
+    else if (action === 'redo-section') askRedo(id);
     else if (action === 'conclude') conclude();
     else if (action === 'download-captions') downloadCaptions(id);
     else if (action === 'download-all-captions') downloadAllCaptions();
@@ -52,6 +55,7 @@
   function fieldTouched(el) {
     if (!el || !el.dataset || !el.dataset.field || dbStatus === 'loading') return;
     syncOneField(el);
+    if (el.dataset.field === 'handDraft') return;              // a hand correction is saved only when the reader clicks Save changes
     if (el.dataset.field === 'captions' && el.dataset.id) {
       var cs = findSection(el.dataset.id);
       saveCaptionsSoon(el.dataset.id);

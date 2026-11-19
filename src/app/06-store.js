@@ -43,7 +43,8 @@
              editedFromRaw: s.editedFromRaw == null ? '' : s.editedFromRaw, hasEditedFrom: s.editedFromRaw != null,
              summary: s.summary || '', changeCount: s.changeCount || 0, misheard: s.misheard || [], nonsensical: s.nonsensical || [],
              edits: s.edits || [], unapplied: s.unapplied || [], verses: s.verses || [], method: s.method || '',
-             status: s.status || 'draft', error: s.error || '', editedAt: s.editedAt || 0, descriptId: s.descriptId || '' };
+             status: s.status || 'draft', error: s.error || '', editedAt: s.editedAt || 0, descriptId: s.descriptId || '', descriptName: s.descriptName || '',
+             suggested: s.suggested || [], misquotes: s.misquotes || [] };
   }
   function docToSection(id, d, captions) {
     d = d || {};
@@ -53,7 +54,8 @@
              misheard: Array.isArray(d.misheard) ? d.misheard : [], nonsensical: Array.isArray(d.nonsensical) ? d.nonsensical : [],
              edits: Array.isArray(d.edits) ? d.edits : [], unapplied: Array.isArray(d.unapplied) ? d.unapplied : [],
              verses: Array.isArray(d.verses) ? d.verses : [], method: String(d.method || ''),
-             status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || '') };
+             status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
+             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [] };
   }
   // The book's own document. The two counts are there so the library can describe a book without opening it.
   function metaToDoc() {
@@ -243,6 +245,9 @@
   }
   function leaveBook() {
     if (pull && pull.step === 'pulling') { showFlash('Still pulling from Descript. Let it finish, or stop it, before leaving this book.'); return; }
+    syncFieldsFromDom();
+    var unsaved = state.sections.filter(function (s) { return s.handDraft != null && s.handDraft !== s.corrected; })[0];
+    if (unsaved) { showFlash('“' + (unsaved.name || 'A script') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }
     if (editState || state.sections.some(function (s) { return s.status === 'editing'; })) { showFlash('The edit pass is still running. Let it finish, or stop it, before leaving this book.'); return; }
     syncFieldsFromDom(); flushSaves();
     // One last save of the book's own document, so its title and counts are right in the list.

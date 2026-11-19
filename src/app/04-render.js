@@ -11,9 +11,9 @@
   }
   function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : 'chip-' + s.status; }
 
-  function changeTable(rows, h1, h2) {
+  function changeTable(rows, h1, h2, kept) {
     var why = rows.some(function (m) { return m.note; });
-    return '<table class="misheard-table"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th>' + (why ? '<th>Why</th>' : '') + '</tr></thead><tbody>' +
+    return '<table class="misheard-table' + (kept ? ' is-kept' : '') + '"><thead><tr><th>' + h1 + '</th><th>' + h2 + '</th>' + (why ? '<th>Why</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (m) { return '<tr><td class="mono was">' + esc(m.find != null ? m.find : m.heard) + '</td><td class="mono now">' + esc(m.replace != null ? m.replace : m.likely) + '</td>' + (why ? '<td>' + esc(m.note || '') + '</td>' : '') + '</tr>'; }).join('') +
       '</tbody></table>';
   }
@@ -22,7 +22,8 @@
     var edits = s.edits || [];
     var misheardRows = edits.length ? edits.filter(function (e) { return e.kind === 'misheard'; }) : (s.misheard || []);
     var verseFixRows = edits.filter(function (e) { return e.kind === 'verse-fix'; });
-    var grammarRows = edits.filter(function (e) { return e.kind !== 'misheard' && e.kind !== 'verse-fix'; });
+    var handRows = edits.filter(function (e) { return e.kind === 'hand'; });
+    var grammarRows = edits.filter(function (e) { return e.kind !== 'misheard' && e.kind !== 'verse-fix' && e.kind !== 'hand'; });
     var misheardHtml = misheardRows.length ? '<div class="detail-block"><h4>Words that may have been misheard</h4>' + changeTable(misheardRows, 'Heard as', 'Likely meant') + '</div>' : '';
     var verseFixHtml = verseFixRows.length ? '<div class="detail-block"><h4>Mishearings fixed inside a verse</h4>' + changeTable(verseFixRows, 'Transcript had', 'Corrected to') + '</div>' : '';
     var joinCount = grammarRows.filter(function (e) { return e.kind === 'paragraph'; }).length;
@@ -46,7 +47,18 @@
       '<div class="detail-block"><h4>Doesn’t quite make sense</h4><ul class="flag-list">' +
       s.nonsensical.map(function (n) { return '<li><span class="mono flag-quote">“' + esc(n.original) + '”</span><span class="flag-issue">' + esc(n.issue) + '</span></li>'; }).join('') +
       '</ul></div>' : '';
-    return '<div class="section-details"><p class="section-summary">' + esc(s.summary || '') + '</p>' + versesHtml + misheardHtml + verseFixHtml + nonsenseHtml + unappliedHtml + grammarHtml + '</div>';
+    var misquotes = s.misquotes || [], suggested = s.suggested || [];
+    var misquotesHtml = misquotes.length ?
+      '<div class="detail-block"><h4>For the teacher — a quotation that may not match the verse</h4>' +
+      '<p class="detail-note">Left exactly as spoken. Checked against the NIV and ESV from memory, not looked up — confirm before raising it.</p><ul class="flag-list">' +
+      misquotes.map(function (q) { return '<li><span class="mono flag-quote">“' + esc(q.said) + '”</span><span class="flag-issue">' + (q.reference ? esc(q.reference) + ' reads: ' : 'The verse reads: ') + esc(q.verse || 'not given') + '</span></li>'; }).join('') +
+      '</ul></div>' : '';
+    var suggestedHtml = suggested.length ?
+      '<div class="detail-block"><h4>Suggested but not applied — it would change the speaker’s words</h4>' +
+      '<p class="detail-note">The script still reads as spoken. If one of these is right, make it with Edit by hand.</p>' +
+      changeTable(suggested, 'Script says', 'Suggested', true) + '</div>' : '';
+    var handHtml = handRows.length ? '<div class="detail-block"><h4>Changed by hand</h4>' + changeTable(handRows.map(function (r) { return { find: r.find, replace: r.replace, note: '' }; }), 'Before', 'After') + '</div>' : '';
+    return '<div class="section-details"><p class="section-summary">' + esc(s.summary || '') + '</p>' + versesHtml + misquotesHtml + misheardHtml + verseFixHtml + suggestedHtml + nonsenseHtml + unappliedHtml + handHtml + grammarHtml + '</div>';
   }
 
   function sectionMeta(s) {
@@ -58,6 +70,8 @@
     }
     if (s.misheard && s.misheard.length) bits.push(s.misheard.length + ' misheard');
     if (s.nonsensical && s.nonsensical.length) bits.push(s.nonsensical.length + ' to check');
+    if (s.suggested && s.suggested.length) bits.push(s.suggested.length + ' not applied');
+    if (s.misquotes && s.misquotes.length) bits.push(s.misquotes.length + ' for the teacher');
     return bits.join(' · ');
   }
 
@@ -89,8 +103,13 @@
       '<div class="pane"><div class="pane-head"><label>Raw transcript (from Descript)</label></div>' +
       '<textarea data-field="raw" data-id="' + s.id + '" rows="8" placeholder="Paste the Descript transcript here — e.g. &quot;So Eli who answered and said, so far said unto Job…&quot;">' + esc(s.raw) + '</textarea></div>' +
       '<div class="pane pane-corrected"><div class="pane-head"><label>Corrected script</label>' +
-      (s.corrected ? '<button type="button" class="copy-btn" data-action="copy-corrected" data-id="' + s.id + '" title="Copies the script with bold verses and block quotes, ready to paste">Copy for YouVersion</button>' : '') + '</div>' +
-      '<div class="corrected-output' + (s.corrected ? ' is-blocks' : ' is-empty') + '">' + corrected + '</div></div>' +
+      (s.handDraft != null ? '<span class="pane-actions"><button type="button" class="copy-btn" data-action="hand-cancel" data-id="' + s.id + '">Cancel</button><button type="button" class="copy-btn is-primary" data-action="hand-save" data-id="' + s.id + '">Save changes</button></span>' :
+        s.corrected ? '<span class="pane-actions"><button type="button" class="copy-btn" data-action="hand-edit" data-id="' + s.id + '" title="Make a small correction yourself. Each change is listed below."' + (s.status === 'editing' ? ' disabled' : '') + '>Edit by hand</button>' +
+        '<button type="button" class="copy-btn" data-action="copy-corrected" data-id="' + s.id + '" title="Copies the script with bold verses and block quotes, ready to paste">Copy for YouVersion</button></span>' : '') + '</div>' +
+      (s.handDraft != null ?
+        '<textarea data-field="handDraft" data-id="' + s.id + '" rows="8" aria-label="Corrected script, editable">' + esc(s.handDraft) + '</textarea>' +
+        '<p class="hand-hint">For small corrections the edit pass missed. Keep the speaker’s words as spoken. Every change you save is listed under “Changed by hand”, and carries into the Google Doc and the caption files.</p>' :
+        '<div class="corrected-output' + (s.corrected ? ' is-blocks' : ' is-empty') + '">' + corrected + '</div>') + '</div>' +
       '</div>' + renderCaptionFold(s) + extra +
       '</article>'
     );
@@ -251,6 +270,7 @@
       '<li>Click <strong>Pull from Descript</strong> and pick the audio guides to bring in. Each becomes a script below, with its transcript and its timed captions. Or paste a transcript into a script by hand — use <strong>+ Add Script</strong> for as many as the plan needs.</li>' +
       '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
       '<li>Click <strong>Edit All Scripts</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished script is saved on its own, so you can stop and resume anytime without losing what’s already done.</li>' +
+      '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong> on a corrected script.</li>' +
       '<li>Review the overview, check the approval box, then click <strong>Create Google Docs</strong> — one Doc per script in a folder, or one Doc for the book. Or use <strong>Copy for YouVersion</strong> on any script to paste it straight in with the verses already formatted.</li>' +
       '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a script once it is edited. Both files carry the corrected words on Descript’s timings. Pulling from Descript fills the timings in; for a pasted transcript, paste in the .srt file Descript exports.</li>' +
       '</ol></details>' +

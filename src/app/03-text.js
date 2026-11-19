@@ -156,3 +156,25 @@
     return blocks.map(function (b) { return b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text; }).join('\n\n');
   }
 
+  /* ------------------------------------------------------------------
+     Hand edits — SOURCE-OF-TRUTH 4.4. A person may correct the finished
+     script by hand, and every such change is listed like any other.
+     ------------------------------------------------------------------ */
+
+  // The before/after rows for a hand edit: one row per run of words that changed, each with a word of context in front.
+  function handEditRows(before, after) {
+    var a = String(before).match(/\S+/g) || [], b = String(after).match(/\S+/g) || [];
+    function clip(text) { text = String(text).replace(/\s+/g, ' ').trim(); return text.length > 80 ? text.slice(0, 78) + '…' : text; }
+    var pairs = matchWords(a, b, 2000), rows = [], pa = -1, pb = -1;
+    if (!pairs) return [{ find: clip(before), replace: clip(after), kind: 'hand', note: 'rewritten by hand' }];
+    function gap(toA, toB) {
+      if (toA - pa <= 1 && toB - pb <= 1) return;
+      var lead = pa >= 0 ? a[pa] + ' ' : '';
+      rows.push({ find: clip(lead + a.slice(pa + 1, toA).join(' ')), replace: clip(lead + b.slice(pb + 1, toB).join(' ')), kind: 'hand', note: 'changed by hand' });
+    }
+    pairs.forEach(function (p) { gap(p[0], p[1]); pa = p[0]; pb = p[1]; });
+    gap(a.length, b.length);
+    if (!rows.length && String(before) !== String(after)) rows.push({ find: 'paragraph breaks or spacing', replace: '', kind: 'hand', note: 'changed by hand' });
+    if (rows.length > 40) rows = rows.slice(0, 40).concat([{ find: '(' + (rows.length - 40) + ' more)', replace: '', kind: 'hand', note: 'further changes by hand' }]);
+    return rows;
+  }

@@ -160,8 +160,9 @@
     if (!s) {
       s = state.sections.filter(function (x) { return !x.descriptId && !x.raw.trim() && !x.name.trim() && !(x.captions || '').trim(); })[0];
       if (!s) { s = newSection(); state.sections.push(s); }
-      s.name = project.name; s.descriptId = project.id;
+      s.name = scriptNameFromDescript(project.name); s.descriptId = project.id;
     }
+    s.descriptName = project.name;
     s.raw = String(text).replace(/\s+$/, '');
     s.captions = String(srt || '').replace(/\s+$/, '');
     state.approved = false;
@@ -173,6 +174,8 @@
     var queue = pull.projects.filter(function (p) { return pull.selected[p.id]; });
     if (!queue.length) return;
     var book = bookId, conn = pull.conn, run = pull;
+    syncFieldsFromDom();
+    if (!String(state.bookTitle || '').trim() && run.path) state.bookTitle = bookTitleFromFolder(run.path);   // an untitled book takes the folder's name
     run.step = 'pulling'; run.total = queue.length; run.done = 0; run.added = 0; run.updated = 0; run.failed = []; run.stop = false; run.current = '';
     paint();
     function next() {
@@ -259,4 +262,40 @@
       '<p class="hint">Pick the audio guides to bring into this book. Each one becomes a script with its transcript and its timed captions. Nothing in Descript is changed.</p>' +
       '<p class="pull-path">' + crumbs + '</p>' + body +
       '</section>';
+  }
+
+  /* ---- Names — SOURCE-OF-TRUTH 6. A script pulled from Descript is named from its project. ---- */
+
+  var BIBLE_BOOKS = ('Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Ezra|Nehemiah|Esther|Job|Psalms|Proverbs|Ecclesiastes|Song of Songs|Song of Solomon|' +
+    'Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|' +
+    'Galatians|Ephesians|Philippians|Colossians|Titus|Philemon|Hebrews|James|Jude|Revelation').split('|');
+  var NUMBERED_BOOKS = { Samuel: 2, Kings: 2, Chronicles: 2, Corinthians: 2, Thessalonians: 2, Timothy: 2, Peter: 2, John: 3 };   // book → how many there are
+  var BOOK_BY_KEY = {};
+  BIBLE_BOOKS.concat(Object.keys(NUMBERED_BOOKS)).forEach(function (b) { BOOK_BY_KEY[b.toLowerCase().replace(/[^a-z]/g, '')] = b; });
+  BOOK_BY_KEY.psalm = 'Psalms';
+
+  // "ED_Isaiah_24_Jones_v1_DS" → "Isaiah – Chapter 24". A name that does not start with a Bible book is returned exactly as it came.
+  function scriptNameFromDescript(name) {
+    var t = String(name).replace(/\s*\(.*$/, '').replace(/^ED[_ ]+/i, '').split(/[_ ]+/).filter(Boolean), which = '';
+    if (/^[123]$/.test(t[0] || '') && t.length > 1) which = t.shift();
+    else { var m = /^([123])(?:st|nd|rd)?([A-Za-z].*)$/.exec(t[0] || ''); if (m) { which = m[1]; t[0] = m[2]; } }
+    var book = BOOK_BY_KEY[String(t.shift() || '').toLowerCase().replace(/[^a-z]/g, '')];
+    if (!book) return name;
+    if (which && !(Number(which) <= NUMBERED_BOOKS[book])) return name;        // "2 Isaiah", "3 Kings": not a book
+    if (!which && NUMBERED_BOOKS[book] && book !== 'John') return name;         // "Samuel" alone: which one?
+    var full = (which ? which + ' ' : '') + book, next = t[0] || '';
+    if (/^\d{1,3}$/.test(next)) return book === 'Psalms' ? 'Psalm ' + Number(next) : full + ' – Chapter ' + Number(next);
+    if (/^intro(duction)?$/i.test(next)) return full + ' – Introduction';
+    if (/^conclusion$/i.test(next)) return full + ' – Conclusion';
+    return name;
+  }
+
+  // "3.0) Peyton Jones/isaiah-project" → "Isaiah"; "…/science-and-the-bible-project" → "Science and the Bible".
+  function bookTitleFromFolder(path) {
+    var words = String(path).split('/').pop().replace(/[-_ ]*project\s*$/i, '').split(/[-_ ]+/).filter(Boolean);
+    var known = BOOK_BY_KEY[words.join('').toLowerCase().replace(/[^a-z]/g, '')];
+    if (known && !NUMBERED_BOOKS[known]) return known;
+    return words.map(function (w, i) {
+      return (i && /^(a|an|and|the|of|in|on|to|for)$/i.test(w)) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1);
+    }).join(' ');
   }

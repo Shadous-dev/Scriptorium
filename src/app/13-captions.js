@@ -237,6 +237,7 @@
     return '<details class="caption-fold" data-caption-fold="' + s.id + '"' + (open ? ' open' : '') + '>' +
       '<summary>Timed captions for search' + (has ? '' : ' <span class="caption-optional">— optional</span>') + '</summary>' +
       '<p class="hint"><strong>Pull from Descript</strong> fills this in for you. By hand: in Descript, export this audio guide’s subtitles as <strong>.srt</strong>, open the file, and paste everything in it here. The Scriptorium puts the corrected script onto those timings and gives you an .srt and a .vtt.</p>' +
+      (s.descriptName ? '<p class="hint">Pulled from the Descript project <span class="caption-source">' + esc(s.descriptName) + '</span>.</p>' : '') +
       '<textarea data-field="captions" data-id="' + s.id + '" rows="5" placeholder="1&#10;00:00:00,000 --> 00:00:03,200&#10;welcome back my friends">' + esc(s.captions || '') + '</textarea>' +
       '<div class="caption-bar"><p class="caption-note' + (note.warn ? ' is-warn' : '') + '">' + esc(note.text) + '</p>' +
       '<button type="button" class="copy-btn" data-action="download-captions" data-id="' + s.id + '"' + (captionsReady(s) ? '' : ' disabled') + '>Download .srt + .vtt</button></div>' +

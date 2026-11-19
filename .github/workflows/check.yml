@@ -20,3 +20,5 @@ jobs:
         run: node test/captions.test.js
       - name: Descript pull holds
         run: node test/descript.test.js
+      - name: Edit rules hold
+        run: node test/edit-rules.test.js

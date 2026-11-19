@@ -24,7 +24,7 @@ assert.ok(src.includes('DESCRIPT_GAP_MS = ' + GAP), 'the pause between exports c
 function makePage(mcp) {
   const page = { saved: [], paints: 0, calls: [] };
   const helpers = `
-    var state = { sections: [], approved: true }, bookId = 'b1', nextScript = 1;
+    var state = { sections: [], approved: true, bookTitle: '' }, bookId = 'b1', nextScript = 1;
     var root = { querySelector: function () { return null; }, querySelectorAll: function () { return []; } };
     function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
@@ -38,7 +38,7 @@ function makePage(mcp) {
     function useCap(name) { return Promise.resolve(name === 'mcp' ? mcp : null); }
   `;
   const api = new Function('page', 'mcp', helpers + src + `
-    return { naturalCompare, toolText, toolData, descriptProblem, isAccessProblem, openPull, pullOpenFolder, pullPick, pullPickAll, pullStart, pullStop, renderPull,
+    return { naturalCompare, toolText, toolData, descriptProblem, isAccessProblem, openPull, pullOpenFolder, pullPick, pullPickAll, pullStart, pullStop, renderPull, scriptNameFromDescript, bookTitleFromFolder,
              get pull() { return pull; }, get state() { return state; }, setBook: function (b) { bookId = b; } };`)(page, mcp);
   // Copy the live getters themselves (Object.assign would copy their values once, and `pull` changes).
   return Object.defineProperties(page, Object.getOwnPropertyDescriptors(api));
@@ -129,7 +129,9 @@ test('pulling: each audio guide becomes a script with its transcript and caption
   assert.strictEqual(page.pull.step, 'pulling');
   await until(() => page.pull.step === 'done', 5000);
   const scripts = page.state.sections;
-  assert.deepStrictEqual(scripts.map((s) => [s.name, s.descriptId]), [['ED_Ruth_1_Sample_v1_DS', 'p1'], ['ED_Ruth_2_Sample_v1_DS', 'p2']]);
+  assert.deepStrictEqual(scripts.map((s) => [s.name, s.descriptId]), [['Ruth – Chapter 1', 'p1'], ['Ruth – Chapter 2', 'p2']]);
+  assert.deepStrictEqual(scripts.map((s) => s.descriptName), ['ED_Ruth_1_Sample_v1_DS', 'ED_Ruth_2_Sample_v1_DS'], 'the Descript project each script came from is kept');
+  assert.strictEqual(page.state.bookTitle, 'Ruth', 'an untitled book takes the folder\'s name');
   assert.strictEqual(scripts[0].raw, 'welcome back my friends\n\nruth chapter one');
   assert.ok(/00:00:00,000 --> 00:00:02,000\nwelcome back my friends$/.test(scripts[0].captions));
   assert.deepStrictEqual([page.pull.added, page.pull.updated, page.pull.failed.length], [2, 0, 1]);
@@ -172,6 +174,39 @@ test('pulling the same audio guide again updates its script instead of adding a 
   assert.strictEqual(page.state.sections.length, 1);
   assert.deepStrictEqual([page.pull.added, page.pull.updated], [0, 1]);
   assert.ok(/already in this book/.test((page.pullOpenFolder('Teacher/ruth-project'), await until(() => !page.pull.loading, 1000), page.renderPull())));
+});
+
+test('a script is named from its Descript project only when the project starts with a Bible book', async () => {
+  const page = makePage(makeDescript());
+  const named = {
+    'ED_Isaiah_24_Jones_v1_DS': 'Isaiah – Chapter 24',
+    'ED_Job_8_Jones_v1_DS': 'Job – Chapter 8',
+    'romans_16_langham': 'Romans – Chapter 16',
+    'ED_Isaiah_35_Jones_v2_DS (FINAL)': 'Isaiah – Chapter 35',
+    'ED_Psalms_23_Sample_v1_DS': 'Psalm 23',
+    'ED_1Samuel_3_Sample_v1_DS': '1 Samuel – Chapter 3',
+    'ED_2_Kings_5_Sample_v1_DS': '2 Kings – Chapter 5',
+    'ED_John_3_Sample_v1_DS': 'John – Chapter 3',
+    'ED_1John_4_Sample_v1_DS': '1 John – Chapter 4',
+    'ED_Micah_Intro_Sample_v1_DS': 'Micah – Introduction',
+    'ED_Amos_Conclusion_Sample_v1_DS': 'Amos – Conclusion'
+  };
+  Object.keys(named).forEach((from) => assert.strictEqual(page.scriptNameFromDescript(from), named[from], from));
+  // Not a Bible book, or not clear which: the name is kept exactly as Descript has it.
+  ['ED_Science&theBible_5_Langham_v1_DS (FINAL)', 'ED_Science&theBible_Ending', 'TTW KIDS CHAPTER 1', 'Recording Session Nov 27, 12:00 AM', 'ED_Samuel_3_Sample_v1_DS', 'ED_3Kings_2_Sample_v1_DS', 'ED_Isaiah_Jones_v1_DS']
+    .forEach((same) => assert.strictEqual(page.scriptNameFromDescript(same), same, same));
+  assert.strictEqual(page.bookTitleFromFolder('3.0) Sample Teacher/isaiah-project'), 'Isaiah');
+  assert.strictEqual(page.bookTitleFromFolder('2.0) Sample Teacher/science-and-the-bible-project'), 'Science and the Bible');
+  assert.strictEqual(page.bookTitleFromFolder('6.0) Sample /TTW Kids'), 'TTW Kids');
+});
+
+test('a book that already has a title keeps it', async () => {
+  const descript = makeDescript(), page = makePage(descript);
+  page.state.bookTitle = 'My own title';
+  page.openPull(); await until(() => page.pull && !page.pull.loading, 1000);
+  page.pullOpenFolder('Teacher/ruth-project'); await until(() => !page.pull.loading, 1000);
+  page.pullPick('p1', true); page.pullStart(); await until(() => page.pull.step === 'done', 5000);
+  assert.strictEqual(page.state.bookTitle, 'My own title');
 });
 
 test('an empty first script is filled rather than left behind', async () => {

@@ -11,7 +11,7 @@ runs as a Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.1.0. It opens for members of the Through the Word organization on
+version 1.2.0. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -49,7 +49,14 @@ YouVersion, plus caption files that make every word of the guide searchable.
    stripped. Paragraph breaks that fall mid-thought are closed up.
 3. **Review what changed.** Every card shows a before/after table of misheard
    words, verse fixes, and grammar changes, plus any sentence that still does
-   not make sense.
+   not make sense. Two lists need a person:
+   - **Suggested but not applied.** The edit pass wanted a change that would
+     alter the speaker's words. The page refused it; the script still reads
+     as spoken.
+   - **For the teacher.** A quotation that may match neither the NIV nor the
+     ESV. It is left as spoken; raise it with the teacher if it matters.
+   For a small fix of your own, click **Edit by hand** on the corrected
+   script. Each change you save is listed under "Changed by hand".
 4. **Check the scripture.** Every quoted verse is pulled out with the reference
    the speaker spoke aloud, the canonical reference worked out from the text,
    and a confidence flag so uncertain references are easy to spot.
@@ -92,9 +99,16 @@ YouVersion, plus caption files that make every word of the guide searchable.
   composition, the first is pulled.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
-- **Verse references are worked out, not looked up.** The edit pass infers each
-  reference from the text and flags the ones it is unsure of. It does not check
-  the quoted words against a Bible.
+- **Verses are worked out from memory, not looked up.** The edit pass infers
+  each reference, and judges whether a quotation matches the NIV or ESV, from
+  what the model knows. It does not open a Bible. Treat "For the teacher"
+  as a prompt to check, not a finding.
+- **The wording guard is strict on purpose.** A real mishearing that sounds
+  little like the right word can land under "Suggested but not applied".
+  Make it with Edit by hand.
+- **Spoken references are turned into digits by the edit pass**, except a
+  number beside a reference colon, which the page fixes itself. "Verse one"
+  can occasionally stay as words.
 
 ## One source of truth
 
@@ -143,6 +157,7 @@ src/
 test/
   captions.test.js    checks the caption rules (SOURCE-OF-TRUTH 4.7)
   descript.test.js    checks the Descript pull against a stand-in connector (4.8)
+  edit-rules.test.js  checks the wording guard, references, and hand corrections (4.1, 4.2, 4.4, 6)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
 SOURCE-OF-TRUTH.md    what this tool is for, and the lines not to cross
@@ -162,6 +177,7 @@ node build.js                 # write dist/index.html from src/
 node build.js --check         # verify dist/index.html matches src/ — exits 1 if not
 node test/captions.test.js    # check the caption rules
 node test/descript.test.js    # check the Descript pull, against a stand-in connector
+node test/edit-rules.test.js  # check the wording guard, references, and hand corrections
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
@@ -211,6 +227,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.2.0` | The page enforces the speaker's words (wording guard), notes for the teacher, references in digits, names from Descript, hand corrections. Published 2026-11-19. |
 | `v1.1.0` | Pull from Descript: transcripts and timed captions straight from the TTW Drive. Published 2026-11-18. |
 | `v1.0.0` | The first team release: a shared library of books, caption files (`.srt`, `.vtt`), and this repository as the one source of truth. Published 2026-11-16. |
 | `prototype-3` | The last prototype: mechanical fixes moved into free local code. |

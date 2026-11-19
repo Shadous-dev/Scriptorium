@@ -1,6 +1,6 @@
 /* 01-state.js — App root element and the in-memory state shape. */
   var root = document.getElementById('app-root');
-  var VERSION = '1.1.0';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.2.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -9,7 +9,7 @@
   function newSectionRaw(id) {
     return { id: id, name: '', raw: '', corrected: '', editedFromRaw: null, summary: '', changeCount: 0,
              misheard: [], nonsensical: [], edits: [], unapplied: [], verses: [], method: '',
-             status: 'draft', error: null, editedAt: null, captions: '', descriptId: '' };
+             status: 'draft', error: null, editedAt: null, captions: '', descriptId: '', descriptName: '', suggested: [], misquotes: [] };
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
