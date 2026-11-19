@@ -18,7 +18,8 @@
      ================================================================== */
 
   var DESCRIPT_GAP_MS = 6500;    // Descript allows ten exports a minute, and each audio guide takes two
-  var DESCRIPT_PAGES = 5;        // up to 500 projects listed per folder
+  var DESCRIPT_PAGES = 10;       // up to 1,000 projects listed per folder
+  var DESCRIPT_SCAN_PAGES = 20;  // up to 2,000 projects looked through for ones that are in no folder
   var pull = null;               // the Pull from Descript panel, while it is open
   var lastExportAt = 0;
 
@@ -68,21 +69,26 @@
     });
   }
 
-  function listAllProjects(conn, path) {
+  // The projects in one folder — or, with `unfiled`, the projects that are in no folder at all. Descript can only
+  // list a folder or the whole Drive, so the second is the whole Drive with everything foldered left out.
+  // Resolves { list, more }: `more` is true when Descript had further pages than were read.
+  function listAllProjects(conn, path, unfiled) {
     var all = [];
     function page(cursor, pagesLeft) {
-      var input = { folder_path: path, limit: 100, sort: 'name', direction: 'asc' };
+      var input = { limit: 100, sort: 'name', direction: 'asc' };
+      if (!unfiled) input.folder_path = path;
       if (cursor) input.cursor = cursor;
       return conn.mcp.callTool(conn.server, 'list_projects', input).then(function (res) {
         var d = toolData(res);
         (Array.isArray(d.data) ? d.data : []).forEach(function (p) {
-          if (p && p.id) all.push({ id: String(p.id), name: String(p.name || 'Untitled'), updated: Date.parse(p.updated_at) || 0 });
+          if (p && p.id && !(unfiled && String(p.folder_path || '').trim())) all.push({ id: String(p.id), name: String(p.name || 'Untitled'), updated: Date.parse(p.updated_at) || 0 });
         });
         var next = d.pagination && d.pagination.next_cursor;
-        return (next && pagesLeft > 1) ? page(next, pagesLeft - 1) : all;
+        if (next && pagesLeft > 1) return page(next, pagesLeft - 1);
+        return { list: all.sort(function (x, y) { return naturalCompare(x.name, y.name); }), more: !!next };
       });
     }
-    return page(null, DESCRIPT_PAGES).then(function (list) { return list.sort(function (a, b) { return naturalCompare(a.name, b.name); }); });
+    return page(null, unfiled ? DESCRIPT_SCAN_PAGES : DESCRIPT_PAGES);
   }
 
   /* ---- Browsing the Drive ---- */
@@ -94,22 +100,22 @@
   }
   function closePull() { if (pull && pull.step === 'pulling') return; pull = null; paint(); }
 
-  function pullOpenFolder(path) {
+  function pullOpenFolder(path, unfiled) {
     if (!pull || pull.step === 'pulling') return;
-    pull.step = 'browse'; pull.path = path; pull.loading = true; pull.error = null; pull.folders = []; pull.projects = []; pull.selected = {};
+    pull.step = 'browse'; pull.path = path; pull.unfiled = !!unfiled; pull.more = false; pull.loading = true; pull.error = null; pull.folders = []; pull.projects = []; pull.selected = {};
     var token = pull.token = pull.token + 1;
     paint();
     var ready = pull.conn ? Promise.resolve(pull.conn) : descriptConnect().then(function (conn) { if (pull) pull.conn = conn; return conn; });
     ready.then(function (conn) {
       return Promise.all([
-        conn.mcp.callTool(conn.server, 'list_folders', path ? { parent_path: path } : {}),
-        path ? listAllProjects(conn, path) : []
+        unfiled ? null : conn.mcp.callTool(conn.server, 'list_folders', path ? { parent_path: path } : {}),
+        (path || unfiled) ? listAllProjects(conn, path, unfiled) : { list: [], more: false }
       ]);
     }).then(function (res) {
       if (!pull || pull.token !== token) return;          // the reader has already opened another folder
       var folders = toolData(res[0]).data;
       pull.folders = (Array.isArray(folders) ? folders : []).map(function (f) { return String((f && f.path) || ''); }).filter(function (p) { return p.trim(); }).sort(naturalCompare);
-      pull.projects = res[1];
+      pull.projects = res[1].list; pull.more = res[1].more;
       pull.loading = false; paint();
     }).catch(function (err) {
       if (!pull || pull.token !== token) return;
@@ -160,12 +166,17 @@
     if (!s) {
       s = state.sections.filter(function (x) { return !x.descriptId && !x.raw.trim() && !x.name.trim() && !(x.captions || '').trim(); })[0];
       if (!s) { s = newSection(); state.sections.push(s); }
-      s.name = scriptNameFromDescript(project.name); s.descriptId = project.id;
+      // Two versions of one chapter would otherwise share a name. The later arrival says which it is.
+      var base = scriptNameFromDescript(project.name), name = base, variant = descriptVariant(project.name);
+      var taken = function (n) { return state.sections.some(function (x) { return x !== s && x.name === n; }); };
+      if (taken(name) && variant && base !== project.name) name = base + ' (' + variant + ')';
+      for (var copy = 2; taken(name); copy++) name = base + ' (' + copy + ')';
+      s.name = name; s.descriptId = project.id;
     }
     s.descriptName = project.name;
     s.raw = String(text).replace(/\s+$/, '');
     s.captions = String(srt || '').replace(/\s+$/, '');
-    state.approved = false;
+    state.approved = false; touchBook();
     return saveSection(s.id).then(function () { return saveCaptions(s.id); }).then(function () { return saveMeta(); }).then(function () { return isNew; });
   }
 
@@ -229,7 +240,8 @@
     }
 
     var parts = pull.path ? pull.path.split('/') : [], soFar = '';
-    var crumbs = parts.length ? '<button type="button" class="link-btn" data-action="pull-open" data-path="">All folders</button>' : '<strong>All folders</strong>';
+    var crumbs = (parts.length || pull.unfiled) ? '<button type="button" class="link-btn" data-action="pull-open" data-path="">All folders</button>' : '<strong>All folders</strong>';
+    if (pull.unfiled) crumbs += ' <span class="pull-sep">/</span> <strong>Not in a folder</strong>';
     parts.forEach(function (seg, i) {
       soFar = i ? soFar + '/' + seg : seg;
       crumbs += ' <span class="pull-sep">/</span> ' + (i === parts.length - 1 ? '<strong>' + esc(seg) + '</strong>' : '<button type="button" class="link-btn" data-action="pull-open" data-path="' + escAttr(soFar) + '">' + esc(seg) + '</button>');
@@ -237,7 +249,7 @@
 
     var body;
     if (pull.loading) body = '<p class="hint">Loading from Descript…</p>';
-    else if (pull.error) body = '<p class="notice notice-warn">' + esc(pull.error) + '</p><div class="pull-foot"><button type="button" class="btn" data-action="pull-open" data-path="' + escAttr(pull.path) + '">Try again</button></div>';
+    else if (pull.error) body = '<p class="notice notice-warn">' + esc(pull.error) + '</p><div class="pull-foot"><button type="button" class="btn" data-action="pull-open" data-path="' + escAttr(pull.path) + '"' + (pull.unfiled ? ' data-unfiled="1"' : '') + '>Try again</button></div>';
     else {
       var have = {};
       state.sections.forEach(function (s) { if (s.descriptId) have[s.descriptId] = true; });
@@ -249,10 +261,15 @@
           '<span class="pull-name">' + esc(p.name) + '</span>' +
           (have[p.id] ? '<span class="pull-tag">already in this book — pulling again replaces its transcript</span>' : '') + '</label></li>';
       }).join('');
-      body = (folders ? '<ul class="pull-list">' + folders + '</ul>' : '') +
+      // At the top of the Drive, one extra row reaches the projects that are in no folder.
+      var loose = (!pull.path && !pull.unfiled) ? '<li><button type="button" class="pull-folder" data-action="pull-open" data-path="" data-unfiled="1"><span aria-hidden="true">▸</span> Not in a folder</button></li>' : '';
+      body = ((folders || loose) ? '<ul class="pull-list">' + folders + loose + '</ul>' : '') +
         (projects ? '<ul class="pull-list">' + projects + '</ul>' : '') +
-        (!folders && !projects ? '<p class="hint">' + (pull.path ? 'This folder has no audio guides in it.' : 'No folders were found in this Descript Drive.') + '</p>' : '') +
-        (!pull.path && folders ? '<p class="hint">Open a folder to see its audio guides.</p>' : '') +
+        (pull.more ? '<p class="notice notice-warn">' + (pull.unfiled
+          ? 'Only the first 2,000 projects in the Drive were looked through, so some that are in no folder may be missing here.'
+          : 'Only the first ' + pull.projects.length + ' are listed. This folder holds more than the page can show — move some into a sub-folder in Descript to reach the rest.') + '</p>' : '') +
+        (!folders && !projects && !loose ? '<p class="hint">' + (pull.unfiled ? 'Every project in this Drive is inside a folder.' : 'This folder has no audio guides in it.') + '</p>' : '') +
+        (!pull.path && !pull.unfiled ? '<p class="hint">Open a folder to see its audio guides.</p>' : '') +
         (projects ? '<div class="pull-foot">' +
           '<label class="speed-pick"><input type="checkbox" data-action="pull-all"' + (pullSelectedCount() === pull.projects.length ? ' checked' : '') + '> Select all ' + pull.projects.length + '</label>' +
           '<button type="button" class="btn btn-edit" data-action="pull-start"' + (pullSelectedCount() ? '' : ' disabled') + '>' + (pullSelectedCount() ? 'Pull ' + pullSelectedCount() + ' audio guide' + plural(pullSelectedCount()) : 'Pull selected') + '</button>' +
@@ -288,6 +305,12 @@
     if (/^intro(duction)?$/i.test(next)) return full + ' – Introduction';
     if (/^conclusion$/i.test(next)) return full + ' – Conclusion';
     return name;
+  }
+
+  // What tells two versions of one audio guide apart: "ED_Isaiah_24_Jones_v2_DS (KRIS UPDATE)" → "v2, KRIS UPDATE".
+  function descriptVariant(name) {
+    var version = /(?:^|[_ ])(v\d+)(?=[_ ]|$)/i.exec(String(name).replace(/\s*\(.*$/, '')), note = /\(([^)]+)\)\s*$/.exec(String(name));
+    return [version && version[1].toLowerCase(), note && note[1].trim()].filter(Boolean).join(', ');
   }
 
   // "3.0) Peyton Jones/isaiah-project" → "Isaiah"; "…/science-and-the-bible-project" → "Science and the Bible".

@@ -11,7 +11,7 @@ runs as a Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.2.0. It opens for members of the Through the Word organization on
+version 1.2.1. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -97,15 +97,18 @@ YouVersion, plus caption files that make every word of the guide searchable.
   it the first time.
 - **One composition per project.** If a Descript project holds more than one
   composition, the first is pulled.
+- **A book holds up to 1,000 scripts**, and a Descript folder lists up to 1,000
+  projects. Past that the page says so rather than showing part.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
 - **Verses are worked out from memory, not looked up.** The edit pass infers
   each reference, and judges whether a quotation matches the NIV or ESV, from
   what the model knows. It does not open a Bible. Treat "For the teacher"
   as a prompt to check, not a finding.
-- **The wording guard is strict on purpose.** A real mishearing that sounds
-  little like the right word can land under "Suggested but not applied".
-  Make it with Edit by hand.
+- **The wording guard is strict on purpose.** It allows known homophones, the
+  same sound spelled differently, and names you list under Words to Search
+  For. A real mishearing outside those can land under "Suggested but not
+  applied". Make it with Edit by hand, or list the name and Redo.
 - **Spoken references are turned into digits by the edit pass**, except a
   number beside a reference colon, which the page fixes itself. "Verse one"
   can occasionally stay as words.
@@ -227,6 +230,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.2.1` | Ten fixes from a review of 1.2.0, three of them in the wording guard. Published 2026-11-19. |
 | `v1.2.0` | The page enforces the speaker's words (wording guard), notes for the teacher, references in digits, names from Descript, hand corrections. Published 2026-11-19. |
 | `v1.1.0` | Pull from Descript: transcripts and timed captions straight from the TTW Drive. Published 2026-11-18. |
 | `v1.0.0` | The first team release: a shared library of books, caption files (`.srt`, `.vtt`), and this repository as the one source of truth. Published 2026-11-16. |

@@ -9,7 +9,7 @@
     syncFieldsFromDom();
     var added = newSection();
     state.sections.push(added);
-    state.approved = false;
+    state.approved = false; touchBook();
     paint();
     saveSection(added.id); saveMeta();
     var nameEl = root.querySelector('[data-field="name"][data-id="' + added.id + '"]');
@@ -22,7 +22,7 @@
     state.sections = state.sections.filter(function (s) { return s.id !== id; });
     var replacement = null;
     if (!state.sections.length) { replacement = newSection(); state.sections.push(replacement); }
-    state.approved = false;
+    state.approved = false; touchBook();
     delete collapsed[id]; persistCollapsed();
     paint();
     if (dbApi) {
@@ -84,7 +84,7 @@
       s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));
       s.changeCount = s.edits.length;
       s.corrected = text;
-      state.approved = false;
+      state.approved = false; touchBook();
     }
     delete s.handDraft;
     paint();

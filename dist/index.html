@@ -292,7 +292,7 @@ input:disabled, textarea:disabled { cursor: wait; }
 <script id="app-script">
 (function () {
   var root = document.getElementById('app-root');
-  var VERSION = '1.2.0';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.2.1';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -305,7 +305,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
-             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null, createdAt: 0 };
+             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null, createdAt: 0, touchedAt: 0 };
   }
   function loadSeed() {
     try {
@@ -345,6 +345,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     return day + ' day' + plural(day) + ' ago';
   }
   function isStale(s) { return s.status === 'edited' && s.editedFromRaw != null && s.raw !== s.editedFromRaw; }
+  // A book was worked on: typing, pulling, a hand correction, an edit pass. Saved with the book so the library can sort by it.
+  function touchBook() { state.touchedAt = Date.now(); }
+  // Links come from the shared store and from a connector's answer. Only an ordinary https link is ever shown as one.
+  function safeLink(url) { url = String(url == null ? '' : url).trim(); return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : ''; }
   function needsEdit(s) { return !!s.raw.trim() && (s.status !== 'edited' || s.raw !== s.editedFromRaw); }
 
   // Per-viewer conveniences only; the page must work when storage is unavailable.
@@ -953,6 +957,9 @@ input:disabled, textarea:disabled { cursor: wait; }
   function bookRef(book) { return dbRoot.doc('books/' + book); }
   function scriptRef(book, id) { return dbRoot.doc('books/' + book + '/scripts/' + id); }
   function captionRef(book, id) { return dbRoot.doc('books/' + book + '/captions/' + id); }
+  // Read a whole collection. The size is asked for outright (1,000 is the most one read may return) rather than
+  // left to a default, so a long book cannot come back partly loaded.
+  function readAll(path) { return dbRoot.collection(path).limit(1000).get(); }
   function newBookId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
   function sectionToDoc(s) {
@@ -978,7 +985,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   function metaToDoc() {
     return { bookTitle: state.bookTitle || '', wordsToSearchFor: state.wordsToSearchFor || '',
              order: state.sections.map(function (s) { return s.id; }), nextId: state.nextId || 2,
-             lastEditAt: state.lastEditAt || 0, approved: !!state.approved, createdAt: state.createdAt || 0,
+             lastEditAt: state.lastEditAt || 0, approved: !!state.approved, createdAt: state.createdAt || 0, touchedAt: state.touchedAt || 0,
              scriptCount: state.sections.filter(function (s) { return s.raw.trim() || s.name.trim(); }).length,
              editedCount: state.sections.filter(function (s) { return s.status === 'edited'; }).length,
              lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
@@ -1058,8 +1065,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     state.nextId = Number(meta.nextId) || state.nextId;
     state.lastEditAt = Number(meta.lastEditAt) || null;
     state.createdAt = Number(meta.createdAt) || 0;
+    state.touchedAt = Number(meta.touchedAt) || 0;
     state.approved = !!meta.approved;
-    state.lastDoc = (meta.lastDoc && meta.lastDoc.url) ? { url: String(meta.lastDoc.url), at: Number(meta.lastDoc.at) || 0, kind: String(meta.lastDoc.kind || 'doc') } : null;
+    var link = meta.lastDoc ? safeLink(meta.lastDoc.url) : '';
+    state.lastDoc = link ? { url: link, at: Number(meta.lastDoc.at) || 0, kind: String(meta.lastDoc.kind || 'doc') } : null;
     var order = Array.isArray(meta.order) ? meta.order : [];
     var rebuilt = [];
     order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id], captionsById[id])); });
@@ -1085,11 +1094,11 @@ input:disabled, textarea:disabled { cursor: wait; }
   /* ---- The library: every book the team has ---- */
 
   function loadLibrary() {
-    return dbRoot.collection('books').get().then(function (qs) {
+    return readAll('books').then(function (qs) {
       library = ((qs && qs.docs) || []).map(function (d) {
         var b = d.data() || {};
         return { id: d.id, title: String(b.bookTitle || ''), scripts: Number(b.scriptCount) || 0, edited: Number(b.editedCount) || 0,
-                 at: Math.max(Number(b.lastEditAt) || 0, Number(b.createdAt) || 0) };
+                 at: Math.max(Number(b.touchedAt) || 0, Number(b.lastEditAt) || 0, Number(b.createdAt) || 0) };
       }).sort(function (a, b) { return b.at - a.at; });
     });
   }
@@ -1101,7 +1110,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       if (!snap || !snap.exists) return;
       var meta = JSON.parse(JSON.stringify(snap.data() || {}));
       if (meta.movedToBook) return;
-      return Promise.all([dbRoot.collection('scripts').get(), dbRoot.collection('captions').get().catch(noDocs)]).then(function (res) {
+      return Promise.all([readAll('scripts'), readAll('captions').catch(noDocs)]).then(function (res) {
         var scripts = docsById(res[0]), caps = docsById(res[1]);
         var ids = Object.keys(scripts);
         var worthKeeping = String(meta.bookTitle || '').trim() || ids.some(function (id) { return String((scripts[id] || {}).raw || '').trim(); });
@@ -1137,7 +1146,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     dbApi = null; bookId = id; view = 'book'; dbStatus = 'loading'; resetBookUi(); loadCollapsed(id);
     paint();
     var base = 'books/' + id;
-    return Promise.all([bookRef(id).get(), dbRoot.collection(base + '/scripts').get(), dbRoot.collection(base + '/captions').get().catch(noDocs)]).then(function (res) {
+    return Promise.all([bookRef(id).get(), readAll(base + '/scripts'), readAll(base + '/captions').catch(noDocs)]).then(function (res) {
       if (bookId !== id) return;                          // the reader has already gone somewhere else
       if (!res[0] || !res[0].exists) {
         return showLibrary('That book isn’t here any more — a teammate may have deleted it.');
@@ -1208,7 +1217,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   function deleteBook(id) {
     confirmState = null; deletingBook = id; paint();
     var base = 'books/' + id;
-    return Promise.all([dbRoot.collection(base + '/scripts').get(), dbRoot.collection(base + '/captions').get().catch(noDocs)]).then(function (res) {
+    return Promise.all([readAll(base + '/scripts'), readAll(base + '/captions').catch(noDocs)]).then(function (res) {
       var chain = Promise.resolve();
       Object.keys(docsById(res[0])).forEach(function (sid) { chain = chain.then(function () { return scriptRef(id, sid).delete(); }); });
       Object.keys(docsById(res[1])).forEach(function (sid) { chain = chain.then(function () { return captionRef(id, sid).delete(); }); });
@@ -1262,7 +1271,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     syncFieldsFromDom();
     var added = newSection();
     state.sections.push(added);
-    state.approved = false;
+    state.approved = false; touchBook();
     paint();
     saveSection(added.id); saveMeta();
     var nameEl = root.querySelector('[data-field="name"][data-id="' + added.id + '"]');
@@ -1275,7 +1284,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     state.sections = state.sections.filter(function (s) { return s.id !== id; });
     var replacement = null;
     if (!state.sections.length) { replacement = newSection(); state.sections.push(replacement); }
-    state.approved = false;
+    state.approved = false; touchBook();
     delete collapsed[id]; persistCollapsed();
     paint();
     if (dbApi) {
@@ -1337,7 +1346,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));
       s.changeCount = s.edits.length;
       s.corrected = text;
-      state.approved = false;
+      state.approved = false; touchBook();
     }
     delete s.handDraft;
     paint();
@@ -1527,8 +1536,8 @@ input:disabled, textarea:disabled { cursor: wait; }
   // One whole number in words, up to 999 — and not the first half of two numbers said back to back ("thirty-five one").
   var NUM_PHRASE = '(?:(?:' + NUM_ONES + ') hundred(?:(?: and)? ' + NUM_SMALL + ')?|' + NUM_SMALL + ')(?![ -](?:' + NUM_ANY + '|hundred)\\b)';
   var NUM_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '\\b', 'gi');
-  var REF_LEFT_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '(?=:\\s?(?:\\d|(?:' + NUM_ANY + ')\\b))', 'gi');   // "thirty-five:1"
-  var REF_RIGHT_RE = new RegExp('(?<=\\d:\\s?)' + NUM_PHRASE + '\\b', 'gi');                                        // "35:one"
+  var REF_LEFT_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '(?=:(?:\\d|(?:' + NUM_ANY + ')\\b))', 'gi');   // "thirty-five:1"
+  var REF_RIGHT_RE = new RegExp('(?<=\\d:)' + NUM_PHRASE + '\\b', 'gi');                                        // "35:one"
 
   function numberFromWords(phrase) {
     var t = String(phrase).toLowerCase().split(/[ -]+/), i = 0, total = 0;
@@ -1563,43 +1572,91 @@ input:disabled, textarea:disabled { cursor: wait; }
      An edit the editor proposes is applied only if every word it touches
      either stays the same word (punctuation, capitals, spacing, hyphens
      and number notation may change), or is replaced by words that sound
-     the same — which is what a mishearing is. Anything else would change
+     the same — which is what a mishearing is. A section label standing
+     alone on a line may be removed. Anything else would change
      what the speaker said. It is held back and shown as a suggestion.
      ------------------------------------------------------------------ */
 
   // The words of a run with everything that is not wording removed: "So-called," and "so called" are the same wording.
   function wordingKey(text) { return digitsForWords(String(text).toLowerCase()).replace(/[^a-z0-9\u00C0-\u024F]+/g, ''); }
 
-  // A rough ear: consonant sounds only, with the spellings that share a sound folded together.
-  function soundKey(text) {
-    return String(text).toLowerCase().replace(/[^a-z]+/g, '')
-      .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
-      .replace(/x/g, 'ks').replace(/z/g, 's').replace(/v/g, 'f').replace(/j/g, 'g')
-      .replace(/[aeiouyhw]+/g, '').replace(/(.)\1+/g, '$1');
+  /* What counts as "sounds the same". Spelling is a poor guide to sound, so this is strict on
+     purpose: when in doubt the answer is no, and the change is shown as a suggestion instead.
+
+       1. the same words, or known homophones word for word        their / there, son / sun
+       2. the same sound once spelling is folded                   Eli who / Elihu, so far / Zophar, us / Uz
+       3. a long word whose consonants match and whose vowels
+          differ only slightly                                     sabians / Sabeans, a liphaz / Eliphaz
+       4. a name the reader listed under Words to Search For,
+          roughly                                                  never can nezzar / Nebuchadnezzar
+
+     Short everyday words that merely look or sound close — we / you, son / sin, good / God,
+     is / his, lives / loves — are different words, and are not allowed. */
+
+  var HOMOPHONE_GROUP = {};
+  ('their there theyre|to too two|your youre|whose whos|hear here|know no|knew new|right write rite|by buy bye|for four fore|one won|our hour|' +
+   'see sea|son sun|be bee|eye i aye|oh owe|weak week|peace piece|wait weight|way weigh|whole hole|holy wholly|pray prey|soul sole|heal heel|' +
+   'rain reign rein|alter altar|profit prophet|lead led|passed past|threw through|wear where ware|weather whether|which witch|would wood|' +
+   'aloud allowed|break brake|die dye|fair fare|great grate|hi high|made maid|meat meet|not knot|or ore oar|plain plane|principal principle|' +
+   'role roll|sail sale|scene seen|steal steel|tail tale|throne thrown|vain vein|waist waste|mourning morning|night knight|raise rays|' +
+   'bare bear|born borne|sight site cite|some sum').split('|').forEach(function (group, i) {
+    group.split(' ').forEach(function (w) { HOMOPHONE_GROUP[w] = i + 1; });
+  });
+
+  function lettersOf(text) { return String(text).toLowerCase().replace(/[^a-z]+/g, ''); }
+  function letterWords(text) { return (String(text).match(/\S+/g) || []).map(lettersOf).filter(Boolean); }
+
+  // Spelling folded toward sound: the letter groups that share a sound become one, and vowels are kept.
+  function soundSpell(text) {
+    return lettersOf(text)
+      .replace(/who(?!l)/g, 'hu').replace(/ph/g, 'f').replace(/ch/g, 'k').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
+      .replace(/x/g, 'ks').replace(/z/g, 's').replace(/oo/g, 'u').replace(/ee/g, 'i').replace(/y/g, 'i')
+      .replace(/([gptwr])h/g, '$1').replace(/wr/g, 'r').replace(/(.)\1+/g, '$1');
   }
-  function editDistance(a, b) {
-    var prev = [], cur, i, j;
-    for (j = 0; j <= b.length; j++) prev[j] = j;
+  // How far apart two folded spellings are. A vowel that differs counts half; a consonant counts whole.
+  function soundDistance(a, b) {
+    var vowel = /[aeiou]/, prev = [0], cur, i, j, da, db;
+    for (j = 1; j <= b.length; j++) prev[j] = prev[j - 1] + (vowel.test(b[j - 1]) ? 0.5 : 1);
     for (i = 1; i <= a.length; i++) {
-      cur = [i];
-      for (j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      da = vowel.test(a[i - 1]) ? 0.5 : 1;
+      cur = [prev[0] + da];
+      for (j = 1; j <= b.length; j++) {
+        db = vowel.test(b[j - 1]) ? 0.5 : 1;
+        cur[j] = Math.min(prev[j] + da, cur[j - 1] + db, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : (da + db === 1 ? 0.5 : 1)));
+      }
       prev = cur;
     }
     return prev[b.length];
   }
-  // Could Descript have heard one as the other? Short words must match exactly by sound; longer runs may differ a little.
-  function soundsAlike(a, b) {
-    if (!String(a).trim() || !String(b).trim()) return false;
-    var x = soundKey(a), y = soundKey(b), longest = Math.max(x.length, y.length);
-    if (!longest) return true;                                   // both are vowel sounds only: "a" / "I", "oh" / "owe"
-    return editDistance(x, y) <= (longest <= 3 ? 0 : Math.floor(longest * 0.4));
+  function listedNames() { return String(state.wordsToSearchFor || '').split(/[,\n;]+/).map(lettersOf).filter(function (n) { return n.length >= 2; }); }
+
+  // Could Descript have heard one as the other? `listed` is the reader's Words to Search For, as letters only.
+  function soundsAlike(a, b, listed) {
+    var wa = letterWords(a), wb = letterWords(b);
+    if (!wa.length || !wb.length) return false;
+    if (wa.length === wb.length && wa.every(function (w, i) { return w === wb[i] || (HOMOPHONE_GROUP[w] && HOMOPHONE_GROUP[w] === HOMOPHONE_GROUP[wb[i]]); })) return true;
+    var x = soundSpell(a), y = soundSpell(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    var longest = Math.max(x.length, y.length), apart = soundDistance(x, y);
+    if ((listed || []).some(function (name) { return wb.indexOf(name) !== -1 || (name.length >= 5 && wb.join('').indexOf(name) !== -1); })) return apart <= longest * 0.34;
+    return longest >= 6 && x.replace(/[aeiou]/g, '') === y.replace(/[aeiou]/g, '') && apart <= 1;
   }
 
-  // Why an edit may not be applied, or '' when it may. Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled.
-  function wordingProblem(e) {
+  // A section label: a short line in capitals standing alone in the transcript ("BEARINGS"). Words spoken
+  // in capitals inside a sentence, numbers, and anything ending a sentence are not labels.
+  function isLabelLine(find, text) {
+    var label = String(find).trim();
+    if (!/^[A-Z][A-Z &'’-]*:?$/.test(label) || label.split(/\s+/).length > 4) return false;
+    return String(text || '').split('\n').some(function (line) { return line.trim() === label; });
+  }
+
+  // Why an edit may not be applied, or '' when it may. `text` is the transcript the edit was written against.
+  // Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled, so the swap is shown where a reader looks for it.
+  function wordingProblem(e, text, listed) {
     var find = String((e && e.find) || ''), repl = String((e && e.replace) || '');
     if (wordingKey(find) === wordingKey(repl)) return '';
-    if (!repl.trim() && !/[a-z]/.test(find)) return '';          // a section label in capitals, removed whole
+    if (!repl.trim() && isLabelLine(find, text)) return '';
     var a = find.match(/\S+/g) || [], b = repl.match(/\S+/g) || [];
     var pairs = matchWords(a.map(wordingKey), b.map(wordingKey), 2000);
     if (!pairs) return 'changes the wording';
@@ -1608,19 +1665,19 @@ input:disabled, textarea:disabled { cursor: wait; }
       if (problem || (toA - pa <= 1 && toB - pb <= 1)) return;
       var was = a.slice(pa + 1, toA).join(' '), now = b.slice(pb + 1, toB).join(' ');
       if (wordingKey(was) === wordingKey(now)) return;
-      if (soundsAlike(was, now)) { swapsSound = true; return; }
-      problem = !was ? 'adds words the speaker did not say' : !now ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
+      if (soundsAlike(was, now, listed)) { swapsSound = true; return; }
+      problem = !wordingKey(was) ? 'adds words the speaker did not say' : !wordingKey(now) ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
     }
     pairs.forEach(function (p) { check(p[0], p[1]); pa = p[0]; pb = p[1]; });
     check(a.length, b.length);
     if (!problem && swapsSound && e.kind !== 'misheard' && e.kind !== 'verse-fix') { e.kind = 'misheard'; e.note = e.note || 'sounds the same'; }
     return problem;
   }
-  function guardEdits(edits) {
-    var ok = [], held = [];
+  function guardEdits(edits, text) {
+    var ok = [], held = [], listed = listedNames();
     (edits || []).forEach(function (e) {
       if (!e || typeof e !== 'object') return;
-      var why = wordingProblem(e);
+      var why = wordingProblem(e, text, listed);
       if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'), note: why + (e.note ? ' — ' + String(e.note) : '') });
       else ok.push(e);
     });
@@ -1674,7 +1731,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var prepared = fixCapitals(fixNames(fixReferences(mechanics(s.raw, local), local), local), local);
     return sample.json(buildEditsPrompt(s, prepared), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
-      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : []);       // 4.1: only what keeps the speaker's words
+      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : [], prepared);       // 4.1: only what keeps the speaker's words
       var result = applyEdits(prepared, guard.ok);
       var applied = local.concat(result.applied);
       var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied), applied), applied);
@@ -1686,7 +1743,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       s.misheard = applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; });
       s.nonsensical = cleanNonsense(data.nonsensical); s.verses = cleanVerses(data.verses); s.method = 'edits';
       s.suggested = guard.held; s.misquotes = cleanMisquotes(data.misquotes); delete s.handDraft;
-      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null;
+      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null; touchBook();
     }).catch(function (err) {
       if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
       // A garbled or empty answer is not cached, so one more ask is a genuine second attempt.
@@ -1797,7 +1854,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var ids = state.sections.map(function (s) { return s.id; }), book = bookId;
     var fresh = newSection();
     state.sections = [fresh];
-    state.lastEditAt = null; state.approved = false; state.docResult = null;
+    state.lastEditAt = null; state.approved = false; state.docResult = null; touchBook();
     collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {};
     confirmState = null; clearing = true;
     paint();
@@ -1872,7 +1929,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!payload && res && res.content && res.content[0] && res.content[0].text) { try { payload = JSON.parse(res.content[0].text); } catch (e) {} }
     return payload || {};
   }
-  function urlOf(p) { return p && (p.viewUrl || p.webViewLink || p.url) || ''; }
+  function urlOf(p) { return safeLink(p && (p.viewUrl || p.webViewLink || p.url)); }
 
   function conclude() {
     syncFieldsFromDom();
@@ -2225,7 +2282,8 @@ input:disabled, textarea:disabled { cursor: wait; }
      ================================================================== */
 
   var DESCRIPT_GAP_MS = 6500;    // Descript allows ten exports a minute, and each audio guide takes two
-  var DESCRIPT_PAGES = 5;        // up to 500 projects listed per folder
+  var DESCRIPT_PAGES = 10;       // up to 1,000 projects listed per folder
+  var DESCRIPT_SCAN_PAGES = 20;  // up to 2,000 projects looked through for ones that are in no folder
   var pull = null;               // the Pull from Descript panel, while it is open
   var lastExportAt = 0;
 
@@ -2275,21 +2333,26 @@ input:disabled, textarea:disabled { cursor: wait; }
     });
   }
 
-  function listAllProjects(conn, path) {
+  // The projects in one folder — or, with `unfiled`, the projects that are in no folder at all. Descript can only
+  // list a folder or the whole Drive, so the second is the whole Drive with everything foldered left out.
+  // Resolves { list, more }: `more` is true when Descript had further pages than were read.
+  function listAllProjects(conn, path, unfiled) {
     var all = [];
     function page(cursor, pagesLeft) {
-      var input = { folder_path: path, limit: 100, sort: 'name', direction: 'asc' };
+      var input = { limit: 100, sort: 'name', direction: 'asc' };
+      if (!unfiled) input.folder_path = path;
       if (cursor) input.cursor = cursor;
       return conn.mcp.callTool(conn.server, 'list_projects', input).then(function (res) {
         var d = toolData(res);
         (Array.isArray(d.data) ? d.data : []).forEach(function (p) {
-          if (p && p.id) all.push({ id: String(p.id), name: String(p.name || 'Untitled'), updated: Date.parse(p.updated_at) || 0 });
+          if (p && p.id && !(unfiled && String(p.folder_path || '').trim())) all.push({ id: String(p.id), name: String(p.name || 'Untitled'), updated: Date.parse(p.updated_at) || 0 });
         });
         var next = d.pagination && d.pagination.next_cursor;
-        return (next && pagesLeft > 1) ? page(next, pagesLeft - 1) : all;
+        if (next && pagesLeft > 1) return page(next, pagesLeft - 1);
+        return { list: all.sort(function (x, y) { return naturalCompare(x.name, y.name); }), more: !!next };
       });
     }
-    return page(null, DESCRIPT_PAGES).then(function (list) { return list.sort(function (a, b) { return naturalCompare(a.name, b.name); }); });
+    return page(null, unfiled ? DESCRIPT_SCAN_PAGES : DESCRIPT_PAGES);
   }
 
   /* ---- Browsing the Drive ---- */
@@ -2301,22 +2364,22 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function closePull() { if (pull && pull.step === 'pulling') return; pull = null; paint(); }
 
-  function pullOpenFolder(path) {
+  function pullOpenFolder(path, unfiled) {
     if (!pull || pull.step === 'pulling') return;
-    pull.step = 'browse'; pull.path = path; pull.loading = true; pull.error = null; pull.folders = []; pull.projects = []; pull.selected = {};
+    pull.step = 'browse'; pull.path = path; pull.unfiled = !!unfiled; pull.more = false; pull.loading = true; pull.error = null; pull.folders = []; pull.projects = []; pull.selected = {};
     var token = pull.token = pull.token + 1;
     paint();
     var ready = pull.conn ? Promise.resolve(pull.conn) : descriptConnect().then(function (conn) { if (pull) pull.conn = conn; return conn; });
     ready.then(function (conn) {
       return Promise.all([
-        conn.mcp.callTool(conn.server, 'list_folders', path ? { parent_path: path } : {}),
-        path ? listAllProjects(conn, path) : []
+        unfiled ? null : conn.mcp.callTool(conn.server, 'list_folders', path ? { parent_path: path } : {}),
+        (path || unfiled) ? listAllProjects(conn, path, unfiled) : { list: [], more: false }
       ]);
     }).then(function (res) {
       if (!pull || pull.token !== token) return;          // the reader has already opened another folder
       var folders = toolData(res[0]).data;
       pull.folders = (Array.isArray(folders) ? folders : []).map(function (f) { return String((f && f.path) || ''); }).filter(function (p) { return p.trim(); }).sort(naturalCompare);
-      pull.projects = res[1];
+      pull.projects = res[1].list; pull.more = res[1].more;
       pull.loading = false; paint();
     }).catch(function (err) {
       if (!pull || pull.token !== token) return;
@@ -2367,12 +2430,17 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!s) {
       s = state.sections.filter(function (x) { return !x.descriptId && !x.raw.trim() && !x.name.trim() && !(x.captions || '').trim(); })[0];
       if (!s) { s = newSection(); state.sections.push(s); }
-      s.name = scriptNameFromDescript(project.name); s.descriptId = project.id;
+      // Two versions of one chapter would otherwise share a name. The later arrival says which it is.
+      var base = scriptNameFromDescript(project.name), name = base, variant = descriptVariant(project.name);
+      var taken = function (n) { return state.sections.some(function (x) { return x !== s && x.name === n; }); };
+      if (taken(name) && variant && base !== project.name) name = base + ' (' + variant + ')';
+      for (var copy = 2; taken(name); copy++) name = base + ' (' + copy + ')';
+      s.name = name; s.descriptId = project.id;
     }
     s.descriptName = project.name;
     s.raw = String(text).replace(/\s+$/, '');
     s.captions = String(srt || '').replace(/\s+$/, '');
-    state.approved = false;
+    state.approved = false; touchBook();
     return saveSection(s.id).then(function () { return saveCaptions(s.id); }).then(function () { return saveMeta(); }).then(function () { return isNew; });
   }
 
@@ -2436,7 +2504,8 @@ input:disabled, textarea:disabled { cursor: wait; }
     }
 
     var parts = pull.path ? pull.path.split('/') : [], soFar = '';
-    var crumbs = parts.length ? '<button type="button" class="link-btn" data-action="pull-open" data-path="">All folders</button>' : '<strong>All folders</strong>';
+    var crumbs = (parts.length || pull.unfiled) ? '<button type="button" class="link-btn" data-action="pull-open" data-path="">All folders</button>' : '<strong>All folders</strong>';
+    if (pull.unfiled) crumbs += ' <span class="pull-sep">/</span> <strong>Not in a folder</strong>';
     parts.forEach(function (seg, i) {
       soFar = i ? soFar + '/' + seg : seg;
       crumbs += ' <span class="pull-sep">/</span> ' + (i === parts.length - 1 ? '<strong>' + esc(seg) + '</strong>' : '<button type="button" class="link-btn" data-action="pull-open" data-path="' + escAttr(soFar) + '">' + esc(seg) + '</button>');
@@ -2444,7 +2513,7 @@ input:disabled, textarea:disabled { cursor: wait; }
 
     var body;
     if (pull.loading) body = '<p class="hint">Loading from Descript…</p>';
-    else if (pull.error) body = '<p class="notice notice-warn">' + esc(pull.error) + '</p><div class="pull-foot"><button type="button" class="btn" data-action="pull-open" data-path="' + escAttr(pull.path) + '">Try again</button></div>';
+    else if (pull.error) body = '<p class="notice notice-warn">' + esc(pull.error) + '</p><div class="pull-foot"><button type="button" class="btn" data-action="pull-open" data-path="' + escAttr(pull.path) + '"' + (pull.unfiled ? ' data-unfiled="1"' : '') + '>Try again</button></div>';
     else {
       var have = {};
       state.sections.forEach(function (s) { if (s.descriptId) have[s.descriptId] = true; });
@@ -2456,10 +2525,15 @@ input:disabled, textarea:disabled { cursor: wait; }
           '<span class="pull-name">' + esc(p.name) + '</span>' +
           (have[p.id] ? '<span class="pull-tag">already in this book — pulling again replaces its transcript</span>' : '') + '</label></li>';
       }).join('');
-      body = (folders ? '<ul class="pull-list">' + folders + '</ul>' : '') +
+      // At the top of the Drive, one extra row reaches the projects that are in no folder.
+      var loose = (!pull.path && !pull.unfiled) ? '<li><button type="button" class="pull-folder" data-action="pull-open" data-path="" data-unfiled="1"><span aria-hidden="true">▸</span> Not in a folder</button></li>' : '';
+      body = ((folders || loose) ? '<ul class="pull-list">' + folders + loose + '</ul>' : '') +
         (projects ? '<ul class="pull-list">' + projects + '</ul>' : '') +
-        (!folders && !projects ? '<p class="hint">' + (pull.path ? 'This folder has no audio guides in it.' : 'No folders were found in this Descript Drive.') + '</p>' : '') +
-        (!pull.path && folders ? '<p class="hint">Open a folder to see its audio guides.</p>' : '') +
+        (pull.more ? '<p class="notice notice-warn">' + (pull.unfiled
+          ? 'Only the first 2,000 projects in the Drive were looked through, so some that are in no folder may be missing here.'
+          : 'Only the first ' + pull.projects.length + ' are listed. This folder holds more than the page can show — move some into a sub-folder in Descript to reach the rest.') + '</p>' : '') +
+        (!folders && !projects && !loose ? '<p class="hint">' + (pull.unfiled ? 'Every project in this Drive is inside a folder.' : 'This folder has no audio guides in it.') + '</p>' : '') +
+        (!pull.path && !pull.unfiled ? '<p class="hint">Open a folder to see its audio guides.</p>' : '') +
         (projects ? '<div class="pull-foot">' +
           '<label class="speed-pick"><input type="checkbox" data-action="pull-all"' + (pullSelectedCount() === pull.projects.length ? ' checked' : '') + '> Select all ' + pull.projects.length + '</label>' +
           '<button type="button" class="btn btn-edit" data-action="pull-start"' + (pullSelectedCount() ? '' : ' disabled') + '>' + (pullSelectedCount() ? 'Pull ' + pullSelectedCount() + ' audio guide' + plural(pullSelectedCount()) : 'Pull selected') + '</button>' +
@@ -2497,6 +2571,12 @@ input:disabled, textarea:disabled { cursor: wait; }
     return name;
   }
 
+  // What tells two versions of one audio guide apart: "ED_Isaiah_24_Jones_v2_DS (KRIS UPDATE)" → "v2, KRIS UPDATE".
+  function descriptVariant(name) {
+    var version = /(?:^|[_ ])(v\d+)(?=[_ ]|$)/i.exec(String(name).replace(/\s*\(.*$/, '')), note = /\(([^)]+)\)\s*$/.exec(String(name));
+    return [version && version[1].toLowerCase(), note && note[1].trim()].filter(Boolean).join(', ');
+  }
+
   // "3.0) Peyton Jones/isaiah-project" → "Isaiah"; "…/science-and-the-bible-project" → "Science and the Bible".
   function bookTitleFromFolder(path) {
     var words = String(path).split('/').pop().replace(/[-_ ]*project\s*$/i, '').split(/[-_ ]+/).filter(Boolean);
@@ -2528,8 +2608,8 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (action === 'hand-cancel') { cancelHandEdit(id); return; }
     if (action === 'pull-descript') { openPull(); return; }
     if (action === 'pull-close') { closePull(); return; }
-    if (action === 'pull-open') { pullOpenFolder(btn.dataset.path || ''); return; }
-    if (action === 'pull-more') { pullOpenFolder(pull ? pull.path : ''); return; }
+    if (action === 'pull-open') { pullOpenFolder(btn.dataset.path || '', btn.dataset.unfiled === '1'); return; }
+    if (action === 'pull-more') { pullOpenFolder(pull ? pull.path : '', !!(pull && pull.unfiled)); return; }
     if (action === 'pull-start') { pullStart(); return; }
     if (action === 'pull-stop') { pullStop(); return; }
     if (action === 'pull-pick' || action === 'pull-all') return;      // checkboxes: handled on change
@@ -2574,7 +2654,12 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (el.dataset.id) saveSectionSoon(el.dataset.id); else saveMetaSoon();
     if (el.dataset.field === 'raw' && el.dataset.id) { var s = findSection(el.dataset.id); if (s && s.status === 'edited') paintChipOnly(s); }
   }
-  root.addEventListener('input', function (e) { fieldTouched(e.target); });
+  root.addEventListener('input', function (e) {
+    var t = e.target;
+    fieldTouched(t);
+    // Typing is work on the book — but not typing in an unsaved hand correction, which changes nothing yet.
+    if (dbApi && t && t.dataset && t.dataset.field && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }
+  });
   // Remember which captions boxes are unfolded, so a repaint does not fold one the user just opened.
   root.addEventListener('toggle', function (e) {
     var id = e.target && e.target.dataset && e.target.dataset.captionFold;

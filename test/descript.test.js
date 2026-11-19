@@ -36,9 +36,10 @@ function makePage(mcp) {
     function saveCaptions(id) { page.saved.push('captions:' + id); return Promise.resolve(); }
     function saveMeta() { page.saved.push('meta'); return Promise.resolve(); }
     function useCap(name) { return Promise.resolve(name === 'mcp' ? mcp : null); }
+    function touchBook() { state.touchedAt = 1; }
   `;
   const api = new Function('page', 'mcp', helpers + src + `
-    return { naturalCompare, toolText, toolData, descriptProblem, isAccessProblem, openPull, pullOpenFolder, pullPick, pullPickAll, pullStart, pullStop, renderPull, scriptNameFromDescript, bookTitleFromFolder,
+    return { naturalCompare, toolText, toolData, descriptProblem, isAccessProblem, openPull, pullOpenFolder, pullPick, pullPickAll, pullStart, pullStop, renderPull, scriptNameFromDescript, bookTitleFromFolder, descriptVariant,
              get pull() { return pull; }, get state() { return state; }, setBook: function (b) { bookId = b; } };`)(page, mcp);
   // Copy the live getters themselves (Object.assign would copy their values once, and `pull` changes).
   return Object.defineProperties(page, Object.getOwnPropertyDescriptors(api));
@@ -51,9 +52,11 @@ function makeDescript(opts) {
   const projects = [
     { id: 'p10', name: 'ED_Ruth_10_Sample_v1_DS', updated_at: '2026-01-03T00:00:00.000Z', folder_path: 'Teacher/ruth-project' },
     { id: 'p2', name: 'ED_Ruth_2_Sample_v1_DS', updated_at: '2026-01-02T00:00:00.000Z', folder_path: 'Teacher/ruth-project' },
-    { id: 'p1', name: 'ED_Ruth_1_Sample_v1_DS', updated_at: '2026-01-01T00:00:00.000Z', folder_path: 'Teacher/ruth-project' }
+    { id: 'p1', name: 'ED_Ruth_1_Sample_v1_DS', updated_at: '2026-01-01T00:00:00.000Z', folder_path: 'Teacher/ruth-project' },
+    { id: 'p1b', name: 'ED_Ruth_1_Sample_v2_DS (TEACHER UPDATE)', updated_at: '2026-01-04T00:00:00.000Z', folder_path: 'Teacher/versions' },
+    { id: 'loose', name: 'Recording Session', updated_at: '2026-01-05T00:00:00.000Z' }
   ];
-  const text = { p1: 'welcome back my friends\n\nruth chapter one\n', p2: 'in the days when the judges ruled\n', p10: '' };
+  const text = { p1: 'welcome back my friends\n\nruth chapter one\n', p1b: 'welcome back again\n', loose: 'testing one two\n', p2: 'in the days when the judges ruled\n', p10: '' };
   const json = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj) }], payload: obj });
   const plain = (str) => ({ content: [{ type: 'text', text: str }], payload: str });
   return {
@@ -64,7 +67,8 @@ function makeDescript(opts) {
       if (opts.failExport && tool === 'export_transcript') return Promise.reject(opts.failExport);
       if (tool === 'list_folders') return Promise.resolve(json({ data: input.parent_path ? [{ path: input.parent_path + '/ruth-project' }] : [{ path: 'Teacher' }, { path: 'Assets ' }] }));
       if (tool === 'list_projects') {
-        const inFolder = projects.filter((p) => p.folder_path === input.folder_path);
+        const inFolder = input.folder_path ? projects.filter((p) => p.folder_path === input.folder_path) : projects;      // no folder asked for: the whole Drive
+        if (opts.endless) return Promise.resolve(json({ data: inFolder.slice(0, 1), pagination: { next_cursor: 'again' } }));
         if (!input.cursor) return Promise.resolve(json({ data: inFolder.slice(0, 2), pagination: { next_cursor: 'page-2' } }));
         return Promise.resolve(json({ data: inFolder.slice(2), pagination: {} }));
       }
@@ -207,6 +211,39 @@ test('a book that already has a title keeps it', async () => {
   page.pullOpenFolder('Teacher/ruth-project'); await until(() => !page.pull.loading, 1000);
   page.pullPick('p1', true); page.pullStart(); await until(() => page.pull.step === 'done', 5000);
   assert.strictEqual(page.state.bookTitle, 'My own title');
+});
+
+test('found in review: a project that is in no folder can be reached and pulled', async () => {
+  const descript = makeDescript(), page = makePage(descript);
+  page.openPull(); await until(() => page.pull && !page.pull.loading, 1000);
+  assert.ok(/Not in a folder/.test(page.renderPull()), 'the top of the Drive offers the unfiled projects');
+  page.pullOpenFolder('', true); await until(() => !page.pull.loading, 1000);
+  assert.deepStrictEqual(page.pull.projects.map((p) => p.id), ['loose'], 'only projects with no folder are listed');
+  assert.ok(!descript.calls.filter((c) => c.tool === 'list_projects').some((c) => 'folder_path' in c.input), 'asked for the whole Drive');
+  page.pullPick('loose', true); page.pullStart(); await until(() => page.pull.step === 'done', 5000);
+  assert.deepStrictEqual(page.state.sections.map((s) => s.name), ['Recording Session']);
+  assert.strictEqual(page.state.bookTitle, '', 'there is no folder to name the book after');
+});
+
+test('found in review: a folder too long to list in full says so', async () => {
+  const descript = makeDescript({ endless: true }), page = makePage(descript);
+  page.openPull(); await until(() => page.pull && !page.pull.loading, 1000);
+  page.pullOpenFolder('Teacher/ruth-project'); await until(() => !page.pull.loading, 3000);
+  assert.strictEqual(page.pull.more, true);
+  assert.strictEqual(descript.calls.filter((c) => c.tool === 'list_projects').length, 10, 'it stops asking after ten pages');
+  assert.ok(/Only the first \d+ are listed/.test(page.renderPull()));
+});
+
+test('found in review: two versions of one chapter do not end up with the same name', async () => {
+  const descript = makeDescript(), page = makePage(descript);
+  page.openPull(); await until(() => page.pull && !page.pull.loading, 1000);
+  page.pullOpenFolder('Teacher/ruth-project'); await until(() => !page.pull.loading, 1000);
+  page.pullPick('p1', true); page.pullStart(); await until(() => page.pull.step === 'done', 5000);
+  page.pullOpenFolder('Teacher/versions'); await until(() => !page.pull.loading, 1000);
+  page.pullPick('p1b', true); page.pullStart(); await until(() => page.pull.step === 'done', 5000);
+  assert.deepStrictEqual(page.state.sections.map((s) => s.name), ['Ruth – Chapter 1', 'Ruth – Chapter 1 (v2, TEACHER UPDATE)']);
+  assert.strictEqual(page.descriptVariant('ED_Isaiah_24_Jones_v1_DS'), 'v1');
+  assert.strictEqual(page.descriptVariant('TTW KIDS CHAPTER 1'), '');
 });
 
 test('an empty first script is filled rather than left behind', async () => {

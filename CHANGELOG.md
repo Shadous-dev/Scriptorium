@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.2.1 — fixes from a review of 1.2.0 (2026-11-19)
+
+Ten findings from a review of the whole source. Each now has a test that fails on the old code.
+
+The wording guard had three holes
+- **Small words could be swapped.** Any two words with no consonant sounds counted as a mishearing of each other, so "we" → "you" and "why" → "how" were applied.
+- **Vowels were ignored.** "the Son of God" → "the sin of God" and "a good man" → "a God man" were applied.
+- **Words in capitals and bare numbers could be deleted.** The exception for section labels allowed removing anything without a lowercase letter.
+
+What counts as sounding the same is now narrower and written out in `10-edit-pipeline.js`: known homophones word for word; the same sound once spelling is folded ("Eli who" / "Elihu"); a long word whose consonants match and whose vowels differ slightly ("sabians" / "Sabeans"); or, roughly, a name listed under Words to Search For. A section label may be removed only if it stands alone on a line of the transcript, in capitals, with no sentence punctuation.
+
+The cost of being stricter: a real mishearing that fits none of those is now a suggestion rather than a change. Listing the name under Words to Search For and redoing the script lets it through.
+
+The other seven
+- **Long books.** Scripts, captions and books were read without saying how many to return. Every read now asks for up to 1,000 outright, so a long book cannot come back partly loaded.
+- **The reference fix overreached.** It allowed a space after the colon, so "verse 3: one thing stands out" became "verse 3: 1 thing". It now needs the number right against the colon.
+- **Two versions of one chapter got the same name.** The later arrival now says which it is: "Isaiah – Chapter 24 (v2, KRIS UPDATE)".
+- **Projects in no folder could not be pulled.** The top of the Drive now has a "Not in a folder" row.
+- **Long Descript folders were cut off silently.** The page now reads up to 1,000 projects per folder and says so when there are more.
+- **The library's order ignored real work.** Pulling, typing and hand corrections now count as working on a book, not only an edit pass.
+- **The saved Google Doc link was not checked.** Only an ordinary `https` link is ever shown as a link.
+
 ## 1.2.0 — the speaker's words, enforced (2026-11-19)
 
 From Jared's review of real edits. `SOURCE-OF-TRUTH.md` was amended first, in its own commit.

@@ -36,6 +36,9 @@
   function bookRef(book) { return dbRoot.doc('books/' + book); }
   function scriptRef(book, id) { return dbRoot.doc('books/' + book + '/scripts/' + id); }
   function captionRef(book, id) { return dbRoot.doc('books/' + book + '/captions/' + id); }
+  // Read a whole collection. The size is asked for outright (1,000 is the most one read may return) rather than
+  // left to a default, so a long book cannot come back partly loaded.
+  function readAll(path) { return dbRoot.collection(path).limit(1000).get(); }
   function newBookId() { return 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
   function sectionToDoc(s) {
@@ -61,7 +64,7 @@
   function metaToDoc() {
     return { bookTitle: state.bookTitle || '', wordsToSearchFor: state.wordsToSearchFor || '',
              order: state.sections.map(function (s) { return s.id; }), nextId: state.nextId || 2,
-             lastEditAt: state.lastEditAt || 0, approved: !!state.approved, createdAt: state.createdAt || 0,
+             lastEditAt: state.lastEditAt || 0, approved: !!state.approved, createdAt: state.createdAt || 0, touchedAt: state.touchedAt || 0,
              scriptCount: state.sections.filter(function (s) { return s.raw.trim() || s.name.trim(); }).length,
              editedCount: state.sections.filter(function (s) { return s.status === 'edited'; }).length,
              lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
@@ -141,8 +144,10 @@
     state.nextId = Number(meta.nextId) || state.nextId;
     state.lastEditAt = Number(meta.lastEditAt) || null;
     state.createdAt = Number(meta.createdAt) || 0;
+    state.touchedAt = Number(meta.touchedAt) || 0;
     state.approved = !!meta.approved;
-    state.lastDoc = (meta.lastDoc && meta.lastDoc.url) ? { url: String(meta.lastDoc.url), at: Number(meta.lastDoc.at) || 0, kind: String(meta.lastDoc.kind || 'doc') } : null;
+    var link = meta.lastDoc ? safeLink(meta.lastDoc.url) : '';
+    state.lastDoc = link ? { url: link, at: Number(meta.lastDoc.at) || 0, kind: String(meta.lastDoc.kind || 'doc') } : null;
     var order = Array.isArray(meta.order) ? meta.order : [];
     var rebuilt = [];
     order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id], captionsById[id])); });
@@ -168,11 +173,11 @@
   /* ---- The library: every book the team has ---- */
 
   function loadLibrary() {
-    return dbRoot.collection('books').get().then(function (qs) {
+    return readAll('books').then(function (qs) {
       library = ((qs && qs.docs) || []).map(function (d) {
         var b = d.data() || {};
         return { id: d.id, title: String(b.bookTitle || ''), scripts: Number(b.scriptCount) || 0, edited: Number(b.editedCount) || 0,
-                 at: Math.max(Number(b.lastEditAt) || 0, Number(b.createdAt) || 0) };
+                 at: Math.max(Number(b.touchedAt) || 0, Number(b.lastEditAt) || 0, Number(b.createdAt) || 0) };
       }).sort(function (a, b) { return b.at - a.at; });
     });
   }
@@ -184,7 +189,7 @@
       if (!snap || !snap.exists) return;
       var meta = JSON.parse(JSON.stringify(snap.data() || {}));
       if (meta.movedToBook) return;
-      return Promise.all([dbRoot.collection('scripts').get(), dbRoot.collection('captions').get().catch(noDocs)]).then(function (res) {
+      return Promise.all([readAll('scripts'), readAll('captions').catch(noDocs)]).then(function (res) {
         var scripts = docsById(res[0]), caps = docsById(res[1]);
         var ids = Object.keys(scripts);
         var worthKeeping = String(meta.bookTitle || '').trim() || ids.some(function (id) { return String((scripts[id] || {}).raw || '').trim(); });
@@ -220,7 +225,7 @@
     dbApi = null; bookId = id; view = 'book'; dbStatus = 'loading'; resetBookUi(); loadCollapsed(id);
     paint();
     var base = 'books/' + id;
-    return Promise.all([bookRef(id).get(), dbRoot.collection(base + '/scripts').get(), dbRoot.collection(base + '/captions').get().catch(noDocs)]).then(function (res) {
+    return Promise.all([bookRef(id).get(), readAll(base + '/scripts'), readAll(base + '/captions').catch(noDocs)]).then(function (res) {
       if (bookId !== id) return;                          // the reader has already gone somewhere else
       if (!res[0] || !res[0].exists) {
         return showLibrary('That book isn’t here any more — a teammate may have deleted it.');
@@ -291,7 +296,7 @@
   function deleteBook(id) {
     confirmState = null; deletingBook = id; paint();
     var base = 'books/' + id;
-    return Promise.all([dbRoot.collection(base + '/scripts').get(), dbRoot.collection(base + '/captions').get().catch(noDocs)]).then(function (res) {
+    return Promise.all([readAll(base + '/scripts'), readAll(base + '/captions').catch(noDocs)]).then(function (res) {
       var chain = Promise.resolve();
       Object.keys(docsById(res[0])).forEach(function (sid) { chain = chain.then(function () { return scriptRef(id, sid).delete(); }); });
       Object.keys(docsById(res[1])).forEach(function (sid) { chain = chain.then(function () { return captionRef(id, sid).delete(); }); });

@@ -17,6 +17,10 @@
     return day + ' day' + plural(day) + ' ago';
   }
   function isStale(s) { return s.status === 'edited' && s.editedFromRaw != null && s.raw !== s.editedFromRaw; }
+  // A book was worked on: typing, pulling, a hand correction, an edit pass. Saved with the book so the library can sort by it.
+  function touchBook() { state.touchedAt = Date.now(); }
+  // Links come from the shared store and from a connector's answer. Only an ordinary https link is ever shown as one.
+  function safeLink(url) { url = String(url == null ? '' : url).trim(); return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : ''; }
   function needsEdit(s) { return !!s.raw.trim() && (s.status !== 'edited' || s.raw !== s.editedFromRaw); }
 
   // Per-viewer conveniences only; the page must work when storage is unavailable.

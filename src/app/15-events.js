@@ -21,8 +21,8 @@
     if (action === 'hand-cancel') { cancelHandEdit(id); return; }
     if (action === 'pull-descript') { openPull(); return; }
     if (action === 'pull-close') { closePull(); return; }
-    if (action === 'pull-open') { pullOpenFolder(btn.dataset.path || ''); return; }
-    if (action === 'pull-more') { pullOpenFolder(pull ? pull.path : ''); return; }
+    if (action === 'pull-open') { pullOpenFolder(btn.dataset.path || '', btn.dataset.unfiled === '1'); return; }
+    if (action === 'pull-more') { pullOpenFolder(pull ? pull.path : '', !!(pull && pull.unfiled)); return; }
     if (action === 'pull-start') { pullStart(); return; }
     if (action === 'pull-stop') { pullStop(); return; }
     if (action === 'pull-pick' || action === 'pull-all') return;      // checkboxes: handled on change
@@ -67,7 +67,12 @@
     if (el.dataset.id) saveSectionSoon(el.dataset.id); else saveMetaSoon();
     if (el.dataset.field === 'raw' && el.dataset.id) { var s = findSection(el.dataset.id); if (s && s.status === 'edited') paintChipOnly(s); }
   }
-  root.addEventListener('input', function (e) { fieldTouched(e.target); });
+  root.addEventListener('input', function (e) {
+    var t = e.target;
+    fieldTouched(t);
+    // Typing is work on the book — but not typing in an unsaved hand correction, which changes nothing yet.
+    if (dbApi && t && t.dataset && t.dataset.field && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }
+  });
   // Remember which captions boxes are unfolded, so a repaint does not fold one the user just opened.
   root.addEventListener('toggle', function (e) {
     var id = e.target && e.target.dataset && e.target.dataset.captionFold;

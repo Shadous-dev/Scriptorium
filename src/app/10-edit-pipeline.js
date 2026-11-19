@@ -111,8 +111,8 @@
   // One whole number in words, up to 999 — and not the first half of two numbers said back to back ("thirty-five one").
   var NUM_PHRASE = '(?:(?:' + NUM_ONES + ') hundred(?:(?: and)? ' + NUM_SMALL + ')?|' + NUM_SMALL + ')(?![ -](?:' + NUM_ANY + '|hundred)\\b)';
   var NUM_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '\\b', 'gi');
-  var REF_LEFT_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '(?=:\\s?(?:\\d|(?:' + NUM_ANY + ')\\b))', 'gi');   // "thirty-five:1"
-  var REF_RIGHT_RE = new RegExp('(?<=\\d:\\s?)' + NUM_PHRASE + '\\b', 'gi');                                        // "35:one"
+  var REF_LEFT_RE = new RegExp('(?<![A-Za-z-])' + NUM_PHRASE + '(?=:(?:\\d|(?:' + NUM_ANY + ')\\b))', 'gi');   // "thirty-five:1"
+  var REF_RIGHT_RE = new RegExp('(?<=\\d:)' + NUM_PHRASE + '\\b', 'gi');                                        // "35:one"
 
   function numberFromWords(phrase) {
     var t = String(phrase).toLowerCase().split(/[ -]+/), i = 0, total = 0;
@@ -147,43 +147,91 @@
      An edit the editor proposes is applied only if every word it touches
      either stays the same word (punctuation, capitals, spacing, hyphens
      and number notation may change), or is replaced by words that sound
-     the same — which is what a mishearing is. Anything else would change
+     the same — which is what a mishearing is. A section label standing
+     alone on a line may be removed. Anything else would change
      what the speaker said. It is held back and shown as a suggestion.
      ------------------------------------------------------------------ */
 
   // The words of a run with everything that is not wording removed: "So-called," and "so called" are the same wording.
   function wordingKey(text) { return digitsForWords(String(text).toLowerCase()).replace(/[^a-z0-9\u00C0-\u024F]+/g, ''); }
 
-  // A rough ear: consonant sounds only, with the spellings that share a sound folded together.
-  function soundKey(text) {
-    return String(text).toLowerCase().replace(/[^a-z]+/g, '')
-      .replace(/ph/g, 'f').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
-      .replace(/x/g, 'ks').replace(/z/g, 's').replace(/v/g, 'f').replace(/j/g, 'g')
-      .replace(/[aeiouyhw]+/g, '').replace(/(.)\1+/g, '$1');
+  /* What counts as "sounds the same". Spelling is a poor guide to sound, so this is strict on
+     purpose: when in doubt the answer is no, and the change is shown as a suggestion instead.
+
+       1. the same words, or known homophones word for word        their / there, son / sun
+       2. the same sound once spelling is folded                   Eli who / Elihu, so far / Zophar, us / Uz
+       3. a long word whose consonants match and whose vowels
+          differ only slightly                                     sabians / Sabeans, a liphaz / Eliphaz
+       4. a name the reader listed under Words to Search For,
+          roughly                                                  never can nezzar / Nebuchadnezzar
+
+     Short everyday words that merely look or sound close — we / you, son / sin, good / God,
+     is / his, lives / loves — are different words, and are not allowed. */
+
+  var HOMOPHONE_GROUP = {};
+  ('their there theyre|to too two|your youre|whose whos|hear here|know no|knew new|right write rite|by buy bye|for four fore|one won|our hour|' +
+   'see sea|son sun|be bee|eye i aye|oh owe|weak week|peace piece|wait weight|way weigh|whole hole|holy wholly|pray prey|soul sole|heal heel|' +
+   'rain reign rein|alter altar|profit prophet|lead led|passed past|threw through|wear where ware|weather whether|which witch|would wood|' +
+   'aloud allowed|break brake|die dye|fair fare|great grate|hi high|made maid|meat meet|not knot|or ore oar|plain plane|principal principle|' +
+   'role roll|sail sale|scene seen|steal steel|tail tale|throne thrown|vain vein|waist waste|mourning morning|night knight|raise rays|' +
+   'bare bear|born borne|sight site cite|some sum').split('|').forEach(function (group, i) {
+    group.split(' ').forEach(function (w) { HOMOPHONE_GROUP[w] = i + 1; });
+  });
+
+  function lettersOf(text) { return String(text).toLowerCase().replace(/[^a-z]+/g, ''); }
+  function letterWords(text) { return (String(text).match(/\S+/g) || []).map(lettersOf).filter(Boolean); }
+
+  // Spelling folded toward sound: the letter groups that share a sound become one, and vowels are kept.
+  function soundSpell(text) {
+    return lettersOf(text)
+      .replace(/who(?!l)/g, 'hu').replace(/ph/g, 'f').replace(/ch/g, 'k').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
+      .replace(/x/g, 'ks').replace(/z/g, 's').replace(/oo/g, 'u').replace(/ee/g, 'i').replace(/y/g, 'i')
+      .replace(/([gptwr])h/g, '$1').replace(/wr/g, 'r').replace(/(.)\1+/g, '$1');
   }
-  function editDistance(a, b) {
-    var prev = [], cur, i, j;
-    for (j = 0; j <= b.length; j++) prev[j] = j;
+  // How far apart two folded spellings are. A vowel that differs counts half; a consonant counts whole.
+  function soundDistance(a, b) {
+    var vowel = /[aeiou]/, prev = [0], cur, i, j, da, db;
+    for (j = 1; j <= b.length; j++) prev[j] = prev[j - 1] + (vowel.test(b[j - 1]) ? 0.5 : 1);
     for (i = 1; i <= a.length; i++) {
-      cur = [i];
-      for (j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      da = vowel.test(a[i - 1]) ? 0.5 : 1;
+      cur = [prev[0] + da];
+      for (j = 1; j <= b.length; j++) {
+        db = vowel.test(b[j - 1]) ? 0.5 : 1;
+        cur[j] = Math.min(prev[j] + da, cur[j - 1] + db, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : (da + db === 1 ? 0.5 : 1)));
+      }
       prev = cur;
     }
     return prev[b.length];
   }
-  // Could Descript have heard one as the other? Short words must match exactly by sound; longer runs may differ a little.
-  function soundsAlike(a, b) {
-    if (!String(a).trim() || !String(b).trim()) return false;
-    var x = soundKey(a), y = soundKey(b), longest = Math.max(x.length, y.length);
-    if (!longest) return true;                                   // both are vowel sounds only: "a" / "I", "oh" / "owe"
-    return editDistance(x, y) <= (longest <= 3 ? 0 : Math.floor(longest * 0.4));
+  function listedNames() { return String(state.wordsToSearchFor || '').split(/[,\n;]+/).map(lettersOf).filter(function (n) { return n.length >= 2; }); }
+
+  // Could Descript have heard one as the other? `listed` is the reader's Words to Search For, as letters only.
+  function soundsAlike(a, b, listed) {
+    var wa = letterWords(a), wb = letterWords(b);
+    if (!wa.length || !wb.length) return false;
+    if (wa.length === wb.length && wa.every(function (w, i) { return w === wb[i] || (HOMOPHONE_GROUP[w] && HOMOPHONE_GROUP[w] === HOMOPHONE_GROUP[wb[i]]); })) return true;
+    var x = soundSpell(a), y = soundSpell(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    var longest = Math.max(x.length, y.length), apart = soundDistance(x, y);
+    if ((listed || []).some(function (name) { return wb.indexOf(name) !== -1 || (name.length >= 5 && wb.join('').indexOf(name) !== -1); })) return apart <= longest * 0.34;
+    return longest >= 6 && x.replace(/[aeiou]/g, '') === y.replace(/[aeiou]/g, '') && apart <= 1;
   }
 
-  // Why an edit may not be applied, or '' when it may. Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled.
-  function wordingProblem(e) {
+  // A section label: a short line in capitals standing alone in the transcript ("BEARINGS"). Words spoken
+  // in capitals inside a sentence, numbers, and anything ending a sentence are not labels.
+  function isLabelLine(find, text) {
+    var label = String(find).trim();
+    if (!/^[A-Z][A-Z &'’-]*:?$/.test(label) || label.split(/\s+/).length > 4) return false;
+    return String(text || '').split('\n').some(function (line) { return line.trim() === label; });
+  }
+
+  // Why an edit may not be applied, or '' when it may. `text` is the transcript the edit was written against.
+  // Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled, so the swap is shown where a reader looks for it.
+  function wordingProblem(e, text, listed) {
     var find = String((e && e.find) || ''), repl = String((e && e.replace) || '');
     if (wordingKey(find) === wordingKey(repl)) return '';
-    if (!repl.trim() && !/[a-z]/.test(find)) return '';          // a section label in capitals, removed whole
+    if (!repl.trim() && isLabelLine(find, text)) return '';
     var a = find.match(/\S+/g) || [], b = repl.match(/\S+/g) || [];
     var pairs = matchWords(a.map(wordingKey), b.map(wordingKey), 2000);
     if (!pairs) return 'changes the wording';
@@ -192,19 +240,19 @@
       if (problem || (toA - pa <= 1 && toB - pb <= 1)) return;
       var was = a.slice(pa + 1, toA).join(' '), now = b.slice(pb + 1, toB).join(' ');
       if (wordingKey(was) === wordingKey(now)) return;
-      if (soundsAlike(was, now)) { swapsSound = true; return; }
-      problem = !was ? 'adds words the speaker did not say' : !now ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
+      if (soundsAlike(was, now, listed)) { swapsSound = true; return; }
+      problem = !wordingKey(was) ? 'adds words the speaker did not say' : !wordingKey(now) ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
     }
     pairs.forEach(function (p) { check(p[0], p[1]); pa = p[0]; pb = p[1]; });
     check(a.length, b.length);
     if (!problem && swapsSound && e.kind !== 'misheard' && e.kind !== 'verse-fix') { e.kind = 'misheard'; e.note = e.note || 'sounds the same'; }
     return problem;
   }
-  function guardEdits(edits) {
-    var ok = [], held = [];
+  function guardEdits(edits, text) {
+    var ok = [], held = [], listed = listedNames();
     (edits || []).forEach(function (e) {
       if (!e || typeof e !== 'object') return;
-      var why = wordingProblem(e);
+      var why = wordingProblem(e, text, listed);
       if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'), note: why + (e.note ? ' — ' + String(e.note) : '') });
       else ok.push(e);
     });
@@ -258,7 +306,7 @@
     var prepared = fixCapitals(fixNames(fixReferences(mechanics(s.raw, local), local), local), local);
     return sample.json(buildEditsPrompt(s, prepared), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
-      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : []);       // 4.1: only what keeps the speaker's words
+      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : [], prepared);       // 4.1: only what keeps the speaker's words
       var result = applyEdits(prepared, guard.ok);
       var applied = local.concat(result.applied);
       var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied), applied), applied);
@@ -270,7 +318,7 @@
       s.misheard = applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; });
       s.nonsensical = cleanNonsense(data.nonsensical); s.verses = cleanVerses(data.verses); s.method = 'edits';
       s.suggested = guard.held; s.misquotes = cleanMisquotes(data.misquotes); delete s.handDraft;
-      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null;
+      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null; touchBook();
     }).catch(function (err) {
       if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
       // A garbled or empty answer is not cached, so one more ask is a genuine second attempt.

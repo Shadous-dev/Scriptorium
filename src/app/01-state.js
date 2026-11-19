@@ -1,6 +1,6 @@
 /* 01-state.js — App root element and the in-memory state shape. */
   var root = document.getElementById('app-root');
-  var VERSION = '1.2.0';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.2.1';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -13,7 +13,7 @@
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
-             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null, createdAt: 0 };
+             nextId: 2, lastEditAt: null, approved: false, docResult: null, lastDoc: null, createdAt: 0, touchedAt: 0 };
   }
   function loadSeed() {
     try {

@@ -56,7 +56,7 @@
     if (!payload && res && res.content && res.content[0] && res.content[0].text) { try { payload = JSON.parse(res.content[0].text); } catch (e) {} }
     return payload || {};
   }
-  function urlOf(p) { return p && (p.viewUrl || p.webViewLink || p.url) || ''; }
+  function urlOf(p) { return safeLink(p && (p.viewUrl || p.webViewLink || p.url)); }
 
   function conclude() {
     syncFieldsFromDom();

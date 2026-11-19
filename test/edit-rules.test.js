@@ -20,7 +20,7 @@ const source = ['02-helpers.js', '03-text.js', '09-prompts.js', '10-edit-pipelin
 const P = new Function(`
   var state = { bookTitle: 'John', wordsToSearchFor: 'Elihu, Zophar', sections: [] }, bookId = 'b1', root = null;
   ${source}
-  return { state, numberFromWords, fixReferences, fixNames, mechanics, soundsAlike, wordingProblem, guardEdits, runEditOnSection, buildEditsPrompt, promptHeader, handEditRows };
+  return { state, numberFromWords, fixReferences, fixNames, mechanics, soundsAlike, wordingProblem, guardEdits, runEditOnSection, buildEditsPrompt, promptHeader, handEditRows, safeLink };
 `)();
 
 const tests = [];
@@ -31,10 +31,23 @@ const editor = (answer) => ({ json: () => Promise.resolve(answer) });      // a 
 /* ---- 4.1 and 4.2: the wording guard ---- */
 
 test('what may sound the same, and what may not', () => {
-  [['Eli who', 'Elihu'], ['so far', 'Zophar'], ['the land of us', 'the land of Uz'], ['the sabians', 'the Sabeans'], ['bill dad', 'Bildad'], ['a liphaz', 'Eliphaz'], ['levy athan', 'Leviathan'], ['there', 'their'], ['a', 'I']]
+  [['Eli who', 'Elihu'], ['so far', 'Zophar'], ['the land of us', 'the land of Uz'], ['the sabians', 'the Sabeans'], ['bill dad', 'Bildad'], ['a liphaz', 'Eliphaz'], ['levy athan', 'Leviathan'], ['there', 'their'], ['sun', 'Son'], ['profit', 'prophet'], ["you're", 'your']]
     .forEach(([heard, meant]) => assert.ok(P.soundsAlike(heard, meant), heard + ' / ' + meant + ' should count as a mishearing'));
-  [['wine vinegar', 'sour wine'], ['Moses', 'Jesus'], ['love', 'charity'], ['happy', 'blessed'], ['servant', 'slave'], ['wine', ''], ['', 'wine']]
+  [['wine vinegar', 'sour wine'], ['Moses', 'Jesus'], ['love', 'charity'], ['happy', 'blessed'], ['servant', 'slave'], ['wine', ''], ['', 'wine'],
+   // found in review: little words, and words that differ only by a vowel, are different words
+   ['we', 'you'], ['I', 'you'], ['who', 'you'], ['why', 'how'], ['a', 'I'], ['Son', 'sin'], ['good', 'God'], ['man', 'men'], ['lives', 'loves'], ['is', 'his'], ['word', 'ward']]
     .forEach(([said, other]) => assert.ok(!P.soundsAlike(said, other), said + ' / ' + other + ' must not count as a mishearing'));
+});
+
+test('a name listed under Words to Search For is matched more loosely — and only that name', () => {
+  assert.ok(!P.soundsAlike('never can nezzar', 'Nebuchadnezzar'), 'unlisted, this is too far apart to apply');
+  assert.ok(P.soundsAlike('never can nezzar', 'Nebuchadnezzar', ['nebuchadnezzar']));
+  assert.ok(!P.soundsAlike('wine vinegar', 'sour wine', ['nebuchadnezzar']), 'listing one name loosens nothing else');
+  assert.ok(!P.soundsAlike('the people', 'Nebuchadnezzar', ['nebuchadnezzar']), 'a listed name still has to resemble what was heard');
+  P.state.wordsToSearchFor = 'Elihu, Nebuchadnezzar';
+  assert.strictEqual(P.guardEdits([{ find: 'never can nezzar', replace: 'Nebuchadnezzar', kind: 'misheard' }], '').ok.length, 1);
+  P.state.wordsToSearchFor = 'Elihu, Zophar';
+  assert.strictEqual(P.guardEdits([{ find: 'never can nezzar', replace: 'Nebuchadnezzar', kind: 'misheard' }], '').held.length, 1);
 });
 
 test('the "wine vinegar" case: a verse fix that swaps in another translation\'s words is held back', () => {
@@ -60,12 +73,20 @@ test('any other change to the words is held back, whatever the editor called it'
     .forEach(([find, replace]) => assert.ok(P.wordingProblem({ find, replace }), find + ' → ' + replace + ' changes the wording'));
   assert.ok(/adds words/.test(P.wordingProblem({ find: 'we see that', replace: 'we can see that' })));
   assert.ok(/removes words/.test(P.wordingProblem({ find: 'He was very very tired', replace: 'He was very tired' })));
+  // found in review: labelled a mishearing or not, these change what was said
+  [['we', 'you'], ['the Son of God', 'the sin of God'], ['a good man', 'a God man'], ['that is right', 'that his right']]
+    .forEach(([find, replace]) => assert.ok(P.wordingProblem({ find, replace, kind: 'misheard' }), find + ' → ' + replace));
 });
 
 test('a section label in capitals may be removed; spoken words in capitals may not', () => {
-  assert.strictEqual(P.wordingProblem({ find: 'BEARINGS', replace: '' }), '');
-  assert.ok(P.wordingProblem({ find: 'Bearings', replace: '' }));
-  assert.ok(P.wordingProblem({ find: 'and that is the point', replace: '' }));
+  const text = 'Welcome back.\n\nBEARINGS\n\nSo here we are. NO SOAPBOX. Then, 1964.\n\nNO SOAPBOX.\n\nJob 2:4';
+  assert.strictEqual(P.wordingProblem({ find: 'BEARINGS', replace: '' }, text), '');
+  assert.ok(P.wordingProblem({ find: 'Bearings', replace: '' }, text));
+  assert.ok(P.wordingProblem({ find: 'and that is the point', replace: '' }, text));
+  // found in review: capitals alone do not make a label
+  assert.ok(P.wordingProblem({ find: 'NO SOAPBOX.', replace: '' }, text), 'a sentence spoken in capitals is speech, even alone on a line');
+  assert.ok(P.wordingProblem({ find: '2:4', replace: '' }, text), 'a reference is not a label');
+  assert.ok(P.wordingProblem({ find: 'BEARINGS', replace: '' }, 'Take your BEARINGS from this.'), 'a capital word inside a sentence is not a label');
 });
 
 test('a sound-alike swap the editor did not label is still shown as a misheard word', () => {
@@ -100,7 +121,9 @@ test('a number spelled out beside a reference colon becomes digits — Jared\'s 
 });
 
 test('number words that are not beside a reference colon are left to judgment, not guessed at', () => {
-  ['Peter three times denied him.', 'In this verse one thing stands out.', 'his job one day', 'Isaiah thirty-five one', 'There were twelve disciples.', 'someone said it']
+  ['Peter three times denied him.', 'In this verse one thing stands out.', 'his job one day', 'Isaiah thirty-five one', 'There were twelve disciples.', 'someone said it',
+   'Look at verse 3: one thing stands out. John 3:16: two ideas.', 'I will say this one: 3 things matter.']   // found in review: a colon followed by a space starts a sentence
+   
     .forEach((text) => assert.strictEqual(P.fixReferences(text, []), text, text));
 });
 
@@ -135,6 +158,12 @@ test('the instructions tell the editor the same rules the page enforces', () => 
   assert.ok(/Bible references in digits/.test(prompt) && /keep the words "chapter" and "verse"/.test(prompt));
   const overhead = prompt.length - 'x'.length;
   assert.ok(overhead < 5800, 'the fixed instructions grew to ' + overhead + ' characters — every one is paid for on every script (4.6)');
+});
+
+test('only an ordinary https link is ever shown as a link', () => {
+  assert.strictEqual(P.safeLink('https://docs.google.com/document/d/abc/edit?usp=drivesdk'), 'https://docs.google.com/document/d/abc/edit?usp=drivesdk');
+  ['javascript:alert(1)', 'data:text/html,<b>x</b>', 'http://example.com', ' https://ok.example/x" onclick="y', '', null, 'docs.google.com/x']
+    .forEach((bad) => assert.strictEqual(P.safeLink(bad), '', String(bad)));
 });
 
 /* ---- 4.4: hand corrections are listed ---- */

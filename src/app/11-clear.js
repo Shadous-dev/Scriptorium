@@ -25,7 +25,7 @@
     var ids = state.sections.map(function (s) { return s.id; }), book = bookId;
     var fresh = newSection();
     state.sections = [fresh];
-    state.lastEditAt = null; state.approved = false; state.docResult = null;
+    state.lastEditAt = null; state.approved = false; state.docResult = null; touchBook();
     collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {};
     confirmState = null; clearing = true;
     paint();
