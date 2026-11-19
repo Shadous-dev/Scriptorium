@@ -35,6 +35,8 @@ what the speaker said.**
   be found by search.
 - Reading a guide's transcript and timed captions from the TTW Drive in
   Descript, so nobody has to export and paste them by hand.
+- Small corrections by hand to a finished script, for what the edit pass
+  missed. Each one is recorded like any other change (4.4).
 
 ## 3. What it is not for
 
@@ -59,12 +61,25 @@ tone, intent, and word order stay as spoken. Deliberate fragments stay
 fragments. Casual voice stays casual. Nothing is merged, completed, polished,
 or made more formal.
 
+The page enforces this itself and does not rely on the edit pass behaving. A
+change the edit pass proposes is applied only if it alters punctuation,
+capitals, spacing, hyphens, or the way a number is written, or if it replaces
+words with words that sound the same. Anything else would change what the
+speaker said: it is listed as a suggestion, and the script is left as spoken.
+
 **4.2 A quoted verse is corrected only where it was misheard.**
 Inside a Bible quotation, the only permitted change is a word Descript got
 wrong by sound — "the land of us" to "the land of Uz", "the sabians" to "the
 Sabeans". Wording, word order, capitalization, and punctuation inside a verse
 are left exactly as they are, including punctuation that looks wrong. Bible
 translations read oddly on purpose.
+
+A different word that means the same thing is not a mishearing. A teacher who
+said "wine vinegar" is not corrected to "sour wine" because another
+translation reads that way. TTW teachers quote the NIV and sometimes the ESV,
+and the two differ. Where a quotation seems to match neither, the tool does
+not correct it: it flags it for the teacher and changes nothing. The purpose
+is what the teacher said, exactly, not what the verse says.
 
 **4.3 Nothing is invented.**
 The tool reports what it found and what it could not resolve. A reference it
@@ -122,6 +137,8 @@ tool. The instructions cover, in this order of priority:
    misheard words corrected inside the quote.
 4. **Flagging** — anything that still does not make sense, with a best guess
    at what is wrong.
+5. **For the teacher** — a quotation that seems to match neither the NIV nor
+   the ESV. Reported, never corrected (4.2).
 
 The page does the mechanical work locally, before the text is sent, so the
 prompt never has to ask for it and the answer never has to carry it:
@@ -154,6 +171,13 @@ This is the published format, taken from the Luke 1 model:
 - Speech inside a verse uses single quotation marks.
 - Paragraph breaks that Descript put mid-thought are joined.
 - Verse wording is untouched apart from misheard words.
+- A Bible reference is written in digits — `Isaiah 35:1`, `chapter 12`,
+  `verse 3` — never in number words or a mix such as `Isaiah thirty-five:1`.
+  The words "chapter" and "verse" stay where they were spoken. This changes
+  how a number is written, not what was said. Other numbers stay as spoken.
+- A script pulled from Descript is named from its project:
+  `ED_Isaiah_24_Jones_v1_DS` becomes `Isaiah – Chapter 24`. A project name
+  that does not start with a Bible book is kept exactly as it is.
 
 The point of the bolding is so it is obvious at a glance where scripture is
 used. That is a review feature as much as a publishing one.
