@@ -1,4 +1,4 @@
-/* 13-captions.js — Timed captions: reading .srt/.vtt, carrying the corrected script onto Descript's timings, writing .srt, .vtt and .zip. */
+/* 13-captions.js — Timed captions: reading .srt/.vtt, carrying the corrected transcript onto Descript's timings, writing .srt, .vtt and .zip. */
   /* ==================================================================
      Captions — SOURCE-OF-TRUTH 4.7
 
@@ -7,7 +7,7 @@
      costs nothing (4.6).
 
        1. parseCaptions   reads the timed captions Descript exported
-       2. matchWords      lines the corrected script's words up with the
+       2. matchWords      lines the corrected transcript's words up with the
                           captions' words (a standard longest-common-
                           subsequence diff)
        3. buildCaptions   gives every corrected word, once and in order,
@@ -18,8 +18,8 @@
      which caption a word belongs to.
      ================================================================== */
 
-  var CAPTION_MAX = 240000;          // characters of pasted captions one script may hold (the store's document cap is 256 KiB)
-  var CAPTION_MIN_MATCH = 0.7;       // below this share of words lining up, the captions are for a different script
+  var CAPTION_MAX = 240000;          // characters of pasted captions one guide may hold (the store's document cap is 256 KiB)
+  var CAPTION_MIN_MATCH = 0.7;       // below this share of words lining up, the captions are for a different guide
   var CAPTION_MAX_DIFF = 4000;       // give up lining words up past this many differences
   var TIME_RE = /(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/;
 
@@ -93,7 +93,7 @@
     return pairs;
   }
 
-  // The corrected script on the captions' timings. Returns { ok: true, cues: [{start, end, text}], stats }
+  // The corrected transcript on the captions' timings. Returns { ok: true, cues: [{start, end, text}], stats }
   // or { ok: false, reason } — 'no-cues', 'no-script', 'too-long' or 'mismatch' (with `share`).
   function buildCaptions(captionText, corrected) {
     if (String(captionText || '').length > CAPTION_MAX) return { ok: false, reason: 'too-long' };
@@ -204,8 +204,8 @@
 
   /* ---- In the workbench ---- */
 
-  var captionOpen = {};      // which scripts have the captions box unfolded, this visit
-  var captionMemo = {};      // last result per script, so a repaint does not line the words up again
+  var captionOpen = {};      // which guides have the captions box unfolded, this visit
+  var captionMemo = {};      // last result per guide, so a repaint does not line the words up again
 
   function captionResult(s) {
     var text = s.captions || '', memo = captionMemo[s.id];
@@ -216,14 +216,14 @@
   }
   function captionsReady(s) { return s.status === 'edited' && !!s.corrected && !!(s.captions || '').trim() && captionResult(s).ok; }
 
-  // One plain sentence on where a script's captions stand. Every outcome is said out loud (4.4).
+  // One plain sentence on where a guide's captions stand. Every outcome is said out loud (4.4).
   function captionNote(s) {
     if (!(s.captions || '').trim()) return { text: '', warn: false };
     var r = captionResult(s);
     if (r.reason === 'too-long') return { text: 'This is too long to keep — paste the captions for one audio guide at a time.', warn: true };
     if (r.reason === 'no-cues') return { text: 'No timed captions found in this text. Paste the contents of the .srt file Descript exports — it has lines like 00:00:01,000 --> 00:00:04,000.', warn: true };
     if (s.status !== 'edited' || r.reason === 'no-script') return { text: (r.cuesIn || parseCaptions(s.captions).length) + ' timed captions read. Run the edit pass and the caption files will be ready to download.', warn: false };
-    if (r.reason === 'mismatch') return { text: 'These captions don’t match this script — only ' + Math.round((r.share || 0) * 100) + '% of the words line up. Check that both came from the same audio guide.', warn: true };
+    if (r.reason === 'mismatch') return { text: 'These captions don’t match this guide’s transcript — only ' + Math.round((r.share || 0) * 100) + '% of the words line up. Check that both came from the same audio guide.', warn: true };
     var st = r.stats;
     return { text: 'Caption files ready — ' + st.cuesOut + ' caption' + plural(st.cuesOut) + ' on Descript’s timings' +
       (st.dropped ? ', ' + st.dropped + ' with no spoken words left out' : '') +
@@ -236,7 +236,7 @@
     var open = captionOpen[s.id] != null ? captionOpen[s.id] : has;
     return '<details class="caption-fold" data-caption-fold="' + s.id + '"' + (open ? ' open' : '') + '>' +
       '<summary>Timed captions for search' + (has ? '' : ' <span class="caption-optional">— optional</span>') + '</summary>' +
-      '<p class="hint"><strong>Pull from Descript</strong> fills this in for you. By hand: in Descript, export this audio guide’s subtitles as <strong>.srt</strong>, open the file, and paste everything in it here. The Scriptorium puts the corrected script onto those timings and gives you an .srt and a .vtt.</p>' +
+      '<p class="hint"><strong>Pull from Descript</strong> fills this in for you. By hand: in Descript, export this audio guide’s subtitles as <strong>.srt</strong>, open the file, and paste everything in it here. The Scriptorium puts the corrected transcript onto those timings and gives you an .srt and a .vtt.</p>' +
       (s.descriptName ? '<p class="hint">Pulled from the Descript project <span class="caption-source">' + esc(s.descriptName) + '</span>.</p>' : '') +
       '<textarea data-field="captions" data-id="' + s.id + '" rows="5" placeholder="1&#10;00:00:00,000 --> 00:00:03,200&#10;welcome back my friends">' + esc(s.captions || '') + '</textarea>' +
       '<div class="caption-bar"><p class="caption-note' + (note.warn ? ' is-warn' : '') + '">' + esc(note.text) + '</p>' +
@@ -255,12 +255,12 @@
   function fileSafe(name, fallback) {
     return String(name || '').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, ' ').replace(/\s+/g, ' ').replace(/^[ .]+|[ .]+$/g, '') || fallback;
   }
-  // The .srt and .vtt for each script that has captions ready, with names that cannot collide.
+  // The .srt and .vtt for each guide that has captions ready, with names that cannot collide.
   function captionFiles(sections, nested) {
     var files = [], used = {};
     sections.forEach(function (s) {
       if (!captionsReady(s)) return;
-      var base = fileSafe(s.name, 'Script ' + (state.sections.indexOf(s) + 1)), name = base, n = 2;
+      var base = fileSafe(s.name, 'Guide ' + (state.sections.indexOf(s) + 1)), name = base, n = 2;
       while (used[name.toLowerCase()]) { name = base + ' (' + n + ')'; n += 1; }
       used[name.toLowerCase()] = true;
       var cues = captionResult(s).cues;
@@ -272,7 +272,7 @@
   function saveCaptionZip(sections, zipName, nested) {
     syncFieldsFromDom();
     var files = captionFiles(sections, nested);
-    if (!files.length) { showFlash('No caption files are ready yet. A script needs its timed captions pasted in and the edit pass run.'); return Promise.resolve(); }
+    if (!files.length) { showFlash('No caption files are ready yet. A guide needs its timed captions and the edit pass run.'); return Promise.resolve(); }
     return useCap('downloads').then(function (downloads) {
       if (!downloads) { showFlash('Downloads aren’t available in this view, so caption files can’t be saved from here.'); return; }
       return downloads.save({ filename: zipName, data: zipFiles(files) }).then(function () {
@@ -287,6 +287,6 @@
   }
   function downloadCaptions(id) {
     var s = findSection(id);
-    if (s) saveCaptionZip([s], fileSafe(s.name, 'script') + ' captions.zip', false);
+    if (s) saveCaptionZip([s], fileSafe(s.name, 'guide') + ' captions.zip', false);
   }
   function downloadAllCaptions() { saveCaptionZip(state.sections, fileSafe(state.bookTitle, 'audio guide') + ' captions.zip', true); }

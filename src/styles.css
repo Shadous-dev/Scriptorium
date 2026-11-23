@@ -282,3 +282,44 @@ input:disabled, textarea:disabled { cursor: wait; }
 .caption-source { font-family: var(--font-mono); font-size: 12px; color: var(--ink); overflow-wrap: anywhere; }
 .misheard-table.is-kept td.was { text-decoration: none; color: var(--ink); font-weight: 500; }
 .misheard-table.is-kept td.now { color: var(--ink-soft); font-weight: 400; }
+
+/* Stages and sign-off */
+.chip-final { border-color: transparent; background: var(--conclude); color: var(--paper-raised); font-weight: 600; }
+.section-card.is-final { border-color: var(--conclude); }
+.pane-sub { font-weight: 400; color: var(--ink-faint); }
+.pane-sub::before { content: "· "; }
+.copy-btn.is-approve { background: var(--conclude); border-color: var(--conclude); color: var(--paper-raised); font-weight: 600; }
+.copy-btn.is-approve:hover { filter: brightness(.92); color: var(--paper-raised); }
+.conclude-note { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 78ch; }
+
+/* Written scripts */
+.written-line { margin: -4px 0 12px; font-size: 13px; color: var(--ink-soft); }
+.written-line strong { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.written-line select { max-width: min(420px, 70vw); }
+.written-how { color: var(--ink-faint); }
+.written-note { display: block; margin-top: 2px; color: var(--warn); }
+.written-form { gap: 8px; }
+.written-label { margin-top: 6px; font: 600 13px var(--font-body); color: var(--ink); }
+.written-input, .written-search, .written-text-box, .ref-input { box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--paper); color: var(--ink); font: 400 13.5px/1.4 var(--font-body); padding: 7px 10px; }
+.written-input, .written-text-box { width: 100%; }
+.written-input:focus, .written-search:focus, .written-text-box:focus, .ref-input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--edit-soft); }
+.written-row { display: flex; gap: 8px; align-items: center; }
+.written-row .written-input { flex: 1; min-width: 0; }
+.written-search { width: min(280px, 60vw); }
+.written-file { max-width: 100%; font: 400 13px var(--font-body); color: var(--ink-soft); }
+.written-text-box { min-height: 200px; resize: vertical; font: 400 13px/1.5 var(--font-mono); }
+.written-count { min-height: 1.2em; }
+.written-text { max-height: 480px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 5px; padding: 12px 14px; background: var(--paper); color: var(--ink); font: 400 13.5px/1.6 var(--font-body); }
+
+/* Reference checks */
+.ref-change { margin-left: 8px; font-weight: 400; font-size: 12px; }
+.ref-input { width: 100%; padding: 4px 8px; font-size: 13px; }
+.ref-actions { display: flex; gap: 10px; margin-top: 4px; }
+.verse-picks { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-top: 5px; font-family: var(--font-body); }
+.verse-why { margin-right: 8px; font-size: 12px; color: var(--ink-faint); }
+.verse-ok { display: block; margin-top: 2px; font-family: var(--font-body); font-size: 12px; color: var(--accent); }
+
+/* Narrow screens: the stage name and its buttons each keep to their own line */
+.pane-head { flex-wrap: wrap; }
+.pane-actions { flex-wrap: wrap; }
+.copy-btn { white-space: nowrap; }

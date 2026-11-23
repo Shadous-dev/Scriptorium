@@ -286,13 +286,54 @@ input:disabled, textarea:disabled { cursor: wait; }
 .caption-source { font-family: var(--font-mono); font-size: 12px; color: var(--ink); overflow-wrap: anywhere; }
 .misheard-table.is-kept td.was { text-decoration: none; color: var(--ink); font-weight: 500; }
 .misheard-table.is-kept td.now { color: var(--ink-soft); font-weight: 400; }
+
+/* Stages and sign-off */
+.chip-final { border-color: transparent; background: var(--conclude); color: var(--paper-raised); font-weight: 600; }
+.section-card.is-final { border-color: var(--conclude); }
+.pane-sub { font-weight: 400; color: var(--ink-faint); }
+.pane-sub::before { content: "· "; }
+.copy-btn.is-approve { background: var(--conclude); border-color: var(--conclude); color: var(--paper-raised); font-weight: 600; }
+.copy-btn.is-approve:hover { filter: brightness(.92); color: var(--paper-raised); }
+.conclude-note { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 78ch; }
+
+/* Written scripts */
+.written-line { margin: -4px 0 12px; font-size: 13px; color: var(--ink-soft); }
+.written-line strong { color: var(--ink); font-weight: 600; overflow-wrap: anywhere; }
+.written-line select { max-width: min(420px, 70vw); }
+.written-how { color: var(--ink-faint); }
+.written-note { display: block; margin-top: 2px; color: var(--warn); }
+.written-form { gap: 8px; }
+.written-label { margin-top: 6px; font: 600 13px var(--font-body); color: var(--ink); }
+.written-input, .written-search, .written-text-box, .ref-input { box-sizing: border-box; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--paper); color: var(--ink); font: 400 13.5px/1.4 var(--font-body); padding: 7px 10px; }
+.written-input, .written-text-box { width: 100%; }
+.written-input:focus, .written-search:focus, .written-text-box:focus, .ref-input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--edit-soft); }
+.written-row { display: flex; gap: 8px; align-items: center; }
+.written-row .written-input { flex: 1; min-width: 0; }
+.written-search { width: min(280px, 60vw); }
+.written-file { max-width: 100%; font: 400 13px var(--font-body); color: var(--ink-soft); }
+.written-text-box { min-height: 200px; resize: vertical; font: 400 13px/1.5 var(--font-mono); }
+.written-count { min-height: 1.2em; }
+.written-text { max-height: 480px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 5px; padding: 12px 14px; background: var(--paper); color: var(--ink); font: 400 13.5px/1.6 var(--font-body); }
+
+/* Reference checks */
+.ref-change { margin-left: 8px; font-weight: 400; font-size: 12px; }
+.ref-input { width: 100%; padding: 4px 8px; font-size: 13px; }
+.ref-actions { display: flex; gap: 10px; margin-top: 4px; }
+.verse-picks { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-top: 5px; font-family: var(--font-body); }
+.verse-why { margin-right: 8px; font-size: 12px; color: var(--ink-faint); }
+.verse-ok { display: block; margin-top: 2px; font-family: var(--font-body); font-size: 12px; color: var(--accent); }
+
+/* Narrow screens: the stage name and its buttons each keep to their own line */
+.pane-head { flex-wrap: wrap; }
+.pane-actions { flex-wrap: wrap; }
+.copy-btn { white-space: nowrap; }
 </style>
 <div id="app-root"></div>
 <script type="application/json" id="seed-state">{"bookTitle":"","wordsToSearchFor":"","sections":[{"id":"s1","name":"","raw":"","corrected":"","editedFromRaw":null,"summary":"","changeCount":0,"misheard":[],"nonsensical":[],"status":"draft","error":null,"editedAt":null,"captions":""}],"nextId":2,"overview":"","lastEditAt":null,"approved":false,"docResult":null}</script>
 <script id="app-script">
 (function () {
   var root = document.getElementById('app-root');
-  var VERSION = '1.2.1';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.3.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -301,7 +342,9 @@ input:disabled, textarea:disabled { cursor: wait; }
   function newSectionRaw(id) {
     return { id: id, name: '', raw: '', corrected: '', editedFromRaw: null, summary: '', changeCount: 0,
              misheard: [], nonsensical: [], edits: [], unapplied: [], verses: [], method: '',
-             status: 'draft', error: null, editedAt: null, captions: '', descriptId: '', descriptName: '', suggested: [], misquotes: [] };
+             status: 'draft', error: null, editedAt: null, captions: '', descriptId: '', descriptName: '', suggested: [], misquotes: [],
+             approvedAt: 0,                                   // when a person signed this off as the Final Transcript; 0 = not signed off
+             writtenId: '', writtenUsed: null };              // the written script chosen by hand ('' = let the page match one, 'none' = use none); what the last edit pass used
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
@@ -322,7 +365,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   var confirmState = null;     // { title, body, warn, confirmLabel, onConfirm }
   var clearing = false;
 
-  // Not a counter: two people adding a script to the same book at the same moment must not get the same id.
+  // Not a counter: two people adding a guide to the same book at the same moment must not get the same id.
   function uid() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function newSection() { return newSectionRaw(uid()); }
   function findSection(id) { return state.sections.filter(function (x) { return x.id === id; })[0]; }
@@ -350,6 +393,15 @@ input:disabled, textarea:disabled { cursor: wait; }
   // Links come from the shared store and from a connector's answer. Only an ordinary https link is ever shown as one.
   function safeLink(url) { url = String(url == null ? '' : url).trim(); return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : ''; }
   function needsEdit(s) { return !!s.raw.trim() && (s.status !== 'edited' || s.raw !== s.editedFromRaw); }
+
+  /* The stages of a guide (SOURCE-OF-TRUTH, "The words this document uses"): the 1st Draft Transcript is what
+     Descript heard; the Edited Transcript is that after the edit pass and any corrections by hand; the Final
+     Transcript is an Edited Transcript a person has approved. The approval is of that text, so anything that
+     changes the text takes it back to Edited (clearApproval) — and while its 1st Draft has changed since the
+     edit, it does not count as Final either: what was approved is no longer what Descript has. */
+  function isFinal(s) { return s.status === 'edited' && !!s.corrected && Number(s.approvedAt) > 0 && !isStale(s); }
+  function clearApproval(s) { s.approvedAt = 0; }
+  function stageName(s) { return isFinal(s) ? 'Final Transcript' : 'Edited Transcript'; }
 
   // Per-viewer conveniences only; the page must work when storage is unavailable.
   function prefGet(key, fallback) { try { var v = localStorage.getItem('scriptorium.' + key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }
@@ -410,6 +462,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       text = text.slice(0, hit.start) + repl + text.slice(hit.end);
       cursor = hit.start + repl.length;
       applied.push({ find: find, replace: repl, kind: String((e && e.kind) || 'grammar'), note: String((e && e.note) || '') });
+      if (e && e.source === 'script') applied[applied.length - 1].source = 'script';     // 4.9: a change the written script supported says so
     });
     return { text: text, applied: applied, unapplied: unapplied };
   }
@@ -432,8 +485,17 @@ input:disabled, textarea:disabled { cursor: wait; }
   // One clean pair of double quotes around the verse; speech inside it in single quotes. The
   // transcript's own marks are often doubled, curly, or missing a partner, so the inner speech
   // quotes are re-balanced from their positions rather than trusted.
+  //
+  // The end of a verse is where the marks pile up: the speech inside it closes, the verse closes, and a
+  // full stop or a second mark is often left outside (get up.'"  get up".  get up." "). So the end is
+  // rebuilt rather than trusted: the verse's own closing punctuation, once; then one closing mark for the
+  // speech inside it, if that speech is open.
   function normalizeVerseQuotes(inner) {
-    inner = inner.replace(/^["“”]+\s*/, '').replace(/\s*["“”]+$/, '').trim();
+    inner = String(inner).trim().replace(/^(?:["“”]\s*)+/, '');
+    var tail = inner.match(/[\s"“”'’.,!?…]*$/)[0], core = inner.slice(0, inner.length - tail.length);
+    var own = tail.match(/^[.,!?…]+/), later = tail.match(/[.,!?…]/);
+    var hadSingle = /['’]/.test(tail);
+    inner = core + (own ? own[0] : later ? later[0] : '');
     var open = false, needLead = false, re = /["“”]/g, m;
     while ((m = re.exec(inner))) {
       var ch = m[0], prev = m.index ? inner[m.index - 1] : '';
@@ -442,7 +504,8 @@ input:disabled, textarea:disabled { cursor: wait; }
     }
     inner = inner.replace(/[“”"]/g, "'");
     if (needLead) inner = "'" + inner;
-    if (open) inner = inner + "'";
+    // A single mark found at the end closes speech that opened earlier in the verse. With nothing open it was a stray, and is dropped.
+    if (open || (hadSingle && /(?:^|[\s(:—–\-\[])['‘](?=\S)/.test(inner))) inner = inner + "'";
     return '"' + inner + '"';
   }
 
@@ -451,17 +514,17 @@ input:disabled, textarea:disabled { cursor: wait; }
   // Where a verse sits in the corrected text. New results carry two short anchors (the first
   // and last few words); older saved results carry the whole quote. Either way the text itself
   // is the source — the span is found here, not re-typed by the editor.
-  function verseSpan(text, v) {
+  function verseSpan(text, v, from) {
     if (v.startsWith) {
-      var head = locate(text, v.startsWith, 0, true); if (!head) return null;
+      var head = locate(text, v.startsWith, from || 0, true); if (!head) return null;
       var tail = v.endsWith ? locate(text, v.endsWith, head.start, true) : null;
       if (!tail || tail.start < head.start || tail.end - head.start > 2500) return null;
       return { start: head.start, end: tail.end };
     }
     var quote = String(v.quote || ''); if (!quote) return null;
-    var q = locate(text, quote, 0, true);
+    var q = locate(text, quote, from || 0, true);
     if (!q && quote.length > 60) {
-      var h = locate(text, quote.slice(0, 50), 0, true);
+      var h = locate(text, quote.slice(0, 50), from || 0, true);
       if (h) q = { start: h.start, end: Math.min(text.length, h.start + quote.length) };
     }
     return q;
@@ -469,16 +532,31 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function layoutBlocks(s) {
     var text = String(s.corrected || '');
-    var hits = [];
-    (s.verses || []).forEach(function (v) {
-      var q = v && verseSpan(text, v); if (!q) return;
+    var hits = [], cursor = 0;
+    (s.verses || []).forEach(function (v, vi) {
+      // Verses are listed in order, so each is looked for after the one before it: two that open with the
+      // same words ("Jesus answered and said") are then two places in the text, not the first one twice.
+      var q = v && verseSpan(text, v, cursor); if (!q) return;
       var st = q.start, en = q.end;
-      while (st > 0 && /["“]/.test(text[st - 1])) st--;
-      while (en < text.length && /["”]/.test(text[en])) en++;
+      // Opening marks that belong to the verse: the quote marks right before it, and one left a space away.
+      while (st > 0 && (/["“]/.test(text[st - 1]) || (/['‘]/.test(text[st - 1]) && (st === 1 || /[\s"“(—]/.test(text[st - 2]))))) st--;
+      var lead = text.slice(0, st).match(/(?:^|[\s(])(["“'‘]+[ \t]+)$/);
+      if (lead) st -= lead[1].length;
+      // Closing marks that belong to the verse: the run of marks right after it — the ' and the " in
+      // «get up.'" The dead man sat up» — and a stray one left a space away. A mark that opens the next
+      // quotation is followed by a letter, and is left where it is.
+      // Punctuation hard against the last word is that word's, even when the anchor stopped short of it.
+      var stop = text.slice(en).match(/^[.,;:!?…]+/);
+      if (stop) en += stop[0].length;
+      var close = text.slice(en).match(/^(?:[ \t]*["”'’])+(?=[\s.,;:!?)]|$)/);
+      if (close) en += close[0].length; else { while (en < text.length && /["”]/.test(text[en])) en++; }
       // Absorb a reference the speaker or an earlier pass already put after the quote.
       var tail = text.slice(en).match(/^\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)/);
       if (tail) en += tail[0].length;
-      hits.push({ start: st, end: en, verse: v });
+      // A full stop or comma left outside the closing mark goes with the verse, not at the head of the next paragraph.
+      if ((close || tail) && /^[.,](?=\s|$)/.test(text.slice(en))) en += 1;
+      hits.push({ start: st, end: en, verse: v, index: vi });
+      cursor = Math.max(cursor, en);
     });
     hits.sort(function (a, b) { return a.start - b.start; });
     var kept = []; hits.forEach(function (h) { var last = kept[kept.length - 1]; if (!last || h.start >= last.end) kept.push(h); });
@@ -487,17 +565,20 @@ input:disabled, textarea:disabled { cursor: wait; }
     function prose(chunk) {
       chunk.split(/\n\s*\n/).forEach(function (p) {
         p = p.replace(/\s*\n\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
-        if (p) blocks.push({ type: 'p', text: p });
+        // A quote mark with a space after it opens nothing, and one with a space before it closes nothing: both are
+        // left-overs from around a verse. They are dropped here, and so is a paragraph that is nothing but marks.
+        p = p.replace(/^(?:["“”'‘’]+\s+)+/, '').replace(/(?:\s+["“”'‘’]+)+$/, '');
+        if (p && !/^["“”'‘’.,\s]*$/.test(p)) blocks.push({ type: 'p', text: p });
       });
     }
     kept.forEach(function (h) {
       prose(text.slice(pos, h.start));
-      var inner = text.slice(h.start, h.end).replace(/\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)\s*$/, '').replace(/\s*\n+\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
+      var inner = text.slice(h.start, h.end).replace(/\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)[.,]?\s*$/, '').replace(/\s*\n+\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
       // Strip whatever quote marks the transcript had around the verse (doubled, curly, mismatched),
       // turn any double quotes still inside it into single quotes for the speech within the verse,
       // then wrap the whole verse in one clean pair of double quotes.
       inner = normalizeVerseQuotes(inner);
-      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: isUncertain(h.verse), note: String(h.verse.note || '') });
+      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: isUncertain(h.verse), note: String(h.verse.note || ''), index: h.index });
       pos = h.end;
     });
     prose(text.slice(pos));
@@ -546,11 +627,19 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function statusLabel(s) {
     if (s.status === 'editing') return 'Editing…';
-    if (s.status === 'edited') return isStale(s) ? 'Edited — transcript changed' : 'Edited ' + relTime(s.editedAt);
+    if (s.status === 'edited') {
+      if (isStale(s)) return (s.approvedAt ? 'Approved earlier' : 'Edited') + ' — 1st Draft changed since';
+      return isFinal(s) ? 'Final · approved ' + relTime(s.approvedAt) : 'Edited ' + relTime(s.editedAt);
+    }
     if (s.status === 'error') return 'Needs attention';
-    return 'Not yet edited';
+    return s.raw.trim() ? '1st Draft — not yet edited' : 'No transcript yet';
   }
-  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : 'chip-' + s.status; }
+  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : 'chip-' + s.status; }
+  // A chip that tells the time ("Edited 3 minutes ago") says which moment it counts from, so it can be kept truthful without a repaint.
+  function chipClock(s) {
+    if (s.status !== 'edited' || isStale(s)) return null;
+    return isFinal(s) ? { ts: s.approvedAt, prefix: 'Final · approved ' } : s.editedAt ? { ts: s.editedAt, prefix: 'Edited ' } : null;
+  }
 
   function changeTable(rows, h1, h2, kept) {
     var why = rows.some(function (m) { return m.note; });
@@ -573,16 +662,34 @@ input:disabled, textarea:disabled { cursor: wait; }
     var grammarHtml = grammarRows.length ? '<details class="detail-block detail-fold"><summary>' + grammarRows.length + ' grammar, punctuation &amp; paragraph change' + plural(grammarRows.length) + (joinCount ? ' (' + joinCount + ' paragraph' + plural(joinCount) + ' joined)' : '') + (cueCount ? ' (stage cues removed)' : '') + (capCount ? ' (' + capCount + ' capitalization fix' + (capCount === 1 ? '' : 'es') + ')' : '') + '</summary>' + changeTable(grammarRows, 'Before', 'After') + '</details>' : '';
     var unappliedHtml = (s.unapplied && s.unapplied.length) ? '<div class="detail-block"><h4>Suggested but couldn’t be placed — check by hand</h4>' + changeTable(s.unapplied, 'Looked for', 'Wanted to make it') + '</div>' : '';
     var placed = blocks.filter(function (b) { return b.type === 'verse'; }).length;
+    var checks = refChecks(s), toCheck = flaggedRefs(s), sid = escAttr(s.id);
     var versesHtml = (s.verses && s.verses.length) ?
-      '<div class="detail-block"><h4>Scripture used — ' + placed + ' of ' + s.verses.length + ' set in bold' + (placed < s.verses.length ? ' (the rest could not be found in the text)' : '') + '</h4><ul class="verse-list">' +
-      s.verses.map(function (v) {
+      '<div class="detail-block"><h4>Scripture used — ' + placed + ' of ' + s.verses.length + ' set in bold' + (placed < s.verses.length ? ' (the rest could not be found in the text)' : '') +
+      (toCheck ? ' · ' + toCheck + ' reference' + plural(toCheck) + ' to check' : '') + '</h4>' +
+      '<p class="detail-note">Each reference is checked against the chapter this guide is on, what was said aloud, and the written script when there is one. Nothing is changed unless you choose it.</p>' +
+      '<ul class="verse-list">' +
+      s.verses.map(function (v, i) {
         var q = v.startsWith ? v.startsWith + ' … ' + v.endsWith : String(v.quote || '');
         var short = q.length > 90 ? q.slice(0, 88).replace(/\s+\S*$/, '') + '…' : q;
-        var label = v.canonical ? esc(refLabel(v)) : '<em>reference unknown — check</em>';
+        var check = checks[i], unsure = isUncertain(v), flagged = unsure || check.issues.length > 0;
+        var at = ' data-id="' + sid + '" data-i="' + i + '"';
+        var label;
+        if (refEdit && refEdit.id === s.id && refEdit.i === i) {
+          label = '<input class="ref-input" data-ref-input type="text" value="' + escAttr(v.canonical || '') + '" placeholder="Luke 24:1" aria-label="Reference for this quotation">' +
+            '<span class="ref-actions"><button type="button" class="link-btn" data-action="ref-save">Save</button><button type="button" class="link-btn" data-action="ref-cancel">Cancel</button></span>';
+        } else {
+          label = (v.canonical ? esc(refLabel(v)) : '<em>reference unknown — check</em>') +
+            '<button type="button" class="link-btn ref-change" data-action="ref-edit"' + at + '>Change</button>';
+        }
         if (v.reference) label += '<span class="verse-spoken">spoken: ' + esc(v.reference) + '</span>';
-        var unsure = isUncertain(v);
-        var warn = unsure ? '<span class="verse-warn">' + esc(v.note || (v.canonical ? 'Not sure of this reference' : 'Could not work out the reference')) + '</span>' : '';
-        return '<li' + (unsure ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + '</span></li>';
+        if (v.written) label += '<span class="verse-spoken">written script: ' + esc(v.written) + '</span>';
+        var notes = (unsure ? [v.note || (v.canonical ? 'Not sure of this reference.' : 'Could not work out the reference.')] : []).concat(check.issues);
+        var warn = notes.length ? '<span class="verse-warn">' + esc(notes.join(' ')) + '</span>' : '';
+        var picks = check.suggestions.length ? '<span class="verse-picks">' + check.suggestions.map(function (g) {
+          return '<button type="button" class="copy-btn" data-action="use-ref"' + at + ' data-ref="' + escAttr(g.ref) + '">Use ' + esc(g.ref) + '</button><span class="verse-why">from ' + esc(g.why) + '</span>';
+        }).join('') + '</span>' : '';
+        var settled = flagged ? '' : v.byHand ? '<span class="verse-ok">set by hand</span>' : check.confirmed === 'written' ? '<span class="verse-ok">agrees with the written script</span>' : '';
+        return '<li' + (flagged ? ' class="is-uncertain"' : '') + '><span class="verse-ref">' + label + '</span><span class="verse-quote">“' + esc(short) + '”' + warn + picks + settled + '</span></li>';
       }).join('') + '</ul></div>' : '';
     var nonsenseHtml = (s.nonsensical && s.nonsensical.length) ?
       '<div class="detail-block"><h4>Doesn’t quite make sense</h4><ul class="flag-list">' +
@@ -596,9 +703,9 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</ul></div>' : '';
     var suggestedHtml = suggested.length ?
       '<div class="detail-block"><h4>Suggested but not applied — it would change the speaker’s words</h4>' +
-      '<p class="detail-note">The script still reads as spoken. If one of these is right, make it with Edit by hand.</p>' +
-      changeTable(suggested, 'Script says', 'Suggested', true) + '</div>' : '';
-    var handHtml = handRows.length ? '<div class="detail-block"><h4>Changed by hand</h4>' + changeTable(handRows.map(function (r) { return { find: r.find, replace: r.replace, note: '' }; }), 'Before', 'After') + '</div>' : '';
+      '<p class="detail-note">The transcript still reads as spoken. If one of these is right, make it with Edit by hand.</p>' +
+      changeTable(suggested, 'Transcript says', 'Suggested', true) + '</div>' : '';
+    var handHtml = handRows.length ? '<div class="detail-block"><h4>Changed by hand</h4>' + changeTable(handRows.map(function (r) { return { find: r.find, replace: r.replace, note: /^reference/.test(r.note || '') ? r.note : '' }; }), 'Before', 'After') + '</div>' : '';
     return '<div class="section-details"><p class="section-summary">' + esc(s.summary || '') + '</p>' + versesHtml + misquotesHtml + misheardHtml + verseFixHtml + suggestedHtml + nonsenseHtml + unappliedHtml + handHtml + grammarHtml + '</div>';
   }
 
@@ -606,7 +713,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (s.status !== 'edited') return '';
     var bits = [];
     if (s.verses && s.verses.length) {
-      var unsure = s.verses.filter(isUncertain).length;
+      var unsure = flaggedRefs(s);
       bits.push(s.verses.length + ' verse' + plural(s.verses.length) + (unsure ? ' (' + unsure + ' to check)' : ''));
     }
     if (s.misheard && s.misheard.length) bits.push(s.misheard.length + ' misheard');
@@ -617,39 +724,57 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
 
   function renderSection(s) {
-    var isCollapsed = !!collapsed[s.id];
+    var isCollapsed = !!collapsed[s.id], clock = chipClock(s), id = escAttr(s.id);
     var head =
       '<div class="section-head">' +
-      '<button type="button" class="collapse-btn" data-action="toggle-collapse" data-id="' + s.id + '" aria-label="' + (isCollapsed ? 'Expand' : 'Collapse') + '" title="' + (isCollapsed ? 'Expand' : 'Collapse') + '">' + (isCollapsed ? '▸' : '▾') + '</button>' +
-      '<input class="section-name" data-field="name" data-id="' + s.id + '" type="text" placeholder="e.g. Job – Chapter 2" value="' + escAttr(s.name) + '" aria-label="Script name">' +
+      '<button type="button" class="collapse-btn" data-action="toggle-collapse" data-id="' + id + '" aria-label="' + (isCollapsed ? 'Expand' : 'Collapse') + '" title="' + (isCollapsed ? 'Expand' : 'Collapse') + '">' + (isCollapsed ? '▸' : '▾') + '</button>' +
+      '<input class="section-name" data-field="name" data-id="' + id + '" type="text" placeholder="e.g. Job – Chapter 2" value="' + escAttr(s.name) + '" aria-label="Audio guide name">' +
       (isCollapsed && sectionMeta(s) ? '<span class="section-meta">' + esc(sectionMeta(s)) + '</span>' : '') +
-      '<span class="chip ' + chipClass(s) + '"' + (s.status === 'edited' && !isStale(s) && s.editedAt ? ' data-ts="' + s.editedAt + '"' : '') + '>' + esc(statusLabel(s)) + '</span>' +
-      '<button type="button" class="icon-btn" data-action="remove-section" data-id="' + s.id + '" aria-label="Remove this script" title="Remove this script">−</button>' +
+      '<span class="chip ' + chipClass(s) + '"' + (clock ? ' data-ts="' + Number(clock.ts) + '" data-prefix="' + escAttr(clock.prefix) + '"' : '') + '>' + esc(statusLabel(s)) + '</span>' +
+      '<button type="button" class="icon-btn" data-action="remove-section" data-id="' + id + '" aria-label="Remove this guide" title="Remove this guide">−</button>' +
       '</div>';
-    if (isCollapsed) return '<article class="section-card is-collapsed" data-section="' + s.id + '">' + head + '</article>';
+    if (isCollapsed) return '<article class="section-card is-collapsed" data-section="' + id + '">' + head + '</article>';
 
     var blocks = s.corrected ? layoutBlocks(s) : [];
-    var corrected = s.corrected ? blocksToHtml(blocks, false) : 'Not edited yet — click “Edit All Scripts” above.';
+    if (s.corrected && s.verses && s.verses.length) {
+      var checks = refChecks(s);                       // a reference the checks disagree with is marked on the page, like one the edit pass was unsure of
+      blocks.forEach(function (b) { if (b.type === 'verse' && checks[b.index] && checks[b.index].issues.length) b.uncertain = true; });
+    }
+    var corrected = s.corrected ? blocksToHtml(blocks, false) : 'Not edited yet — click “Edit All Guides” above.';
+    var staleText = 'The 1st Draft Transcript has changed since this was edited — run Edit again to refresh it.';
     var extra = '';
     if (s.status === 'edited') {
-      extra = (isStale(s) ? '<p class="stale-note">The transcript has changed since this was edited — run Edit again to refresh the corrected script.</p>' : '') +
+      extra = (isStale(s) ? '<p class="stale-note">' + staleText + '</p>' : '') +
         renderSectionDetails(s, blocks) +
-        '<p class="redo-line"><button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Redo this one</button></p>';
+        '<p class="redo-line"><button type="button" class="link-btn" data-action="redo-section" data-id="' + id + '">Redo this one</button></p>';
     }
-    if (s.status === 'error' && s.error === '__stopped__') extra = '<p class="section-error">Stopped before this one finished. <button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Try again</button></p>';
-    else if (s.status === 'error') extra = '<p class="section-error">Couldn’t edit this one: ' + esc(s.error || 'unknown error') + '. <button type="button" class="link-btn" data-action="redo-section" data-id="' + s.id + '">Try again</button></p>';
+    if (s.status === 'error' && s.error === '__stopped__') extra = '<p class="section-error">Stopped before this one finished. <button type="button" class="link-btn" data-action="redo-section" data-id="' + id + '">Try again</button></p>';
+    else if (s.status === 'error') extra = '<p class="section-error">Couldn’t edit this one: ' + esc(s.error || 'unknown error') + '. <button type="button" class="link-btn" data-action="redo-section" data-id="' + id + '">Try again</button></p>';
+
+    // The right-hand pane names the stage the guide has reached, and carries the one step that moves it on.
+    var final = isFinal(s), actions = '';
+    if (s.handDraft != null) {
+      actions = '<span class="pane-actions"><button type="button" class="copy-btn" data-action="hand-cancel" data-id="' + id + '">Cancel</button><button type="button" class="copy-btn is-primary" data-action="hand-save" data-id="' + id + '">Save changes</button></span>';
+    } else if (s.corrected) {
+      actions = '<span class="pane-actions">' +
+        '<button type="button" class="copy-btn" data-action="hand-edit" data-id="' + id + '" title="Make a small correction yourself. Each change is listed below."' + (s.status === 'editing' ? ' disabled' : '') + '>Edit by hand</button>' +
+        '<button type="button" class="copy-btn" data-action="copy-corrected" data-id="' + id + '" title="Copies the transcript with bold verses and block quotes, ready to paste">Copy for YouVersion</button>' +
+        (s.status !== 'edited' ? '' : final
+          ? '<button type="button" class="copy-btn" data-action="unapprove" data-id="' + id + '" title="Take this back to an Edited Transcript">Undo approval</button>'
+          : '<button type="button" class="copy-btn is-approve" data-action="approve" data-id="' + id + '" title="You have reviewed the changes below. Only a Final Transcript goes into the Google Doc.">Approve as Final</button>') +
+        '</span>';
+    }
+    var stage = !s.corrected ? 'Edited Transcript' : stageName(s);
     return (
-      '<article class="section-card" data-section="' + s.id + '">' + head +
+      '<article class="section-card' + (final ? ' is-final' : '') + '" data-section="' + id + '">' + head +
+      renderWrittenLine(s) +
       '<div class="section-body">' +
-      '<div class="pane"><div class="pane-head"><label>Raw transcript (from Descript)</label></div>' +
-      '<textarea data-field="raw" data-id="' + s.id + '" rows="8" placeholder="Paste the Descript transcript here — e.g. &quot;So Eli who answered and said, so far said unto Job…&quot;">' + esc(s.raw) + '</textarea></div>' +
-      '<div class="pane pane-corrected"><div class="pane-head"><label>Corrected script</label>' +
-      (s.handDraft != null ? '<span class="pane-actions"><button type="button" class="copy-btn" data-action="hand-cancel" data-id="' + s.id + '">Cancel</button><button type="button" class="copy-btn is-primary" data-action="hand-save" data-id="' + s.id + '">Save changes</button></span>' :
-        s.corrected ? '<span class="pane-actions"><button type="button" class="copy-btn" data-action="hand-edit" data-id="' + s.id + '" title="Make a small correction yourself. Each change is listed below."' + (s.status === 'editing' ? ' disabled' : '') + '>Edit by hand</button>' +
-        '<button type="button" class="copy-btn" data-action="copy-corrected" data-id="' + s.id + '" title="Copies the script with bold verses and block quotes, ready to paste">Copy for YouVersion</button></span>' : '') + '</div>' +
+      '<div class="pane"><div class="pane-head"><label>1st Draft Transcript <span class="pane-sub">what Descript heard</span></label></div>' +
+      '<textarea data-field="raw" data-id="' + id + '" rows="8" placeholder="Paste the Descript transcript here — e.g. &quot;So Eli who answered and said, so far said unto Job…&quot;">' + esc(s.raw) + '</textarea></div>' +
+      '<div class="pane pane-corrected"><div class="pane-head"><label>' + stage + (final ? ' <span class="pane-sub">approved — goes into the Google Doc</span>' : s.corrected ? ' <span class="pane-sub">not yet approved</span>' : '') + '</label>' + actions + '</div>' +
       (s.handDraft != null ?
-        '<textarea data-field="handDraft" data-id="' + s.id + '" rows="8" aria-label="Corrected script, editable">' + esc(s.handDraft) + '</textarea>' +
-        '<p class="hand-hint">For small corrections the edit pass missed. Keep the speaker’s words as spoken. Every change you save is listed under “Changed by hand”, and carries into the Google Doc and the caption files.</p>' :
+        '<textarea data-field="handDraft" data-id="' + id + '" rows="8" aria-label="Edited Transcript, editable">' + esc(s.handDraft) + '</textarea>' +
+        '<p class="hand-hint">For small corrections the edit pass missed. Keep the speaker’s words as spoken. Every change you save is listed under “Changed by hand”, and carries into the Google Doc and the caption files.' + (final ? ' Saving a change takes this back to an Edited Transcript until it is approved again.' : '') + '</p>' :
         '<div class="corrected-output' + (s.corrected ? ' is-blocks' : ' is-empty') + '">' + corrected + '</div>') + '</div>' +
       '</div>' + renderCaptionFold(s) + extra +
       '</article>'
@@ -661,14 +786,14 @@ input:disabled, textarea:disabled { cursor: wait; }
     var rows = state.sections.map(function (s) {
       var detail;
       if (s.status === 'edited') {
-        var unsureRefs = (s.verses || []).filter(isUncertain).length;
-        detail = (s.verses || []).length + ' verse' + plural((s.verses || []).length) + (unsureRefs ? ' (' + unsureRefs + ' reference' + plural(unsureRefs) + ' to check)' : '') + ', ' + s.misheard.length + ' misheard word' + plural(s.misheard.length) + ', ' + s.nonsensical.length + ' sentence' + plural(s.nonsensical.length) + ' to double-check' + (isStale(s) ? ' — transcript changed since' : '');
+        var unsureRefs = flaggedRefs(s);
+        detail = (isFinal(s) ? 'Final · ' : 'Edited · ') + (s.verses || []).length + ' verse' + plural((s.verses || []).length) + (unsureRefs ? ' (' + unsureRefs + ' reference' + plural(unsureRefs) + ' to check)' : '') + ', ' + s.misheard.length + ' misheard word' + plural(s.misheard.length) + ', ' + s.nonsensical.length + ' sentence' + plural(s.nonsensical.length) + ' to double-check' + (isStale(s) ? ' — 1st Draft changed since' : '');
       }
       else if (s.status === 'error' && s.error === '__stopped__') detail = 'stopped before finishing';
       else if (s.status === 'error') detail = 'couldn’t be edited (' + esc(s.error || 'error') + ')';
       else if (!s.raw.trim()) detail = 'no transcript yet';
       else detail = 'not yet edited';
-      return '<li><strong>' + esc(s.name || 'Untitled script') + '</strong> — ' + detail + '</li>';
+      return '<li><strong>' + esc(s.name || 'Untitled guide') + '</strong> — ' + detail + '</li>';
     }).join('');
     return '<section class="overview"><h3>Overview — last edit pass <span data-ts="' + state.lastEditAt + '">' + esc(relTime(state.lastEditAt)) + '</span></h3><ul class="overview-list">' + rows + '</ul></section>';
   }
@@ -677,12 +802,13 @@ input:disabled, textarea:disabled { cursor: wait; }
     var total = state.sections.length;
     var edited = state.sections.filter(function (s) { return s.status === 'edited'; }).length;
     var errored = state.sections.filter(function (s) { return s.status === 'error'; }).length;
-    if (dbStatus === 'loading') return 'Loading your saved scripts…';
+    var finals = state.sections.filter(isFinal).length;
+    if (dbStatus === 'loading') return 'Loading your saved guides…';
     if (editState) {
       var activeNow = state.sections.filter(function (s) { return s.status === 'editing'; }).length;
       return editState.done + ' of ' + editState.total + ' done in this pass — editing ' + activeNow + ' now…';
     }
-    var line = total + ' script' + plural(total) + ' · ' + edited + ' edited';
+    var line = total + ' guide' + plural(total) + ' · ' + edited + ' edited · ' + finals + ' final';
     if (errored) line += ' · ' + errored + ' needs attention';
     return line;
   }
@@ -693,11 +819,12 @@ input:disabled, textarea:disabled { cursor: wait; }
       if (state.docResult.method === 'drive') {
         if (state.docResult.count != null) {
           var failedNote = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be created — try again for those.' : '';
-          return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + ' in a new folder in your Google Drive — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the folder</a>.' + esc(failedNote) + '</p>';
+          return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + ' in a new folder in your Google Drive' +
+            (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the folder</a>' : '') + '.' + esc(failedNote) + '</p>';
         }
-        return '<p class="doc-result">Created in your Google Drive — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>.</p>';
+        return '<p class="doc-result">Created in your Google Drive' + (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.</p>';
       }
-      if (state.docResult.method === 'download') return '<p class="doc-result">Saved as a file — open it with Google Docs (File › Open, or drag it into Drive) to keep editing there.</p>';
+      if (state.docResult.method === 'download') return '<p class="doc-result">Saved the Final Transcripts as a file — open it with Google Docs (File › Open, or drag it into Drive) to keep editing there.</p>';
       return '<p class="doc-result is-error">' + esc(state.docResult.message || 'Something went wrong.') + '</p>';
     }
     if (state.lastDoc && state.lastDoc.url) {
@@ -744,8 +871,8 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function renderBookRow(b) {
     var busy = deletingBook === b.id;
-    var bits = [b.scripts + ' script' + plural(b.scripts)];
-    if (b.scripts) bits.push(b.edited + ' edited');
+    var bits = [b.scripts + ' guide' + plural(b.scripts)];
+    if (b.scripts) bits.push(b.edited + ' edited', b.finals + ' final');
     if (b.at) bits.push('last worked on ' + relTime(b.at));
     return '<article class="book-row' + (busy ? ' is-busy' : '') + '">' +
       '<button type="button" class="book-open" data-action="open-book" data-id="' + escAttr(b.id) + '"' + (busy ? ' disabled' : '') + '>' +
@@ -761,13 +888,14 @@ input:disabled, textarea:disabled { cursor: wait; }
     return (
       '<div class="wrap">' +
       '<header class="hero">' +
-      '<p class="eyebrow">Through the Word · Script Workbench</p>' +
+      '<p class="eyebrow">Through the Word · Transcript Workbench</p>' +
       '<h1 class="library-title">The Scriptorium</h1>' +
-      '<p class="dek">Turn Descript’s AI transcript of each audio guide into a clean, accurate script and searchable caption files. Every book below is shared with the whole team: open one to pick up where anyone left off.</p>' +
+      '<p class="dek">Turn Descript’s 1st Draft Transcript of each audio guide into a clean, accurate Final Transcript and searchable caption files, checked against what the teacher wrote. Every book below is shared with the whole team: open one to pick up where anyone left off.</p>' +
       '</header>' +
       noticeHtml() +
       '<div class="action-bar">' +
-      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="new-book"' + (loading ? ' disabled' : '') + '>+ New Book</button></div>' +
+      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="new-book"' + (loading ? ' disabled' : '') + '>+ New Book</button>' +
+      '<button type="button" class="btn" data-action="go-written"' + (loading ? ' disabled' : '') + ' title="What each teacher wrote before recording, kept as a reference">Written Scripts' + (writtenIndex.length ? ' (' + writtenIndex.length + ')' : '') + '</button></div>' +
       '<p class="status-line">' + (loading ? 'Loading the team’s books…' : library.length + ' book' + plural(library.length)) + '</p>' +
       '</div>' +
       (loading ? renderSkeleton() :
@@ -778,7 +906,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     );
   }
 
-  function renderApp() { return view === 'library' ? renderLibrary() : renderBook(); }
+  function renderApp() { return view === 'library' ? renderLibrary() : view === 'written' ? renderWritten() : renderBook(); }
 
   function renderBook() {
     var loading = dbStatus === 'loading';
@@ -789,31 +917,35 @@ input:disabled, textarea:disabled { cursor: wait; }
     var toEdit = state.sections.filter(needsEdit).length;
     var anyCollapsible = state.sections.some(function (s) { return s.status === 'edited' && !collapsed[s.id]; });
     var anyCollapsed = state.sections.some(function (s) { return collapsed[s.id]; });
-    var concludeDisabled = (!anyEdited || !state.approved || editRunning || pending || loading) ? ' disabled' : '';
+    var editedCount = state.sections.filter(function (s) { return s.status === 'edited'; }).length, finalCount = state.sections.filter(isFinal).length;
+    var concludeDisabled = (!finalCount || editRunning || pending || loading) ? ' disabled' : '';
     var dis = loading ? ' disabled' : '';
     var pulling = !!(pull && pull.step === 'pulling');
     var anyCaptions = state.sections.some(function (s) { return s.status === 'edited' && (s.captions || '').trim(); });
 
     var notice = noticeHtml();
 
-    var editLabel = editRunning ? 'Editing…' : (toEdit && toEdit < state.sections.length ? 'Edit ' + toEdit + ' Script' + plural(toEdit) : 'Edit All Scripts');
+    var editLabel = editRunning ? 'Editing…' : (toEdit && toEdit < state.sections.length ? 'Edit ' + toEdit + ' Guide' + plural(toEdit) : 'Edit All Guides');
     var saveLabel = saveStateLabel();
 
     return (
       '<div class="wrap">' +
       (dbRoot ? '<p class="back-line"><button type="button" class="link-btn" data-action="go-library">← All books</button></p>' : '') +
       '<header class="hero">' +
-      '<p class="eyebrow">Through the Word · Script Workbench</p>' +
+      '<p class="eyebrow">Through the Word · Transcript Workbench</p>' +
       '<input class="title-field" data-field="bookTitle" type="text" placeholder="Untitled book or plan" value="' + escAttr(state.bookTitle) + '" aria-label="Book or plan title"' + dis + '>' +
-      '<p class="dek">Turn Descript’s AI transcript of each audio guide into a clean, accurate script — grammar fixed, misheard names caught, nothing about how it sounds changed.</p>' +
+      '<p class="dek">Turn Descript’s 1st Draft Transcript of each audio guide into a clean, accurate Final Transcript — grammar fixed, misheard names caught, nothing about how it sounds changed.</p>' +
       '</header>' +
       '<details class="tip"><summary>How this works</summary><ol>' +
-      '<li>Click <strong>Pull from Descript</strong> and pick the audio guides to bring in. Each becomes a script below, with its transcript and its timed captions. Or paste a transcript into a script by hand — use <strong>+ Add Script</strong> for as many as the plan needs.</li>' +
+      '<li>Click <strong>Pull from Descript</strong> and pick the audio guides to bring in. Each gets a card below, with its <strong>1st Draft Transcript</strong> (what Descript heard) and its timed captions. Or paste a transcript into a card by hand — use <strong>+ Add Guide</strong> for as many as the plan needs.</li>' +
       '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
-      '<li>Click <strong>Edit All Scripts</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished script is saved on its own, so you can stop and resume anytime without losing what’s already done.</li>' +
-      '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong> on a corrected script.</li>' +
-      '<li>Review the overview, check the approval box, then click <strong>Create Google Docs</strong> — one Doc per script in a folder, or one Doc for the book. Or use <strong>Copy for YouVersion</strong> on any script to paste it straight in with the verses already formatted.</li>' +
-      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a script once it is edited. Both files carry the corrected words on Descript’s timings. Pulling from Descript fills the timings in; for a pasted transcript, paste in the .srt file Descript exports.</li>' +
+      '<li>If the teacher’s <strong>written script</strong> has been added (front page › Written Scripts), each card says which one it is matched to. It is a reference only: evidence for a misheard word, a question mark, or where a sentence ends. The transcript is never changed to match it.</li>' +
+      '<li>Click <strong>Edit All Guides</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. The result is the <strong>Edited Transcript</strong>. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished guide is saved on its own, so you can stop and resume anytime.</li>' +
+      '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong>.</li>' +
+      '<li>Check the scripture. Every reference is checked against the chapter the guide is on, what was said aloud, and the written script. Where one looks wrong, the likelier references are listed — click one to use it, or <strong>Change</strong> to type your own.</li>' +
+      '<li>When you have reviewed a guide, click <strong>Approve as Final</strong>. That makes it the <strong>Final Transcript</strong>. Changing it afterwards takes it back to Edited until it is approved again.</li>' +
+      '<li>Click <strong>Create Google Docs</strong> — one Doc per guide in a folder, or one Doc for the book. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted.</li>' +
+      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a guide once it is edited. Both files carry the corrected words on Descript’s timings.</li>' +
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
@@ -821,7 +953,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       notice +
       '<div class="action-bar">' +
       '<div class="bar-group">' +
-      '<button type="button" class="btn btn-add" data-action="add-section"' + dis + '>+ Add Script</button>' +
+      '<button type="button" class="btn btn-add" data-action="add-section"' + dis + '>+ Add Guide</button>' +
       '<button type="button" class="btn" data-action="pull-descript"' + (loading || editRunning || pulling || dbStatus === 'unavailable' ? ' disabled' : '') + '>Pull from Descript</button>' +
       '<button type="button" class="btn btn-quiet-danger" data-action="clear-all"' + (loading || editRunning || pulling || clearing || !hasAnything ? ' disabled' : '') + '>' + (clearing ? 'Clearing…' : 'Clear All') + '</button>' +
       (anyCollapsible ? '<button type="button" class="btn btn-ghost btn-sm" data-action="collapse-edited"' + dis + '>Collapse edited</button>' : '') +
@@ -831,7 +963,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       '<p class="save-state' + (saveLabel === 'Saving…' ? ' is-saving' : '') + '" id="save-state">' + esc(saveLabel) + '</p>' +
       '<div class="action-bar-end">' +
       '<label class="speed-pick" title="Close paragraph breaks that fall mid-thought (Descript breaks on pauses)"><input type="checkbox" data-action="set-repair"' + (repairParagraphs ? ' checked' : '') + (editRunning ? ' disabled' : '') + '> Fix mid-thought breaks</label>' +
-      '<label class="speed-pick" title="How many scripts to edit at the same time">Speed <select data-action="set-concurrency"' + (editRunning ? ' disabled' : '') + '><option value="1"' + (concurrency === 1 ? ' selected' : '') + '>1 at a time</option><option value="2"' + (concurrency === 2 ? ' selected' : '') + '>2 at a time</option></select></label>' +
+      '<label class="speed-pick" title="How many guides to edit at the same time">Speed <select data-action="set-concurrency"' + (editRunning ? ' disabled' : '') + '><option value="1"' + (concurrency === 1 ? ' selected' : '') + '>1 at a time</option><option value="2"' + (concurrency === 2 ? ' selected' : '') + '>2 at a time</option></select></label>' +
       '<button type="button" class="btn btn-edit" data-action="edit-all"' + (editRunning || loading || pulling ? ' disabled' : '') + '>' + editLabel + '</button>' +
       (editRunning ? '<button type="button" class="btn btn-ghost" data-action="stop-edit">Stop</button>' : '') + '</div>' +
       '</div>' +
@@ -840,16 +972,19 @@ input:disabled, textarea:disabled { cursor: wait; }
         renderOverview() +
         '<div class="sections">' + state.sections.map(renderSection).join('') + '</div>' +
         '<footer class="conclude-bar">' +
-        '<p class="approve-prompt">Ready to turn these scripts into a Google Doc?</p>' +
-        '<label class="approve-row"><input type="checkbox" data-action="toggle-approve"' + (state.approved ? ' checked' : '') + (anyEdited ? '' : ' disabled') + '><span>I’ve reviewed the corrections above and approve moving forward.</span></label>' +
+        '<p class="approve-prompt">Turn the Final Transcripts into a Google Doc</p>' +
+        '<p class="hint conclude-note">' + (finalCount
+          ? finalCount + ' of ' + state.sections.length + ' guide' + plural(state.sections.length) + ' ' + (finalCount === 1 ? 'is' : 'are') + ' approved as a Final Transcript' + (editedCount > finalCount ? ', and ' + (editedCount - finalCount) + ' edited guide' + plural(editedCount - finalCount) + ' still wait' + (editedCount - finalCount === 1 ? 's' : '') + ' for approval' : '') + '.'
+          : 'No guide is approved yet. Review an Edited Transcript, then click Approve as Final on its card.') +
+        ' Only Final Transcripts go into the Google Doc.</p>' +
         '<div class="conclude-row">' +
         '<button type="button" class="btn btn-conclude" data-action="conclude"' + concludeDisabled + '>' + (docMode === 'perScript' ? 'Create Google Docs' : 'Create Google Doc') + '</button>' +
-        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per script, in a folder</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc for the whole book</option></select></label>' +
-        '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (anyEdited ? '' : ' disabled') + '>Download a copy instead</button>' +
+        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per guide, in a folder</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc for the whole book</option></select></label>' +
+        '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (finalCount ? '' : ' disabled') + '>Download a copy instead</button>' +
         '</div>' + renderDocResult() +
         '<div class="conclude-row caption-row">' +
         '<button type="button" class="btn btn-ghost" data-action="download-all-captions"' + (anyCaptions ? '' : ' disabled') + '>Download all caption files</button>' +
-        '<p class="hint">An .srt and a .vtt for every edited script that has timed captions, in one .zip.</p>' +
+        '<p class="hint">An .srt and a .vtt for every edited guide that has timed captions, in one .zip. These do not wait for approval.</p>' +
         '</div>' +
         '</footer>') +
       versionLine() +
@@ -861,12 +996,16 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function captureFocus() {
     var el = document.activeElement;
-    if (!el || !el.dataset || !el.dataset.field) return null;
-    return { field: el.dataset.field, id: el.dataset.id || '', start: el.selectionStart, end: el.selectionEnd, scrollTop: el.scrollTop };
+    if (!el || !el.dataset) return null;
+    var pos = { start: el.selectionStart, end: el.selectionEnd, scrollTop: el.scrollTop };
+    if (el.dataset.field) { pos.selector = '[data-field="' + el.dataset.field + '"]' + (el.dataset.id ? '[data-id="' + el.dataset.id + '"]' : ':not([data-id])'); return pos; }
+    if (el.dataset.wfield) { pos.selector = '[data-wfield="' + el.dataset.wfield + '"]'; return pos; }
+    if (el.hasAttribute('data-ref-input')) { pos.selector = '[data-ref-input]'; return pos; }
+    return null;
   }
   function restoreFocus(f) {
     if (!f) return;
-    var el = root.querySelector('[data-field="' + f.field + '"]' + (f.id ? '[data-id="' + f.id + '"]' : ':not([data-id])'));
+    var el = root.querySelector(f.selector);
     if (!el) return;
     try { el.focus({ preventScroll: true }); if (f.start != null && el.setSelectionRange) el.setSelectionRange(f.start, f.end); el.scrollTop = f.scrollTop; } catch (e) {}
   }
@@ -884,27 +1023,31 @@ input:disabled, textarea:disabled { cursor: wait; }
   function paintChipOnly(s) {
     var card = root.querySelector('[data-section="' + s.id + '"]');
     var chip = card && card.querySelector('.chip');
-    if (chip) { chip.className = 'chip ' + chipClass(s); chip.textContent = statusLabel(s); if (isStale(s)) chip.removeAttribute('data-ts'); else if (s.editedAt) chip.setAttribute('data-ts', s.editedAt); }
+    if (chip) {
+      var clock = chipClock(s);
+      chip.className = 'chip ' + chipClass(s); chip.textContent = statusLabel(s);
+      if (clock) { chip.setAttribute('data-ts', clock.ts); chip.setAttribute('data-prefix', clock.prefix); } else { chip.removeAttribute('data-ts'); chip.removeAttribute('data-prefix'); }
+    }
     if (card) {
       var note = card.querySelector('.stale-note');
       if (isStale(s) && !note) {
         var details = card.querySelector('.section-details');
         var p = document.createElement('p'); p.className = 'stale-note';
-        p.textContent = 'The transcript has changed since this was edited — run Edit again to refresh the corrected script.';
+        p.textContent = 'The 1st Draft Transcript has changed since this was edited — run Edit again to refresh it.';
         if (details) card.insertBefore(p, details); else card.appendChild(p);
       } else if (!isStale(s) && note) note.remove();
     }
     var btn = root.querySelector('[data-action="edit-all"]');
     if (btn && !editState) {
       var toEdit = state.sections.filter(needsEdit).length;
-      btn.textContent = (toEdit && toEdit < state.sections.length) ? 'Edit ' + toEdit + ' Script' + plural(toEdit) : 'Edit All Scripts';
+      btn.textContent = (toEdit && toEdit < state.sections.length) ? 'Edit ' + toEdit + ' Guide' + plural(toEdit) : 'Edit All Guides';
     }
   }
   // "Edited 3 minutes ago" stays truthful without a repaint.
   setInterval(function () {
     root.querySelectorAll('[data-ts]').forEach(function (el) {
       var ts = Number(el.getAttribute('data-ts')); if (!ts) return;
-      el.textContent = el.classList.contains('chip') ? 'Edited ' + relTime(ts) : relTime(ts);
+      el.textContent = (el.getAttribute('data-prefix') || '') + relTime(ts);
     });
   }, 60000);
 
@@ -923,9 +1066,14 @@ input:disabled, textarea:disabled { cursor: wait; }
   /* ==================================================================
      Saving — the artifact's document store, shared by the whole team.
 
-       books/<book>                    title, word list, script order, counts
-       books/<book>/scripts/<script>   one script
-       books/<book>/captions/<script>  that script's timed captions
+       books/<book>                    title, word list, guide order, counts
+       books/<book>/scripts/<guide>    one audio guide: its transcripts, changes and sign-off
+       books/<book>/captions/<guide>   that guide's timed captions
+       written/<id>                    one written script's title and fingerprint   (15-written-scripts.js)
+       writtenText/<id>                that written script's text
+
+     The path says "scripts" because that is what a guide was called when the
+     store was laid out. It is kept: renaming it would strand every saved book.
 
      Every book is its own workbench. Opening, clearing or deleting one
      never touches another.
@@ -942,9 +1090,9 @@ input:disabled, textarea:disabled { cursor: wait; }
   var dbRoot = null;           // the store itself, once it can be reached
   var dbApi = null;            // the store, but only while a book is open and loaded — the gate for every write to it
   var dbStatus = 'loading';    // loading | ready | unavailable
-  var view = 'library';        // library | book
+  var view = 'library';        // library | book | written
   var bookId = null;           // the open book
-  var library = [];            // [{ id, title, scripts, edited, at }], most recently worked on first
+  var library = [];            // [{ id, title, scripts, edited, finals, at }], most recently worked on first
   var deletingBook = null;
   var saveError = null;
   var pendingSaves = {};
@@ -968,7 +1116,9 @@ input:disabled, textarea:disabled { cursor: wait; }
              summary: s.summary || '', changeCount: s.changeCount || 0, misheard: s.misheard || [], nonsensical: s.nonsensical || [],
              edits: s.edits || [], unapplied: s.unapplied || [], verses: s.verses || [], method: s.method || '',
              status: s.status || 'draft', error: s.error || '', editedAt: s.editedAt || 0, descriptId: s.descriptId || '', descriptName: s.descriptName || '',
-             suggested: s.suggested || [], misquotes: s.misquotes || [] };
+             suggested: s.suggested || [], misquotes: s.misquotes || [],
+             approvedAt: Number(s.approvedAt) || 0, writtenId: s.writtenId || '',
+             writtenUsed: s.writtenUsed ? { id: String(s.writtenUsed.id || ''), title: String(s.writtenUsed.title || '') } : null };
   }
   function docToSection(id, d, captions) {
     d = d || {};
@@ -979,13 +1129,17 @@ input:disabled, textarea:disabled { cursor: wait; }
              edits: Array.isArray(d.edits) ? d.edits : [], unapplied: Array.isArray(d.unapplied) ? d.unapplied : [],
              verses: Array.isArray(d.verses) ? d.verses : [], method: String(d.method || ''),
              status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
-             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [] };
+             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [],
+             approvedAt: Number(d.approvedAt) || 0, writtenId: String(d.writtenId || ''),
+             writtenUsed: (d.writtenUsed && d.writtenUsed.id) ? { id: String(d.writtenUsed.id), title: String(d.writtenUsed.title || '') } : null };
   }
-  // The book's own document. The two counts are there so the library can describe a book without opening it.
+  // The book's own document. The counts are there so the library can describe a book without opening it.
+  // `approved` is the whole-book tick that earlier versions kept. It is carried, never set: see applyStored.
   function metaToDoc() {
     return { bookTitle: state.bookTitle || '', wordsToSearchFor: state.wordsToSearchFor || '',
              order: state.sections.map(function (s) { return s.id; }), nextId: state.nextId || 2,
              lastEditAt: state.lastEditAt || 0, approved: !!state.approved, createdAt: state.createdAt || 0, touchedAt: state.touchedAt || 0,
+             finalCount: state.sections.filter(isFinal).length,
              scriptCount: state.sections.filter(function (s) { return s.raw.trim() || s.name.trim(); }).length,
              editedCount: state.sections.filter(function (s) { return s.status === 'edited'; }).length,
              lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
@@ -1051,9 +1205,9 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function dbErrorMessage(err) {
     var code = err && err.code;
-    if (code === 'quota_exceeded') return 'The workbench is full — remove some scripts before adding more.';
+    if (code === 'quota_exceeded') return 'The workbench is full — remove some guides before adding more.';
     if (code === 'resource_exhausted') return 'Saving is being throttled — it will catch up in a moment.';
-    if (code === 'invalid_argument') return 'This couldn’t be saved. Either one script is too large — try splitting it in two — or your access to this artifact is view-only.';
+    if (code === 'invalid_argument') return 'This couldn’t be saved. Either one guide is too large — try splitting it in two — or your access to this artifact is view-only.';
     if (code === 'revoked') return 'Saving access was withdrawn — reload the page.';
     return 'Saving hit a snag — your work is still on screen and will retry on your next change.';
   }
@@ -1079,6 +1233,12 @@ input:disabled, textarea:disabled { cursor: wait; }
     });
     if (!rebuilt.length) rebuilt.push(newSection());
     state.sections = rebuilt;
+    // Before each guide had its own sign-off there was one tick for the whole book, cleared whenever anything changed.
+    // A book saved with that tick on was reviewed as it stood, so each of its edited guides that has never been saved
+    // by this version is Final. Once a guide is saved it carries its own answer and this no longer applies to it.
+    if (meta.approved) state.sections.forEach(function (s) {
+      if ((byId[s.id] || {}).approvedAt === undefined && s.status === 'edited' && s.corrected) s.approvedAt = Number(meta.lastEditAt) || Date.now();
+    });
     var maxNum = state.sections.reduce(function (m, s) { var n = Number(String(s.id).replace(/^s/, '')); return n > m ? n : m; }, 0);
     if (state.nextId <= maxNum) state.nextId = maxNum + 1;
     state.sections.forEach(function (s) { if (s.status === 'editing') { s.status = 'draft'; s.error = null; } });
@@ -1097,7 +1257,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     return readAll('books').then(function (qs) {
       library = ((qs && qs.docs) || []).map(function (d) {
         var b = d.data() || {};
-        return { id: d.id, title: String(b.bookTitle || ''), scripts: Number(b.scriptCount) || 0, edited: Number(b.editedCount) || 0,
+        return { id: d.id, title: String(b.bookTitle || ''), scripts: Number(b.scriptCount) || 0, edited: Number(b.editedCount) || 0, finals: Number(b.finalCount) || 0,
                  at: Math.max(Number(b.touchedAt) || 0, Number(b.lastEditAt) || 0, Number(b.createdAt) || 0) };
       }).sort(function (a, b) { return b.at - a.at; });
     });
@@ -1139,7 +1299,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     collapsed = {};
     (prefGet('collapsed.' + book, []) || []).forEach(function (id) { collapsed[id] = true; });
   }
-  function resetBookUi() { flash = null; saveError = null; editState = null; confirmState = null; captionOpen = {}; captionMemo = {}; pull = null; }
+  function resetBookUi() { flash = null; saveError = null; editState = null; confirmState = null; captionOpen = {}; captionMemo = {}; pull = null; writtenPick = {}; refEdit = null; }
 
   function openBook(id) {
     flushSaves();
@@ -1156,6 +1316,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       dbApi = dbRoot;                                     // only now may anything be written
       dbStatus = 'ready'; prefSet('book', id);
       paint();
+      loadWrittenIndex().then(paint);                     // the written scripts, re-read so a teammate's new one can be matched
     }).catch(function (err) {
       console.warn('Scriptorium: could not open book', err);
       return showLibrary('Couldn’t open that book just now — try again.');
@@ -1173,7 +1334,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (pull && pull.step === 'pulling') { showFlash('Still pulling from Descript. Let it finish, or stop it, before leaving this book.'); return; }
     syncFieldsFromDom();
     var unsaved = state.sections.filter(function (s) { return s.handDraft != null && s.handDraft !== s.corrected; })[0];
-    if (unsaved) { showFlash('“' + (unsaved.name || 'A script') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }
+    if (unsaved) { showFlash('“' + (unsaved.name || 'A guide') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }
     if (editState || state.sections.some(function (s) { return s.status === 'editing'; })) { showFlash('The edit pass is still running. Let it finish, or stop it, before leaving this book.'); return; }
     syncFieldsFromDom(); flushSaves();
     // One last save of the book's own document, so its title and counts are right in the list.
@@ -1207,7 +1368,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!b) return;
     openConfirm({
       title: 'Delete “' + (b.title || 'Untitled book') + '”?',
-      body: 'This deletes the book for everyone on the team — ' + (b.scripts > 1 ? 'all ' + b.scripts + ' of its scripts' : 'its scripts') + ', their corrected text and their timed captions — and it can’t be undone. Any Google Doc already created is untouched.',
+      body: 'This deletes the book for everyone on the team — ' + (b.scripts > 1 ? 'all ' + b.scripts + ' of its audio guides' : 'its audio guides') + ', their transcripts and their timed captions — and it can’t be undone. Written scripts are kept, and any Google Doc already created is untouched.',
       warn: '',
       confirmLabel: 'Delete this book',
       onConfirm: function () { deleteBook(id); }
@@ -1241,6 +1402,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       return carryOverOldWorkbench().catch(function (err) { console.warn('Scriptorium: could not carry over the old workbench', err); })
         .then(loadLibrary)
         .then(function () {
+          loadWrittenIndex().then(function () { if (view !== 'book' || dbStatus === 'ready') paint(); });
           var last = prefGet('book', null);
           if (last && library.some(function (b) { return b.id === last; })) return openBook(last);
           dbStatus = 'ready'; view = 'library'; paint();
@@ -1254,10 +1416,14 @@ input:disabled, textarea:disabled { cursor: wait; }
      Field syncing
      ================================================================== */
 
+  // Copies one field into the state. Returns true only when the value actually changed.
   function syncOneField(el) {
-    var field = el.dataset.field, id = el.dataset.id;
-    if (id) { var sec = findSection(id); if (sec) sec[field] = el.value; }
-    else state[field] = el.value;
+    var field = el.dataset.field, id = el.dataset.id, target = id ? findSection(id) : state;
+    if (!target) return false;
+    var before = target[field] == null ? '' : String(target[field]);
+    if (before === el.value) return false;
+    target[field] = el.value;
+    return true;
   }
   function syncFieldsFromDom() { root.querySelectorAll('[data-field]').forEach(syncOneField); }
 
@@ -1271,7 +1437,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     syncFieldsFromDom();
     var added = newSection();
     state.sections.push(added);
-    state.approved = false; touchBook();
+    touchBook();
     paint();
     saveSection(added.id); saveMeta();
     var nameEl = root.querySelector('[data-field="name"][data-id="' + added.id + '"]');
@@ -1284,12 +1450,12 @@ input:disabled, textarea:disabled { cursor: wait; }
     state.sections = state.sections.filter(function (s) { return s.id !== id; });
     var replacement = null;
     if (!state.sections.length) { replacement = newSection(); state.sections.push(replacement); }
-    state.approved = false; touchBook();
-    delete collapsed[id]; persistCollapsed();
+    touchBook();
+    delete collapsed[id]; persistCollapsed(); delete writtenPick[id];
     paint();
     if (dbApi) {
       scriptRef(bookId, id).delete().catch(function () {
-        showFlash('“' + ((victim && victim.name) || 'That script') + '” was removed from view but could not be deleted from storage — it may reappear when you reload. Try removing it again then.');
+        showFlash('“' + ((victim && victim.name) || 'That guide') + '” was removed from view but could not be deleted from storage — it may reappear when you reload. Try removing it again then.');
       });
     }
     if (dbApi) captionRef(bookId, id).delete().catch(function () {});
@@ -1308,7 +1474,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var blocks = layoutBlocks(s);
     var html = '<div>' + blocksToHtml(blocks, true) + '</div>', plain = blocksToPlain(blocks);
     var done = function () { if (btn) { btn.textContent = 'Copied'; btn.classList.add('is-done'); setTimeout(function () { btn.textContent = 'Copy for YouVersion'; btn.classList.remove('is-done'); }, 1800); } };
-    var fail = function () { showFlash('Couldn’t copy automatically in this view — select the corrected script and copy it by hand.'); };
+    var fail = function () { showFlash('Couldn’t copy automatically in this view — select the transcript and copy it by hand.'); };
     function plainOnly() {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain).then(done, fail); else fail();
     }
@@ -1320,7 +1486,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     } else plainOnly();
   }
 
-  /* ---- Correcting a finished script by hand ---- */
+  /* ---- Correcting an Edited Transcript by hand ---- */
 
   function hasHandWork(s) { return s.handDraft != null || (s.edits || []).some(function (e) { return e.kind === 'hand'; }); }
 
@@ -1341,30 +1507,61 @@ input:disabled, textarea:disabled { cursor: wait; }
     var s = findSection(id);
     if (!s || s.handDraft == null) return;
     var text = String(s.handDraft).replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-    if (!text) { showFlash('The corrected script can’t be left empty. Cancel to keep it as it was.'); return; }
+    if (!text) { showFlash('The transcript can’t be left empty. Cancel to keep it as it was.'); return; }
     if (text !== s.corrected) {
       s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));
       s.changeCount = s.edits.length;
       s.corrected = text;
-      state.approved = false; touchBook();
+      clearApproval(s); touchBook();            // the approval was of the text as it stood
     }
     delete s.handDraft;
     paint();
     saveSection(id).then(saveMeta);
   }
 
-  // Redoing the edit pass replaces the corrected script, hand corrections included — so ask first (4.5).
+  // Redoing the edit pass replaces the Edited Transcript, hand corrections included — so ask first (4.5).
   function askRedo(id) {
     var s = findSection(id);
     if (!s) return;
     if (!hasHandWork(s)) { redoSection(id); return; }
     openConfirm({
-      title: 'Redo “' + (s.name || 'this script') + '”?',
-      body: 'This script has corrections made by hand. Redoing the edit pass replaces the corrected script with a fresh result, and those corrections are lost.',
+      title: 'Redo “' + (s.name || 'this guide') + '”?',
+      body: 'This guide has corrections made by hand. Redoing the edit pass replaces the Edited Transcript with a fresh result, and those corrections are lost.',
       warn: '',
       confirmLabel: 'Redo and replace',
       onConfirm: function () { confirmState = null; delete s.handDraft; redoSection(id); }
     });
+  }
+
+  /* ---- Signing off: an Edited Transcript a person has reviewed becomes the Final Transcript ---- */
+
+  // Asks first when something on the card is still open, so a sign-off is never given past a warning unseen.
+  function approveSection(id, sure) {
+    syncFieldsFromDom();
+    var s = findSection(id);
+    if (!s || s.status !== 'edited' || !s.corrected) return;
+    if (s.handDraft != null) { showFlash('Save or cancel the corrections you are making by hand first.'); return; }
+    if (isStale(s)) { showFlash('The 1st Draft Transcript has changed since this was edited. Run the edit pass again before approving it.'); return; }
+    var refs = flaggedRefs(s);
+    if (sure !== true && refs) {
+      openConfirm({
+        title: 'Approve “' + (s.name || 'this guide') + '” as the Final Transcript?',
+        body: refs + ' scripture reference' + plural(refs) + ' on this guide ' + (refs === 1 ? 'is' : 'are') + ' still marked to check. A Final Transcript goes into the Google Doc as it stands, references included.',
+        warn: '', confirmLabel: 'Approve anyway',
+        onConfirm: function () { confirmState = null; approveSection(id, true); }
+      });
+      return;
+    }
+    s.approvedAt = Date.now(); touchBook();
+    paint();
+    saveSection(id).then(saveMeta);
+  }
+  function unapproveSection(id) {
+    var s = findSection(id);
+    if (!s || !s.approvedAt) return;
+    clearApproval(s); touchBook();
+    paint();
+    saveSection(id).then(saveMeta);
   }
   /* ------------------------------------------------------------------
      One prompt, sent once per script. Every character here is paid for on
@@ -1375,7 +1572,7 @@ input:disabled, textarea:disabled { cursor: wait; }
      fixNames and fixCapitals).
      ------------------------------------------------------------------ */
 
-  function promptHeader(section) {
+  function promptHeader(section, hasWritten) {
     return 'Proofread this Descript AI transcript of a spoken audio guide. Descript captures the SOUND of words, not always the right words — unfamiliar names often come through as an ordinary phrase that sounds similar.\n\n' +
       'Book or plan: ' + (state.bookTitle || '(untitled)') + '\n' +
       'Script name: ' + (section.name || '(untitled section)') + '\n' +
@@ -1394,7 +1591,12 @@ input:disabled, textarea:disabled { cursor: wait; }
       '- Bible references in digits, never number words or a mix ("Isaiah 35:1", "chapter 12", "verse 3"); keep the words "chapter" and "verse" where spoken. Other numbers stay as spoken.\n' +
       '2. MISHEARD WORDS: plausible mishearings of a listed name or term ("Eli who" for Elihu, "so far" for Zophar), and other names where the sentence only makes sense with a different word. A correction must SOUND like what was transcribed — never swap in a different word that means the same.\n' +
       '3. SCRIPTURE: the speaker quotes Bible verses, usually after a reference ("Verse one", "Job 2:4", "Isaiah 3 verses two through four"). Inside a quoted verse fix ONLY misheard words ("the land of us" to "the land of Uz"); change nothing else — not wording, order, capitalization, or punctuation, even where it looks wrong. Translations read oddly on purpose. The speaker quotes the NIV, sometimes the ESV: never change a quotation to match a verse. If one matches neither translation in meaning or a key word, leave it and report it under "misquotes".\n' +
-      '4. Flag any sentence that still makes no sense after your edits, with your best guess at what is wrong.\n\n';
+      '4. Flag any sentence that still makes no sense after your edits, with your best guess at what is wrong.\n' +
+      // SOURCE-OF-TRUTH 4.9. Sent only for a guide that has a written script, so no other call pays for it (4.6).
+      (hasWritten ? '5. WRITTEN SCRIPT: what the teacher wrote before recording is given below as a reference. The teacher did not read it out word for word, so NEVER change the transcript to match it. ' +
+        'Use it only as evidence for a fix rules 1 to 3 already allow: a misheard word or name, a question mark where a question was meant, a comma, where a sentence or a quotation ends. Add "source":"script" to an edit it supports. ' +
+        'Where the transcript looks wrong against it in another way — a word dropped or misheard as a different-sounding word, NOT the speaker rewording — still give the edit, with "source":"script"; the page lists it as a suggestion and leaves the transcript as spoken.\n' : '') +
+      '\n';
   }
 
   // Verses come back as short anchors, not the whole quotation: the page finds the span between
@@ -1411,8 +1613,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     return '"joins": paragraph breaks that fall in the middle of one continuous thought (a breath, not a real new paragraph). Each: {"endsWith": "the last five or so words before the break", "startsWith": "the first five or so words after it"}, copied exactly as the text reads after your edits. Leave genuine paragraph changes alone, and never join across the start or end of a quoted verse.\n';
   }
 
-  function buildEditsPrompt(section, text) {
-    return promptHeader(section) +
+  var WRITTEN_PROMPT_MAX = 60000;      // characters of a written script sent with its guide
+  function buildEditsPrompt(section, text, written) {
+    written = String(written || '').trim().slice(0, WRITTEN_PROMPT_MAX);
+    return promptHeader(section, !!written) +
       'Return your corrections as a list of EDITS, not a rewrite. Each: "find" — a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes, spacing), long enough to be unambiguous, usually 3 to 15 words, never crossing a blank line; "replace" — the corrected version of exactly that run. In order, one per occurrence. ' +
       'Add "kind": "misheard" for a misheard word or name, or "verse-fix" for one inside a quoted verse, each with a "note" of a few words; grammar edits need neither.\n' +
       versesSpec() +
@@ -1422,13 +1626,14 @@ input:disabled, textarea:disabled { cursor: wait; }
       'Return ONLY this JSON object:\n' +
       '{"edits":[{"find":"","replace":""}],"verses":[{"reference":"","startsWith":"","endsWith":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"misquotes":[{"said":"","verse":"","reference":""}],"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
       'Use empty arrays when there is nothing to report. No text outside the JSON.\n\n' +
+      (written ? 'WRITTEN SCRIPT (reference only — never copy its wording into the transcript):\n"""\n' + written + '\n"""\n\n' : '') +
       'TRANSCRIPT:\n"""\n' + text + '\n"""';
   }
   function sampleErrorMessage(err) {
     var code = err && err.code;
     if (code === 'not_granted') return 'permission to use Claude was declined';
     if (code === 'rate_limited') return 'too many requests right now — try again shortly';
-    if (code === 'prompt_too_large') return 'this script is too long for one pass — try splitting it into two sections';
+    if (code === 'prompt_too_large') return 'this transcript is too long for one pass — try splitting it into two guides';
     if (code === 'invalid_json') return 'the response could not be read — try again';
     if (code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') return 'editing isn’t available in this view';
     if (code === 'refused' || code === 'empty_completion') return 'Claude could not produce a result for this one — try again';
@@ -1446,7 +1651,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   var CUE_RE = /[ \t]*\[[^\]\n]{1,120}\][ \t]*/g, PAUSE_RE = /(^|\s)_+(?=\s|$)/g;
   var MECH = [                                   // [pattern, replacement] — spacing, marks, sentence ends
     [/[“”]/g, '"'], [/\.\s?\.\s?\.|\u2026+/g, '…'], [/--/g, '—'],
-    [/[ \t]+([,.;:!?…])/g, '$1'],                // no space before punctuation
+    [/[ \t]+([,;:!?…]|\.(?!\d))/g, '$1'],       // no space before punctuation — but "about .5" keeps its space
     [/([,;!?])(?=[A-Za-z])/g, '$1 '],            // a space after it
     [/(\w{2,})\.(?=[A-Z][a-z])/g, '$1. ']        // "word.Next" — but not "a.m."
   ];
@@ -1463,7 +1668,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   var SURE = 'jesus christ bible israel jerusalem satan moses abraham isaac jacob joseph david solomon elijah elisha isaiah jeremiah ezekiel daniel paul peter pharisees egypt babylon bethlehem nazareth galilee'.split(' ');
   var SURE_RE = new RegExp('\\b(' + SURE.join('|') + ')\\b', 'gi');
   var GOD_RE = /\b(?<!\b(?:a|an|false|other|their|your|no|any|strange|pagan|greek|roman)\s)god\b(?!s)/gi;
-  var LORD_RE = /\blord\b(?!s)/gi, SPIRIT_RE = /\bholy spirit\b/gi, I_RE = /\bi(?=['’\s]|$)/g;
+  var LORD_RE = /\blord\b(?!s)/gi, SPIRIT_RE = /\bholy spirit\b/gi, I_RE = /\bi(?=['’\s,;:!?]|$)/g;
 
   function cap(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }
   function tally(intoEdits, kind, count, label) {
@@ -1487,7 +1692,13 @@ input:disabled, textarea:disabled { cursor: wait; }
   function fixNames(text, intoEdits) {
     var seen = {};
     function note(from, to) { if (from !== to && !seen[from + '>' + to]) { seen[from + '>' + to] = 1; intoEdits.push({ find: from, replace: to, kind: 'capitalization', note: 'name or title' }); } }
-    function sub(re, fn) { text = text.replace(re, function () { var out = fn.apply(null, arguments); note(arguments[0], out); return out; }); }
+    // A word already in capitals was written that way on purpose — emphasis, or LORD in a pasted verse — and is left alone.
+    function sub(re, fn) {
+      text = text.replace(re, function (m) {
+        if (m.length > 1 && m === m.toUpperCase() && m !== m.toLowerCase()) return m;
+        var out = fn.apply(null, arguments); note(m, out); return out;
+      });
+    }
     sub(SURE_RE, function (m) { return cap(m); });
     sub(BOOK_RE, function (m, num, book) { return (num || '') + book.split(' ').map(cap).join(' '); });
     sub(GOD_RE, function () { return 'God'; }); sub(LORD_RE, function () { return 'Lord'; }); sub(SPIRIT_RE, function () { return 'Holy Spirit'; }); sub(I_RE, function () { return 'I'; });
@@ -1499,10 +1710,14 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
 
   // No sentence or paragraph may start lowercase. Abbreviations, initials, decimals and trailing-off dots are left alone.
-  function fixCapitals(text, intoEdits) {
+  // Before the edit pass (`beforeEdit`) a paragraph that follows one with no closing punctuation is left as it is:
+  // Descript breaks on pauses, so that break may fall mid-thought, and a capital put there would be stranded in the
+  // middle of a sentence once the break is closed up. After the joins every paragraph start is done.
+  function fixCapitals(text, intoEdits, beforeEdit) {
     var count = 0;
     function note(before, after) { count += 1; if (count <= 20) intoEdits.push({ find: before, replace: after, kind: 'capitalization', note: 'sentence start' }); }
-    text = text.replace(/(^|\n[ \t]*\n[ \t]*)(["“'(]*)([a-z])(\S{0,24})/g, function (m, lead, open, ch, rest) {
+    text = text.replace(/(^|\n[ \t]*\n[ \t]*)(["“'(]*)([a-z])(\S{0,24})/g, function (m, lead, open, ch, rest, offset, whole) {
+      if (beforeEdit && lead && !/[.!?…]["”'’)\]]*[ \t]*$/.test(whole.slice(Math.max(0, offset - 12), offset))) return m;
       note(open + ch + rest, open + ch.toUpperCase() + rest);
       return lead + open + ch.toUpperCase() + rest;
     });
@@ -1578,7 +1793,14 @@ input:disabled, textarea:disabled { cursor: wait; }
      ------------------------------------------------------------------ */
 
   // The words of a run with everything that is not wording removed: "So-called," and "so called" are the same wording.
-  function wordingKey(text) { return digitsForWords(String(text).toLowerCase()).replace(/[^a-z0-9\u00C0-\u024F]+/g, ''); }
+  // Where one number stops and the next starts is part of what was said, so it is kept: "3:16" and "31:6" are
+  // different, while "35 1" and "35:1" are the same, and so are "1,000" and "1000". Letters of every alphabet count.
+  function wordingKey(text) {
+    return digitsForWords(String(text).toLowerCase())
+      .replace(/(\d),(?=\d{3}(?!\d))/g, '$1')
+      .replace(/(\d)[^\p{L}\p{N}]+(?=\d)/gu, '$1\u0001')
+      .replace(/[^\p{L}\p{N}\u0001]+/gu, '');
+  }
 
   /* What counts as "sounds the same". Spelling is a poor guide to sound, so this is strict on
      purpose: when in doubt the answer is no, and the change is shown as a suggestion instead.
@@ -1591,7 +1813,9 @@ input:disabled, textarea:disabled { cursor: wait; }
           roughly                                                  never can nezzar / Nebuchadnezzar
 
      Short everyday words that merely look or sound close — we / you, son / sin, good / God,
-     is / his, lives / loves — are different words, and are not allowed. */
+     is / his, lives / loves, then / ten, three / tree — are different words, and are not allowed.
+     "th" is its own sound (θ below): it may stand in for "t" only inside a long word, as in
+     Timoty / Timothy. */
 
   var HOMOPHONE_GROUP = {};
   ('their there theyre|to too two|your youre|whose whos|hear here|know no|knew new|right write rite|by buy bye|for four fore|one won|our hour|' +
@@ -1611,7 +1835,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     return lettersOf(text)
       .replace(/who(?!l)/g, 'hu').replace(/ph/g, 'f').replace(/ch/g, 'k').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
       .replace(/x/g, 'ks').replace(/z/g, 's').replace(/oo/g, 'u').replace(/ee/g, 'i').replace(/y/g, 'i')
-      .replace(/([gptwr])h/g, '$1').replace(/wr/g, 'r').replace(/(.)\1+/g, '$1');
+      .replace(/t+h/g, 'θ').replace(/([gpwr])h/g, '$1').replace(/wr/g, 'r').replace(/(.)\1+/g, '$1');
   }
   // How far apart two folded spellings are. A vowel that differs counts half; a consonant counts whole.
   function soundDistance(a, b) {
@@ -1622,7 +1846,8 @@ input:disabled, textarea:disabled { cursor: wait; }
       cur = [prev[0] + da];
       for (j = 1; j <= b.length; j++) {
         db = vowel.test(b[j - 1]) ? 0.5 : 1;
-        cur[j] = Math.min(prev[j] + da, cur[j - 1] + db, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : (da + db === 1 ? 0.5 : 1)));
+        var near = da + db === 1 || (a[i - 1] === 'θ' && b[j - 1] === 't') || (a[i - 1] === 't' && b[j - 1] === 'θ');
+        cur[j] = Math.min(prev[j] + da, cur[j - 1] + db, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : (near ? 0.5 : 1)));
       }
       prev = cur;
     }
@@ -1640,7 +1865,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (x === y) return true;
     var longest = Math.max(x.length, y.length), apart = soundDistance(x, y);
     if ((listed || []).some(function (name) { return wb.indexOf(name) !== -1 || (name.length >= 5 && wb.join('').indexOf(name) !== -1); })) return apart <= longest * 0.34;
-    return longest >= 6 && x.replace(/[aeiou]/g, '') === y.replace(/[aeiou]/g, '') && apart <= 1;
+    return longest >= 6 && x.replace(/[aeiou]/g, '').replace(/θ/g, 't') === y.replace(/[aeiou]/g, '').replace(/θ/g, 't') && apart <= 1;
   }
 
   // A section label: a short line in capitals standing alone in the transcript ("BEARINGS"). Words spoken
@@ -1678,7 +1903,9 @@ input:disabled, textarea:disabled { cursor: wait; }
     (edits || []).forEach(function (e) {
       if (!e || typeof e !== 'object') return;
       var why = wordingProblem(e, text, listed);
-      if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'), note: why + (e.note ? ' — ' + String(e.note) : '') });
+      // 4.9: where the written script and the transcript differ in wording, the transcript stays as spoken and the difference names its source.
+      if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'),
+                           note: (e.source === 'script' ? 'the written script reads this way; ' : '') + why + (e.note ? ' — ' + String(e.note) : '') });
       else ok.push(e);
     });
     return { ok: ok, held: held };
@@ -1704,7 +1931,9 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
 
   // Close the paragraph breaks the editor says fall mid-thought. Each join becomes a visible "paragraph" edit.
-  function applyJoins(text, joins, intoEdits) {
+  // `sent` is the text as it went to the editor. Where the editor both closed a break and capitalised the word after
+  // it, the capital is taken back: that word is now in the middle of a sentence, and it was lowercase as spoken.
+  function applyJoins(text, joins, intoEdits, sent) {
     if (!repairParagraphs || !Array.isArray(joins)) return text;
     joins.forEach(function (j) {
       var a = str(j && j.endsWith), b = str(j && j.startsWith);
@@ -1713,6 +1942,11 @@ input:disabled, textarea:disabled { cursor: wait; }
       var gap = text.slice(ha.end).match(/^\s*\n\s*\n\s*/); if (!gap) return;
       var hb = locate(text, b, ha.end + gap[0].length, false);
       if (!hb || hb.start !== ha.end + gap[0].length) return;
+      var head = text.slice(hb.start, hb.start + 16), lowered = head.charAt(0).toLowerCase() + head.slice(1);
+      if (sent && head !== lowered && !/[.!?…]["”'’)\]]*$/.test(text.slice(0, ha.end)) && sent.indexOf('\n\n' + lowered) !== -1 && sent.indexOf('\n\n' + head) === -1) {
+        text = text.slice(0, hb.start) + lowered.charAt(0) + text.slice(hb.start + 1);
+        b = b.charAt(0).toLowerCase() + b.slice(1);
+      }
       text = text.slice(0, ha.end) + ' ' + text.slice(hb.start);
       intoEdits.push({ find: a + ' ¶ ' + b, replace: a + ' ' + b, kind: 'paragraph', note: 'joined a mid-thought break' });
     });
@@ -1722,56 +1956,67 @@ input:disabled, textarea:disabled { cursor: wait; }
   // One route: ask for the edit list, apply it here. Edits that cannot be placed are kept and
   // shown for a hand check — never silently dropped, and never traded for a full rewrite
   // (which costs a whole script's worth of output and shows no edit table).
-  function runEditOnSection(s, sample, signal, isRetry) {
+  // `written` is the guide's written script, when it has one: { id, title, text }. It travels in this same one call (4.6).
+  function runEditOnSection(s, sample, signal, isRetry, written) {
     if (s.raw.length > 55000) {
-      s.status = 'error'; s.error = 'this script is too long for one pass — try splitting it into two sections';
+      s.status = 'error'; s.error = 'this transcript is too long for one pass — try splitting it into two guides';
       return Promise.resolve();
     }
-    var local = [];
-    var prepared = fixCapitals(fixNames(fixReferences(mechanics(s.raw, local), local), local), local);
-    return sample.json(buildEditsPrompt(s, prepared), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
+    // The transcript as it stood when this pass began. Typing in it while the pass runs must leave the guide marked as changed since.
+    var rawAtStart = s.raw, local = [], writtenNote = '';
+    if (written && written.error) { writtenNote = written.error; written = null; }
+    if (written && !String(written.text || '').trim()) written = null;
+    var prepared = fixCapitals(fixNames(fixReferences(mechanics(rawAtStart, local), local), local), local, true);
+    return sample.json(buildEditsPrompt(s, prepared, written ? written.text : ''), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
-      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : [], prepared);       // 4.1: only what keeps the speaker's words
+      var proposed = (Array.isArray(data.edits) ? data.edits : []).filter(function (e) { return e && typeof e === 'object'; });
+      proposed.forEach(function (e) { if (!written || e.source !== 'script') delete e.source; });
+      var guard = guardEdits(proposed, prepared);                                          // 4.1: only what keeps the speaker's words
       var result = applyEdits(prepared, guard.ok);
+      result.applied.forEach(function (e) { if (e.source === 'script') e.note = (e.note ? e.note + ' — ' : '') + 'supported by the written script'; });
       var applied = local.concat(result.applied);
-      var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied), applied), applied);
+      var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied, prepared), applied), applied);
       var summary = str(data.summary);
       if (result.unapplied.length > 2) summary += (summary ? ' ' : '') + result.unapplied.length + ' suggested changes could not be placed and are listed below for a hand check — Redo this one if that seems like too many.';
       if (guard.held.length) summary += (summary ? ' ' : '') + guard.held.length + ' suggested change' + plural(guard.held.length) + ' would have altered the speaker’s words and ' + (guard.held.length === 1 ? 'was' : 'were') + ' not applied — listed below.';
+      if (writtenNote) summary += (summary ? ' ' : '') + writtenNote;
       s.corrected = text; s.summary = summary; s.changeCount = applied.length;
       s.edits = applied; s.unapplied = result.unapplied;
       s.misheard = applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; });
       s.nonsensical = cleanNonsense(data.nonsensical); s.verses = cleanVerses(data.verses); s.method = 'edits';
       s.suggested = guard.held; s.misquotes = cleanMisquotes(data.misquotes); delete s.handDraft;
-      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null; touchBook();
+      s.writtenUsed = written ? { id: String(written.id || ''), title: String(written.title || '') } : null;
+      if (written) noteWrittenRefs(s, written.text);                                       // 4.10: the reference the teacher wrote down
+      clearApproval(s);                                                                    // new text is an Edited Transcript until a person approves it
+      s.editedFromRaw = rawAtStart; s.status = 'edited'; s.editedAt = Date.now(); s.error = null; touchBook();
     }).catch(function (err) {
       if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
       // A garbled or empty answer is not cached, so one more ask is a genuine second attempt.
-      if (!isRetry && err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runEditOnSection(s, sample, signal, true);
+      if (!isRetry && err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runEditOnSection(s, sample, signal, true, written || (writtenNote ? { error: writtenNote } : null));
       s.status = 'error'; s.error = sampleErrorMessage(err);
     });
   }
 
-  // Runs `concurrency` scripts at once (1 or 2). Each finished script is saved on its own
+  // Runs `concurrency` guides at once (1 or 2). Each finished guide is saved on its own
   // before the worker picks up the next, so an interruption costs at most what was in flight.
   function editAll(force) {
     syncFieldsFromDom();
-    if (dbStatus === 'loading') { showFlash('Still loading your saved scripts — give it a second and try again.'); return; }
+    if (dbStatus === 'loading') { showFlash('Still loading your saved guides — give it a second and try again.'); return; }
     useCap('sample').then(function (sample) {
       if (!sample) { showFlash('This page needs permission to use Claude for editing. Open it in a Claude viewer that allows that, then try again.'); return; }
       var toProcess = state.sections.filter(needsEdit);
       var byHand = toProcess.filter(hasHandWork).length;
       if (force !== true && byHand) {                          // 4.5: hand corrections are never silently replaced
         openConfirm({
-          title: 'Edit ' + byHand + ' script' + plural(byHand) + ' again?',
-          body: byHand + ' of the scripts about to be edited ' + (byHand === 1 ? 'has' : 'have') + ' corrections made by hand. Their transcript has changed, so the edit pass will replace the corrected script, and those corrections are lost.',
+          title: 'Edit ' + byHand + ' guide' + plural(byHand) + ' again?',
+          body: byHand + ' of the guides about to be edited ' + (byHand === 1 ? 'has' : 'have') + ' corrections made by hand. Their transcript has changed, so the edit pass will replace the Edited Transcript, and those corrections are lost.',
           warn: '', confirmLabel: 'Edit and replace',
           onConfirm: function () { confirmState = null; editAll(true); }
         });
         return;
       }
       if (!toProcess.length) {
-        showFlash(state.sections.some(function (s) { return s.raw.trim(); }) ? 'Every script with text is already up to date.' : 'Add a transcript to at least one script first.');
+        showFlash(state.sections.some(function (s) { return s.raw.trim(); }) ? 'Every guide with a transcript is already up to date.' : 'Add a transcript to at least one guide first.');
         return;
       }
       var queue = toProcess.slice(), stoppedFlag = false;
@@ -1783,11 +2028,13 @@ input:disabled, textarea:disabled { cursor: wait; }
         if (stoppedFlag) return Promise.resolve();
         var item = queue.shift();
         if (!item) return Promise.resolve();
+        // Already being edited — "Redo this one" was clicked while it waited its turn. One guide is one call (4.6).
+        if (item.status === 'editing') { editState.done += 1; paintStatus(); return worker(); }
         var ctl = new AbortController();
         editControllers.push(ctl);
         item.status = 'editing'; item.error = null;
         paintSection(item.id); paintStatus();
-        return runEditOnSection(item, sample, ctl.signal).then(function () {
+        return writtenFor(item).then(function (written) { return runEditOnSection(item, sample, ctl.signal, false, written); }).then(function () {
           editControllers = editControllers.filter(function (c) { return c !== ctl; });
           if (item.status === 'error' && item.error === '__stopped__') stoppedFlag = true;
           editState.done += 1;
@@ -1800,7 +2047,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       for (var i = 0; i < concurrency; i++) workers.push(worker());
       return Promise.all(workers).then(function () {
         editState = null; editControllers = [];
-        state.lastEditAt = Date.now(); state.approved = false;
+        state.lastEditAt = Date.now();
         paint();
         return saveMeta();
       });
@@ -1812,22 +2059,21 @@ input:disabled, textarea:disabled { cursor: wait; }
   function redoSection(id) {
     syncFieldsFromDom();
     var s = findSection(id);
-    if (!s || !s.raw.trim()) return;
+    if (!s || !s.raw.trim() || s.status === 'editing') return;
     useCap('sample').then(function (sample) {
       if (!sample) { showFlash('This page needs permission to use Claude for editing.'); return; }
+      if (s.status === 'editing') return;
       var ctl = new AbortController();
       editControllers.push(ctl);
       s.status = 'editing'; paintSection(id);
-      return runEditOnSection(s, sample, ctl.signal).then(function () {
+      return writtenFor(s).then(function (written) { return runEditOnSection(s, sample, ctl.signal, false, written); }).then(function () {
         editControllers = editControllers.filter(function (c) { return c !== ctl; });
-        state.approved = false;
         paint();
         return saveSection(s.id).then(saveMeta);
       });
     });
   }
 
-  function toggleApprove(checked) { state.approved = !!checked; paint(); saveMeta(); }
   /* ---- Clearing the workbench for the next book ---- */
 
   function openConfirm(opts) {
@@ -1842,10 +2088,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     var count = state.sections.length;
     var unedited = state.sections.filter(function (s) { return s.raw.trim() && s.status !== 'edited'; }).length;
     openConfirm({
-      title: 'Remove all ' + count + ' script' + plural(count) + '?',
-      body: 'This deletes every script in this book, for everyone on the team, including the corrected text, the words flagged in each one, and any timed captions, and it can’t be undone. This book’s title and Words to Search For list stay put, other books are not touched, and any Google Doc you already created is untouched.',
+      title: 'Remove all ' + count + ' guide' + plural(count) + '?',
+      body: 'This deletes every audio guide in this book, for everyone on the team, including its transcripts, the words flagged in each one, and any timed captions, and it can’t be undone. This book’s title and Words to Search For list stay put, other books and the written scripts are not touched, and any Google Doc you already created is untouched.',
       warn: unedited ? unedited + ' of them ' + (unedited === 1 ? 'has' : 'have') + ' not been edited yet.' : '',
-      confirmLabel: 'Remove all ' + count + ' script' + plural(count),
+      confirmLabel: 'Remove all ' + count + ' guide' + plural(count),
       onConfirm: clearAllScripts
     });
   }
@@ -1855,7 +2101,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var fresh = newSection();
     state.sections = [fresh];
     state.lastEditAt = null; state.approved = false; state.docResult = null; touchBook();
-    collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {};
+    collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {}; writtenPick = {}; refEdit = null;
     confirmState = null; clearing = true;
     paint();
     var failed = 0, chain = Promise.resolve();
@@ -1866,39 +2112,37 @@ input:disabled, textarea:disabled { cursor: wait; }
     return chain.then(function () {
       clearing = false;
       flash = failed
-        ? 'Cleared the workbench, but ' + failed + ' script' + plural(failed) + ' could not be removed from storage and may come back when you reload. Try Clear All once more.'
-        : 'Cleared ' + ids.length + ' script' + plural(ids.length) + '. This book’s title and word list are still here.';
+        ? 'Cleared the workbench, but ' + failed + ' guide' + plural(failed) + ' could not be removed from storage and may come back when you reload. Try Clear All once more.'
+        : 'Cleared ' + ids.length + ' guide' + plural(ids.length) + '. This book’s title and word list are still here.';
       paint();
     });
   }
 
-  /* ---- Building the Google Doc ---- */
+  /* ---- Building the Google Doc ----
+     Only a Final Transcript goes in: one a person has reviewed and approved. A guide that is still a
+     1st Draft or an Edited Transcript is left out, and the page says how many were. ---- */
 
-  function docTitle() { return (state.bookTitle.trim() || 'Untitled') + ' — Audio Guide Scripts'; }
+  function docTitle() { return (state.bookTitle.trim() || 'Untitled') + ' — Audio Guide Transcripts'; }
+  function finalSections() { return state.sections.filter(isFinal); }
 
   function scriptBody(s, withHeading) {
-    var edited = s.status === 'edited';
-    var body = withHeading ? '<h2>' + esc(s.name || 'Untitled script') + '</h2>' : '';
-    if (!edited) body += '<p><em>Not run through the edit pass — shown as originally entered.</em></p>';
-    if (edited) return body + blocksToHtml(layoutBlocks(s), true);
-    var paras = [];
-    String(s.raw || '').split(/\n{2,}/).forEach(function (para) { if (para.trim()) paras.push('<p>' + esc(para).replace(/\n/g, '<br>') + '</p>'); });
-    return body + paras.join(DOC_GAP);
+    return (withHeading ? '<h2>' + esc(s.name || 'Untitled guide') + '</h2>' : '') + blocksToHtml(layoutBlocks(s), true);
   }
   function docBody() {
-    return '<h1>' + esc(docTitle()) + '</h1>' + state.sections.map(function (s) { return scriptBody(s, true); }).join('');
+    return '<h1>' + esc(docTitle()) + '</h1>' + finalSections().map(function (s) { return scriptBody(s, true); }).join('');
   }
   var DOC_STYLE = '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.55;color:#222}p{margin:0}h1{font-size:26px}h2{font-size:19px;margin-top:36px}em{color:#777}blockquote{margin:0 0 0 24px;padding-left:12px;border-left:3px solid #c9b48a}</style>';
   // One wrapper for every document the tool emits: Drive gets a bare document, the download a styled one.
   function wrapDoc(body, styled) {
     return styled ? '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(docTitle()) + '</title>' + DOC_STYLE + '</head><body>' + body + '</body></html>' : '<html><body>' + body + '</body></html>';
   }
-  function scriptDocHtml(s) { return wrapDoc('<h1>' + esc(s.name || 'Untitled script') + '</h1>' + scriptBody(s, false), false); }
-  function downloadName() { return ((state.bookTitle.trim() || 'audio-guide').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'audio-guide') + '-scripts.html'; }
+  function scriptDocHtml(s) { return wrapDoc('<h1>' + esc(s.name || 'Untitled guide') + '</h1>' + scriptBody(s, false), false); }
+  function downloadName() { return ((state.bookTitle.trim() || 'audio-guide').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'audio-guide') + '-transcripts.html'; }
 
   function saveDownload(isFallback) {
     return useCap('downloads').then(function (downloads) {
-      if (!downloads) { state.docResult = { method: 'error', message: 'Downloads aren’t available in this view — use Copy on each corrected script instead.' }; return; }
+      if (!finalSections().length) { state.docResult = { method: 'error', message: 'No guide has been approved as a Final Transcript yet.' }; return; }
+      if (!downloads) { state.docResult = { method: 'error', message: 'Downloads aren’t available in this view — use Copy for YouVersion on each guide instead.' }; return; }
       return downloads.save({ filename: downloadName(), data: wrapDoc(docBody(), true) }).then(function () {
         state.docResult = { method: 'download', at: Date.now() };
       }).catch(function (err) {
@@ -1933,6 +2177,8 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function conclude() {
     syncFieldsFromDom();
+    var finals = finalSections();                       // fixed now: a guide approved while the Docs are being made is not slipped in half-way
+    if (!finals.length) { showFlash('No guide has been approved as a Final Transcript yet. Approve one and try again.'); return; }
     state.docResult = { method: 'pending', progress: docMode === 'perScript' ? 'Creating a folder in your Google Drive…' : 'Building your Google Doc…' };
     paint();
     useCap('mcp').then(function (mcp) {
@@ -1942,27 +2188,27 @@ input:disabled, textarea:disabled { cursor: wait; }
         if (docMode !== 'perScript') {
           return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: wrapDoc(docBody(), false), contentMimeType: 'text/html' }).then(function (res) {
             var url = urlOf(payloadOf(res));
-            state.docResult = { method: 'drive', url: url || '#', at: Date.now() };
+            state.docResult = { method: 'drive', url: url, at: Date.now() };
             if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }
             return true;
           });
         }
-        // One Doc per script, inside a new folder named for the book.
+        // One Doc per guide, inside a new folder named for the book.
         return mcp.callTool('Google Drive', toolName, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.folder' }).then(function (res) {
           var folder = payloadOf(res), folderId = folder && folder.id, folderUrl = urlOf(folder);
           if (!folderId) throw { code: 'no_folder' };
-          var queue = state.sections.slice(), done = 0, failed = 0;
+          var queue = finals.slice(), done = 0, failed = 0;
           function next() {
             var s = queue.shift();
             if (!s) return Promise.resolve();
-            state.docResult = { method: 'pending', progress: 'Creating Doc ' + (done + failed + 1) + ' of ' + state.sections.length + ' — ' + (s.name || 'Untitled script') + '…' };
+            state.docResult = { method: 'pending', progress: 'Creating Doc ' + (done + failed + 1) + ' of ' + finals.length + ' — ' + (s.name || 'Untitled guide') + '…' };
             paintDocResult();
-            return mcp.callTool('Google Drive', toolName, { title: s.name || 'Untitled script', textContent: scriptDocHtml(s), contentMimeType: 'text/html', parentId: folderId })
+            return mcp.callTool('Google Drive', toolName, { title: s.name || 'Untitled guide', textContent: scriptDocHtml(s), contentMimeType: 'text/html', parentId: folderId })
               .then(function () { done += 1; }, function (err) { failed += 1; console.warn('Scriptorium: doc failed for ' + s.name, err); })
               .then(next);
           }
           return next().then(function () {
-            state.docResult = { method: 'drive', url: folderUrl || '#', at: Date.now(), count: done, failed: failed };
+            state.docResult = { method: 'drive', url: folderUrl, at: Date.now(), count: done, failed: failed };
             if (folderUrl) { state.lastDoc = { url: folderUrl, at: Date.now(), kind: 'folder' }; saveMeta(); }
             return true;
           });
@@ -1980,7 +2226,7 @@ input:disabled, textarea:disabled { cursor: wait; }
      costs nothing (4.6).
 
        1. parseCaptions   reads the timed captions Descript exported
-       2. matchWords      lines the corrected script's words up with the
+       2. matchWords      lines the corrected transcript's words up with the
                           captions' words (a standard longest-common-
                           subsequence diff)
        3. buildCaptions   gives every corrected word, once and in order,
@@ -1991,8 +2237,8 @@ input:disabled, textarea:disabled { cursor: wait; }
      which caption a word belongs to.
      ================================================================== */
 
-  var CAPTION_MAX = 240000;          // characters of pasted captions one script may hold (the store's document cap is 256 KiB)
-  var CAPTION_MIN_MATCH = 0.7;       // below this share of words lining up, the captions are for a different script
+  var CAPTION_MAX = 240000;          // characters of pasted captions one guide may hold (the store's document cap is 256 KiB)
+  var CAPTION_MIN_MATCH = 0.7;       // below this share of words lining up, the captions are for a different guide
   var CAPTION_MAX_DIFF = 4000;       // give up lining words up past this many differences
   var TIME_RE = /(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})\s*-->\s*(?:(\d+):)?(\d{1,2}):(\d{2})[.,](\d{1,3})/;
 
@@ -2066,7 +2312,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     return pairs;
   }
 
-  // The corrected script on the captions' timings. Returns { ok: true, cues: [{start, end, text}], stats }
+  // The corrected transcript on the captions' timings. Returns { ok: true, cues: [{start, end, text}], stats }
   // or { ok: false, reason } — 'no-cues', 'no-script', 'too-long' or 'mismatch' (with `share`).
   function buildCaptions(captionText, corrected) {
     if (String(captionText || '').length > CAPTION_MAX) return { ok: false, reason: 'too-long' };
@@ -2177,8 +2423,8 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   /* ---- In the workbench ---- */
 
-  var captionOpen = {};      // which scripts have the captions box unfolded, this visit
-  var captionMemo = {};      // last result per script, so a repaint does not line the words up again
+  var captionOpen = {};      // which guides have the captions box unfolded, this visit
+  var captionMemo = {};      // last result per guide, so a repaint does not line the words up again
 
   function captionResult(s) {
     var text = s.captions || '', memo = captionMemo[s.id];
@@ -2189,14 +2435,14 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function captionsReady(s) { return s.status === 'edited' && !!s.corrected && !!(s.captions || '').trim() && captionResult(s).ok; }
 
-  // One plain sentence on where a script's captions stand. Every outcome is said out loud (4.4).
+  // One plain sentence on where a guide's captions stand. Every outcome is said out loud (4.4).
   function captionNote(s) {
     if (!(s.captions || '').trim()) return { text: '', warn: false };
     var r = captionResult(s);
     if (r.reason === 'too-long') return { text: 'This is too long to keep — paste the captions for one audio guide at a time.', warn: true };
     if (r.reason === 'no-cues') return { text: 'No timed captions found in this text. Paste the contents of the .srt file Descript exports — it has lines like 00:00:01,000 --> 00:00:04,000.', warn: true };
     if (s.status !== 'edited' || r.reason === 'no-script') return { text: (r.cuesIn || parseCaptions(s.captions).length) + ' timed captions read. Run the edit pass and the caption files will be ready to download.', warn: false };
-    if (r.reason === 'mismatch') return { text: 'These captions don’t match this script — only ' + Math.round((r.share || 0) * 100) + '% of the words line up. Check that both came from the same audio guide.', warn: true };
+    if (r.reason === 'mismatch') return { text: 'These captions don’t match this guide’s transcript — only ' + Math.round((r.share || 0) * 100) + '% of the words line up. Check that both came from the same audio guide.', warn: true };
     var st = r.stats;
     return { text: 'Caption files ready — ' + st.cuesOut + ' caption' + plural(st.cuesOut) + ' on Descript’s timings' +
       (st.dropped ? ', ' + st.dropped + ' with no spoken words left out' : '') +
@@ -2209,7 +2455,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var open = captionOpen[s.id] != null ? captionOpen[s.id] : has;
     return '<details class="caption-fold" data-caption-fold="' + s.id + '"' + (open ? ' open' : '') + '>' +
       '<summary>Timed captions for search' + (has ? '' : ' <span class="caption-optional">— optional</span>') + '</summary>' +
-      '<p class="hint"><strong>Pull from Descript</strong> fills this in for you. By hand: in Descript, export this audio guide’s subtitles as <strong>.srt</strong>, open the file, and paste everything in it here. The Scriptorium puts the corrected script onto those timings and gives you an .srt and a .vtt.</p>' +
+      '<p class="hint"><strong>Pull from Descript</strong> fills this in for you. By hand: in Descript, export this audio guide’s subtitles as <strong>.srt</strong>, open the file, and paste everything in it here. The Scriptorium puts the corrected transcript onto those timings and gives you an .srt and a .vtt.</p>' +
       (s.descriptName ? '<p class="hint">Pulled from the Descript project <span class="caption-source">' + esc(s.descriptName) + '</span>.</p>' : '') +
       '<textarea data-field="captions" data-id="' + s.id + '" rows="5" placeholder="1&#10;00:00:00,000 --> 00:00:03,200&#10;welcome back my friends">' + esc(s.captions || '') + '</textarea>' +
       '<div class="caption-bar"><p class="caption-note' + (note.warn ? ' is-warn' : '') + '">' + esc(note.text) + '</p>' +
@@ -2228,12 +2474,12 @@ input:disabled, textarea:disabled { cursor: wait; }
   function fileSafe(name, fallback) {
     return String(name || '').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, ' ').replace(/\s+/g, ' ').replace(/^[ .]+|[ .]+$/g, '') || fallback;
   }
-  // The .srt and .vtt for each script that has captions ready, with names that cannot collide.
+  // The .srt and .vtt for each guide that has captions ready, with names that cannot collide.
   function captionFiles(sections, nested) {
     var files = [], used = {};
     sections.forEach(function (s) {
       if (!captionsReady(s)) return;
-      var base = fileSafe(s.name, 'Script ' + (state.sections.indexOf(s) + 1)), name = base, n = 2;
+      var base = fileSafe(s.name, 'Guide ' + (state.sections.indexOf(s) + 1)), name = base, n = 2;
       while (used[name.toLowerCase()]) { name = base + ' (' + n + ')'; n += 1; }
       used[name.toLowerCase()] = true;
       var cues = captionResult(s).cues;
@@ -2245,7 +2491,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   function saveCaptionZip(sections, zipName, nested) {
     syncFieldsFromDom();
     var files = captionFiles(sections, nested);
-    if (!files.length) { showFlash('No caption files are ready yet. A script needs its timed captions pasted in and the edit pass run.'); return Promise.resolve(); }
+    if (!files.length) { showFlash('No caption files are ready yet. A guide needs its timed captions and the edit pass run.'); return Promise.resolve(); }
     return useCap('downloads').then(function (downloads) {
       if (!downloads) { showFlash('Downloads aren’t available in this view, so caption files can’t be saved from here.'); return; }
       return downloads.save({ filename: zipName, data: zipFiles(files) }).then(function () {
@@ -2260,7 +2506,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function downloadCaptions(id) {
     var s = findSection(id);
-    if (s) saveCaptionZip([s], fileSafe(s.name, 'script') + ' captions.zip', false);
+    if (s) saveCaptionZip([s], fileSafe(s.name, 'guide') + ' captions.zip', false);
   }
   function downloadAllCaptions() { saveCaptionZip(state.sections, fileSafe(state.bookTitle, 'audio guide') + ' captions.zip', true); }
   /* ==================================================================
@@ -2423,7 +2669,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     });
   }
 
-  // Put one audio guide into the open book: its own script if it has one already, else an empty script, else a new one.
+  // Put one audio guide into the open book: its own card if it has one already, else an empty card, else a new one.
   function placeFromDescript(project, text, srt) {
     syncFieldsFromDom();
     var s = state.sections.filter(function (x) { return x.descriptId === project.id; })[0], isNew = !s;
@@ -2440,7 +2686,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     s.descriptName = project.name;
     s.raw = String(text).replace(/\s+$/, '');
     s.captions = String(srt || '').replace(/\s+$/, '');
-    state.approved = false; touchBook();
+    touchBook();
     return saveSection(s.id).then(function () { return saveCaptions(s.id); }).then(function () { return saveMeta(); }).then(function () { return isNew; });
   }
 
@@ -2498,7 +2744,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       return '<section class="pull-panel">' + head +
         '<p class="pull-progress">' + esc(line) + '</p>' +
         (pull.failed.length ? '<ul class="pull-failed">' + pull.failed.map(function (f) { return '<li><strong>' + esc(f.name) + '</strong> — ' + esc(f.why) + '</li>'; }).join('') + '</ul>' : '') +
-        (got ? '<p class="hint">Next: check the script names, list any names Descript tends to mishear under Words to Search For, then click Edit All Scripts.</p>' : '') +
+        (got ? '<p class="hint">Next: check the guide names, list any names Descript tends to mishear under Words to Search For, then click Edit All Guides.</p>' : '') +
         '<div class="pull-foot"><button type="button" class="btn" data-action="pull-more">Pull more</button></div>' +
         '</section>';
     }
@@ -2523,7 +2769,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       var projects = pull.projects.map(function (p) {
         return '<li><label class="pull-item"><input type="checkbox" data-action="pull-pick" data-id="' + escAttr(p.id) + '"' + (pull.selected[p.id] ? ' checked' : '') + '>' +
           '<span class="pull-name">' + esc(p.name) + '</span>' +
-          (have[p.id] ? '<span class="pull-tag">already in this book — pulling again replaces its transcript</span>' : '') + '</label></li>';
+          (have[p.id] ? '<span class="pull-tag">already in this book — pulling again replaces its 1st Draft Transcript</span>' : '') + '</label></li>';
       }).join('');
       // At the top of the Drive, one extra row reaches the projects that are in no folder.
       var loose = (!pull.path && !pull.unfiled) ? '<li><button type="button" class="pull-folder" data-action="pull-open" data-path="" data-unfiled="1"><span aria-hidden="true">▸</span> Not in a folder</button></li>' : '';
@@ -2540,12 +2786,12 @@ input:disabled, textarea:disabled { cursor: wait; }
           '<span class="pull-count"></span></div>' : '');
     }
     return '<section class="pull-panel">' + head +
-      '<p class="hint">Pick the audio guides to bring into this book. Each one becomes a script with its transcript and its timed captions. Nothing in Descript is changed.</p>' +
+      '<p class="hint">Pick the audio guides to bring into this book. Each one gets its own card, with its 1st Draft Transcript and its timed captions. Nothing in Descript is changed.</p>' +
       '<p class="pull-path">' + crumbs + '</p>' + body +
       '</section>';
   }
 
-  /* ---- Names — SOURCE-OF-TRUTH 6. A script pulled from Descript is named from its project. ---- */
+  /* ---- Names — SOURCE-OF-TRUTH 6. A guide pulled from Descript is named from its project. ---- */
 
   var BIBLE_BOOKS = ('Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Ezra|Nehemiah|Esther|Job|Psalms|Proverbs|Ecclesiastes|Song of Songs|Song of Solomon|' +
     'Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|' +
@@ -2560,7 +2806,12 @@ input:disabled, textarea:disabled { cursor: wait; }
     var t = String(name).replace(/\s*\(.*$/, '').replace(/^ED[_ ]+/i, '').split(/[_ ]+/).filter(Boolean), which = '';
     if (/^[123]$/.test(t[0] || '') && t.length > 1) which = t.shift();
     else { var m = /^([123])(?:st|nd|rd)?([A-Za-z].*)$/.exec(t[0] || ''); if (m) { which = m[1]; t[0] = m[2]; } }
-    var book = BOOK_BY_KEY[String(t.shift() || '').toLowerCase().replace(/[^a-z]/g, '')];
+    // A book of several words is tried first ("Song_of_Songs_3"); a single word otherwise.
+    var book = null;
+    for (var take = 3; take >= 1 && !book; take--) {
+      var found = BOOK_BY_KEY[t.slice(0, take).join('').toLowerCase().replace(/[^a-z]/g, '')];
+      if (found && (take === 1 || (/ /.test(found) && t.slice(0, take).every(function (w) { return /^[A-Za-z]+$/.test(w); })))) { book = found; t = t.slice(take); }
+    }
     if (!book) return name;
     if (which && !(Number(which) <= NUMBERED_BOOKS[book])) return name;        // "2 Isaiah", "3 Kings": not a book
     if (!which && NUMBERED_BOOKS[book] && book !== 'John') return name;         // "Samuel" alone: which one?
@@ -2587,6 +2838,850 @@ input:disabled, textarea:disabled { cursor: wait; }
     }).join(' ');
   }
   /* ==================================================================
+     Written scripts — a witness, not the master (SOURCE-OF-TRUTH 4.9)
+
+     What a teacher wrote before recording is kept here as a permanent
+     reference for the guide it belongs to. The teacher did not read it
+     out word for word, so nothing here ever makes a transcript match it,
+     and nothing here edits a written script.
+
+       written/<id>       title, where it belongs (book, chapter), length,
+                          and a fingerprint of its wording
+       writtenText/<id>   the text itself
+
+     The two are kept apart so the whole list can be read, and every guide
+     matched, without fetching a single script's text. The text is read
+     only when it is needed: to show it, or to send it with its guide's
+     one edit call (4.6).
+
+     Matching is by title and by wording. The fingerprint is the 96
+     smallest hashes of every run of four words; two texts that share
+     runs of words share hashes. It is arithmetic, not a call to Claude.
+
+     Written scripts are not part of any book: clearing or deleting a book
+     never touches them.
+     ================================================================== */
+
+  var WRITTEN_MAX = 200000;          // characters one written script may hold (the store's document cap is 256 KiB)
+  var WRITTEN_FILE_MAX = 8000000;    // bytes of a file read from the computer
+  var SKETCH_SIZE = 96, SKETCH_RUN = 4;
+  var SKETCH_BY_WORDING = 6;         // shared hashes that make a match with no help from the title. Every guide opens and
+                                     // closes with the same few words ("Welcome back, my friends"), so one or two shared prove nothing.
+  var writtenIndex = [];             // [{ id, title, book, chapter, part, chars, at, source, sourceName, sketch }]
+  var writtenStamp = 0;              // goes up whenever the list changes, so remembered matches are worked out again
+  var writtenMore = false;           // true when the store holds more than one read returns
+  var writtenTexts = {};             // id → text, kept once read
+  var writtenQuery = '';
+  var writtenForm = null;            // the Add form: { title, link, text, source, sourceName, busy, error }
+  var writtenOpen = null;            // the one being read: { id, text, loading, error }
+  var writtenPick = {};              // guide id → true while its chooser is open
+  var writtenDeleting = '';
+
+  /* ---- Fingerprints ---- */
+
+  function sketchWords(text) { return (String(text || '').toLowerCase().replace(/[’']/g, '').match(/[a-z0-9À-ɏ]+/g) || []); }
+  function fnv(str) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return h >>> 0;
+  }
+  // The smallest hashes of every run of four words. Sorted, so two can be compared in one pass.
+  function textSketch(text) {
+    var w = sketchWords(text), seen = {}, hashes = [];
+    for (var i = 0; i + SKETCH_RUN <= w.length; i++) {
+      var h = fnv(w.slice(i, i + SKETCH_RUN).join(' '));
+      if (!seen[h]) { seen[h] = 1; hashes.push(h); }
+    }
+    return hashes.sort(function (a, b) { return a - b; }).slice(0, SKETCH_SIZE);
+  }
+  // How many of the smallest hashes of the two texts taken together are in both. 0 for unrelated texts;
+  // a script and the recording made from it share dozens.
+  function sketchShared(a, b) {
+    if (!a || !b || !a.length || !b.length) return 0;
+    var i = 0, j = 0, taken = 0, shared = 0, limit = Math.min(SKETCH_SIZE, Math.max(a.length, b.length));
+    while (taken < limit && i < a.length && j < b.length) {
+      if (a[i] === b[j]) { shared += 1; i += 1; j += 1; }
+      else if (a[i] < b[j]) i += 1; else j += 1;
+      taken += 1;
+    }
+    return shared;
+  }
+  var sketchMemo = {};
+  function guideSketch(s) {
+    var memo = sketchMemo[s.id];
+    if (memo && memo.raw === s.raw) return memo.sketch;
+    var sketch = textSketch(s.raw);
+    sketchMemo[s.id] = { raw: s.raw, sketch: sketch };
+    return sketch;
+  }
+
+  /* ---- Where a title says a script belongs ---- */
+
+  // "Luke 24 — Jones" → { book: 'Luke', chapter: 24, part: '' }; "Isaiah – Introduction" → { book: 'Isaiah', chapter: 0, part: 'intro' }.
+  function placeOf(title) {
+    var t = String(title || ''), found = findBook(t), out = { book: found ? found.book : '', chapter: 0, part: '' };
+    if (/\bintro(duction)?\b/i.test(t)) out.part = 'intro'; else if (/\b(conclusion|outro|wrap[- ]?up)\b/i.test(t)) out.part = 'conclusion';
+    var ch = /\bchapter\s+(\d{1,3})\b/i.exec(t) || (found ? /^\s*[-–—:,]?\s*(\d{1,3})\b/.exec(t.slice(found.end)) : null);
+    if (ch && !out.part) out.chapter = Number(ch[1]);
+    if (out.book && CHAPTERS[out.book] === 1 && !out.part) out.chapter = 1;
+    return out;
+  }
+  function placeLabel(p) {
+    if (!p || !p.book) return '';
+    return displayBook(p.book) + (p.part === 'intro' ? ' – Introduction' : p.part === 'conclusion' ? ' – Conclusion' : p.chapter ? ' ' + p.chapter : '');
+  }
+  function samePlace(a, b) { return !!(a.book && a.book === b.book && ((a.part && a.part === b.part) || (!a.part && !b.part && a.chapter && a.chapter === b.chapter))); }
+
+  /* ---- Matching a guide to its written script ---- */
+
+  var matchMemo = {};
+  // { entry, how, byHand } or null. `how` is a few words the card shows, so the reader sees why this one.
+  function matchWritten(s) {
+    if (!s || s.writtenId === 'none' || !writtenIndex.length) return null;
+    var key = [writtenStamp, s.writtenId, s.name, state.bookTitle, s.raw.length].join('|'), memo = matchMemo[s.id];
+    if (memo && memo.key === key && memo.raw === s.raw) return memo.result;
+    var result = null;
+    if (s.writtenId) {
+      var chosen = writtenIndex.filter(function (w) { return w.id === s.writtenId; })[0];
+      if (chosen) result = { entry: chosen, how: 'chosen by hand', byHand: true };
+    }
+    if (!result) {
+      var place = placeOf(s.name), sketch = s.raw.trim() ? guideSketch(s) : [], best = null;
+      if (!place.book) { var g = guideRef(s); place.book = g.book; if (!place.part && !place.chapter) place.chapter = g.chapter; }
+      writtenIndex.forEach(function (w) {
+        var titled = samePlace(place, w), shared = sketchShared(sketch, w.sketch);
+        if (!titled && shared < SKETCH_BY_WORDING) return;
+        var score = (titled ? 1000 : 0) + shared;
+        if (!best || score > best.score || (score === best.score && w.at > best.entry.at)) best = { entry: w, score: score, titled: titled, shared: shared };
+      });
+      if (best) result = { entry: best.entry, byHand: false, how: best.titled ? (best.shared >= 2 ? 'matched by title and wording' : 'matched by title') : 'matched by wording' };
+    }
+    matchMemo[s.id] = { key: key, raw: s.raw, result: result };
+    return result;
+  }
+
+  // The written script to send with a guide's edit call: resolves { id, title, text }, { error } when it could
+  // not be read, or null when the guide has none.
+  function writtenFor(s) {
+    var m = matchWritten(s);
+    if (!m) return Promise.resolve(null);
+    return readWrittenText(m.entry.id).then(function (text) {
+      return { id: m.entry.id, title: m.entry.title, text: text };
+    }, function () {
+      return { error: 'The written script “' + m.entry.title + '” could not be read, so this pass ran without it. Redo this one to try again.' };
+    });
+  }
+
+  /* ---- The store ---- */
+
+  function newWrittenId() { return 'w' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function entryFromDoc(id, d) {
+    d = d || {};
+    var place = placeOf(d.title);
+    return { id: id, title: String(d.title || ''), book: place.book, chapter: place.chapter, part: place.part, chars: Number(d.chars) || 0, at: Number(d.at) || 0,
+             source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''),
+             sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [] };
+  }
+  function loadWrittenIndex() {
+    if (!dbRoot) return Promise.resolve();
+    return readAll('written').then(function (qs) {
+      var docs = (qs && qs.docs) || [];
+      writtenIndex = docs.map(function (d) { return entryFromDoc(d.id, d.data()); }).filter(function (w) { return w.title; });
+      writtenMore = docs.length >= 1000; writtenStamp += 1;
+    }).catch(function (err) { console.warn('Scriptorium: could not read the written scripts', err); });
+  }
+  function readWrittenText(id) {
+    if (writtenTexts[id] != null) return Promise.resolve(writtenTexts[id]);
+    if (!dbRoot) return Promise.reject({ code: 'unavailable' });
+    return dbRoot.doc('writtenText/' + id).get().then(function (snap) {
+      if (!snap || !snap.exists) throw { code: 'not_found' };
+      writtenTexts[id] = String((snap.data() || {}).text || '');
+      return writtenTexts[id];
+    });
+  }
+
+  /* ---- The Written Scripts page ---- */
+
+  function openWritten() {
+    view = 'written'; flash = null; writtenForm = null; writtenOpen = null; writtenQuery = ''; dbStatus = 'loading';
+    paint();
+    function done() { dbStatus = 'ready'; paint(); }
+    return loadWrittenIndex().then(done, done);
+  }
+  function writtenShown() {
+    var q = writtenQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return writtenIndex.filter(function (w) {
+      var hay = (w.title + ' ' + placeLabel(w) + ' ' + w.sourceName).toLowerCase();
+      return q.every(function (word) { return hay.indexOf(word) !== -1; });
+    }).sort(function (a, b) { return naturalCompare(a.title, b.title); });
+  }
+  function sourceLabel(w) { return w.source === 'drive' ? 'from Google Drive' : w.source === 'file' ? 'from a file' : 'pasted in'; }
+  function renderWrittenRow(w) {
+    var busy = writtenDeleting === w.id, place = placeLabel(w);
+    var bits = [place || 'no book and chapter found in the title', w.chars.toLocaleString('en-US') + ' characters', sourceLabel(w) + (w.sourceName ? ' (' + w.sourceName + ')' : '')];
+    if (w.at) bits.push('added ' + relTime(w.at));
+    return '<article class="book-row' + (busy ? ' is-busy' : '') + '">' +
+      '<button type="button" class="book-open" data-action="written-read" data-id="' + escAttr(w.id) + '"' + (busy ? ' disabled' : '') + '>' +
+      '<span class="book-name">' + esc(w.title) + '</span>' +
+      '<span class="book-meta">' + esc(busy ? 'Deleting…' : bits.join(' · ')) + '</span></button>' +
+      '<button type="button" class="link-btn book-delete" data-action="written-delete" data-id="' + escAttr(w.id) + '"' + (busy ? ' disabled' : '') + '>Delete</button>' +
+      '</article>';
+  }
+  function renderWrittenList() {
+    var shown = writtenShown();
+    if (!writtenIndex.length) return '<p class="library-empty">No written scripts yet. Add one with <strong>+ Add Written Script</strong> — everyone on the team will see it here, and it will be matched to its audio guide.</p>';
+    if (!shown.length) return '<p class="library-empty">No written script has “' + esc(writtenQuery.trim()) + '” in its title.</p>';
+    return '<div class="book-list">' + shown.map(renderWrittenRow).join('') + '</div>' +
+      (writtenMore ? '<p class="notice notice-warn">Only the first 1,000 written scripts are listed. Search by title to find one that is missing here.</p>' : '');
+  }
+  function writtenFormNote() {
+    var f = writtenForm, n = String(f.text || '').length;
+    if (!n) return '';
+    return n.toLocaleString('en-US') + ' characters' + (f.source === 'drive' ? ' · from Google Drive' : '') + (f.sourceName ? (f.source === 'drive' ? ' (' : ' · from ') + f.sourceName + (f.source === 'drive' ? ')' : '') : '') +
+      (n > WRITTEN_MAX ? ' — too long to keep in one piece. Save it as two written scripts.' : '');
+  }
+  function renderWrittenForm() {
+    var f = writtenForm, dis = f.busy ? ' disabled' : '';
+    return '<section class="pull-panel written-form">' +
+      '<div class="pull-head"><h3>Add a written script</h3></div>' +
+      '<p class="hint">This is what the teacher wrote before recording. It is kept as you give it, as a reference: the edit pass never changes a transcript to match it.</p>' +
+      '<label class="written-label" for="written-title">Title</label>' +
+      '<input id="written-title" class="written-input" data-wfield="title" type="text" placeholder="e.g. Luke 24 — Jones" value="' + escAttr(f.title) + '"' + dis + '>' +
+      '<p class="hint">Start with the book and chapter (“Luke 24”, “Isaiah – Introduction”). That is how it finds its audio guide.</p>' +
+      '<label class="written-label" for="written-link">From a Google Doc or Sheet</label>' +
+      '<div class="written-row"><input id="written-link" class="written-input" data-wfield="link" type="text" placeholder="Paste the link to the Doc or Sheet" value="' + escAttr(f.link) + '"' + dis + '>' +
+      '<button type="button" class="btn" data-action="written-fetch"' + dis + '>' + (f.busy === 'drive' ? 'Reading…' : 'Bring it in') + '</button></div>' +
+      '<label class="written-label" for="written-file">From a file on this computer</label>' +
+      '<input id="written-file" class="written-file" data-action="written-file" type="file" accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"' + dis + '>' +
+      '<p class="hint">A Word file (.docx) or a text file (.txt). For anything else — a PDF, Pages, an older .doc — open it and paste the text below.</p>' +
+      '<label class="written-label" for="written-text">The written script</label>' +
+      '<textarea id="written-text" class="written-text-box" data-wfield="text" rows="12" placeholder="Or paste the written script here"' + dis + '>' + esc(f.text) + '</textarea>' +
+      '<p class="hint written-count">' + esc(writtenFormNote()) + '</p>' +
+      (f.error ? '<p class="notice notice-warn">' + esc(f.error) + '</p>' : '') +
+      '<div class="pull-foot"><button type="button" class="btn btn-edit" data-action="written-save"' + dis + '>' + (f.busy === 'save' ? 'Saving…' : 'Save written script') + '</button>' +
+      '<button type="button" class="btn btn-ghost" data-action="written-cancel"' + dis + '>Cancel</button></div>' +
+      '</section>';
+  }
+  function renderWrittenOpen() {
+    var o = writtenOpen, w = writtenIndex.filter(function (x) { return x.id === o.id; })[0];
+    if (!w) return '';
+    return '<section class="pull-panel written-form">' +
+      '<div class="pull-head"><h3>' + esc(w.title) + '</h3><button type="button" class="link-btn" data-action="written-close">Close</button></div>' +
+      '<p class="hint">' + esc((placeLabel(w) ? 'Matches guides on ' + placeLabel(w) + '. ' : 'No book and chapter found in the title, so it is matched by its wording alone. ') + 'Kept as written: to change the text, delete this one and add it again.') + '</p>' +
+      '<label class="written-label" for="written-rename">Title</label>' +
+      '<div class="written-row"><input id="written-rename" class="written-input" data-wfield="rename" type="text" value="' + escAttr(o.title != null ? o.title : w.title) + '">' +
+      '<button type="button" class="btn" data-action="written-rename"' + (o.busy ? ' disabled' : '') + '>' + (o.busy ? 'Saving…' : 'Save title') + '</button></div>' +
+      (o.error ? '<p class="notice notice-warn">' + esc(o.error) + '</p>' : '') +
+      (o.loading ? '<p class="hint">Loading…</p>' : '<div class="written-text">' + esc(o.text || '') + '</div>') +
+      '</section>';
+  }
+  function renderWritten() {
+    var loading = dbStatus === 'loading', n = writtenIndex.length;
+    return (
+      '<div class="wrap">' +
+      '<p class="back-line"><button type="button" class="link-btn" data-action="go-library">← All books</button></p>' +
+      '<header class="hero">' +
+      '<p class="eyebrow">Through the Word · The Scriptorium</p>' +
+      '<h1 class="library-title">Written Scripts</h1>' +
+      '<p class="dek">What each teacher wrote before recording, kept as a permanent reference for checking that a correction is accurate and is what the teacher meant. A written script is evidence for the edit pass. It is never copied into a transcript, and it is never edited here.</p>' +
+      '</header>' +
+      noticeHtml() +
+      '<div class="action-bar">' +
+      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || writtenForm ? ' disabled' : '') + '>+ Add Written Script</button></div>' +
+      '<p class="status-line">' + (loading ? 'Loading the written scripts…' : n + ' written script' + plural(n)) + '</p>' +
+      '<div class="action-bar-end"><input class="written-search" data-wfield="query" type="search" placeholder="Search by title, book or chapter" aria-label="Search written scripts" value="' + escAttr(writtenQuery) + '"' + (loading ? ' disabled' : '') + '></div>' +
+      '</div>' +
+      (writtenForm ? renderWrittenForm() : '') +
+      (writtenOpen ? renderWrittenOpen() : '') +
+      (loading ? renderSkeleton() : '<div id="written-list">' + renderWrittenList() + '</div>') +
+      versionLine() +
+      '</div>' + renderModal()
+    );
+  }
+
+  /* ---- Adding one ---- */
+
+  function startWrittenForm() {
+    writtenOpen = null;
+    writtenForm = { title: '', link: '', text: '', source: 'paste', sourceName: '', busy: '', error: '' };
+    paint();
+    var box = root.querySelector('[data-wfield="title"]');
+    if (box) { try { box.focus(); } catch (e) {} }
+  }
+  function writtenFail(message) { if (writtenForm) { writtenForm.busy = ''; writtenForm.error = message; paint(); } }
+  // A title to start from, when the reader has not typed one: the file or Doc's name without its ending.
+  function titleFromName(name) { return String(name || '').replace(/\.(docx|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function takeWrittenText(text, source, name) {
+    if (!writtenForm) return;
+    text = String(text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!text) { writtenFail('Nothing could be read from that. Open it and paste the text in instead.'); return; }
+    writtenForm.text = text; writtenForm.source = source; writtenForm.sourceName = String(name || ''); writtenForm.busy = ''; writtenForm.error = '';
+    if (!writtenForm.title.trim() && name) writtenForm.title = titleFromName(name);
+    paint();
+  }
+
+  // One plain sentence per kind of failure reaching Google Drive, each with the thing that fixes it.
+  function driveProblem(err) {
+    var code = err && err.code;
+    if (code === 'needs_reauth') return 'Google Drive needs reconnecting. In Claude, open Settings → Connectors, reconnect Google Drive, then try again.';
+    if (code === 'server_not_connected' || code === 'server_not_found' || code === 'selection_required') return 'Google Drive isn’t connected for you yet. In Claude, open Settings → Connectors, add Google Drive, then try again. Or paste the text in below.';
+    if (code === 'not_in_manifest' || code === 'approval_required' || code === 'consent_required') return 'This page wasn’t allowed to read from Google Drive. Reload the page and choose Allow when it asks, or paste the text in below.';
+    if (code === 'blocked_by_policy') return 'Your organization doesn’t allow this page to read from Google Drive. Paste the text in below instead.';
+    if (code === 'server_unavailable' || code === 'rate_limited') return 'Google Drive didn’t answer just now. Wait a minute and try again.';
+    if (code === 'not_granted' || code === 'capability_disabled' || code === 'capability_removed' || code === 'no_tool') return 'Google Drive can’t be read from this view. Paste the text in below instead.';
+    if (code === 'tool_error') return 'Google Drive couldn’t open that file. Check that the link is right and that you can open it yourself, or paste the text in below.';
+    return 'Couldn’t read from Google Drive: ' + ((err && err.message) || 'unknown error') + '. Paste the text in below instead.';
+  }
+  // The file id inside a Docs, Sheets or Drive link — or the id on its own.
+  function driveFileId(link) {
+    link = String(link || '').trim();
+    var m = /\/d\/([A-Za-z0-9_-]{15,})/.exec(link) || /[?&]id=([A-Za-z0-9_-]{15,})/.exec(link) || /^([A-Za-z0-9_-]{20,})$/.exec(link);
+    return m ? m[1] : '';
+  }
+  // What Drive sent back for a file, as { text, name }. The connector answers in words, sometimes wrapped in JSON.
+  function driveFileText(res) {
+    var text = toolText(res), name = '', data = null;
+    if (/^\s*\{/.test(text)) { try { data = JSON.parse(text); } catch (e) { data = null; } }
+    if (!data && res && res.payload && typeof res.payload === 'object') data = res.payload;
+    if (data && typeof data === 'object') {
+      var body = ['content', 'text', 'fileContent', 'body', 'markdown'].map(function (k) { return data[k]; }).filter(function (v) { return typeof v === 'string' && v.trim(); })[0];
+      if (body) text = body;
+      name = String(data.title || data.name || '');
+    }
+    return { text: String(text || ''), name: name };
+  }
+  function fetchWrittenFromDrive() {
+    if (!writtenForm || writtenForm.busy) return;
+    var id = driveFileId(writtenForm.link);
+    if (!id) { writtenFail('That doesn’t look like a link to a Google Doc or Sheet. Open the file, copy the link from the address bar, and paste it here.'); return; }
+    writtenForm.busy = 'drive'; writtenForm.error = ''; paint();
+    useCap('mcp').then(function (mcp) {
+      if (!mcp) throw { code: 'capability_disabled' };
+      return mcp.listTools().then(function (list) {
+        var server = ((list && list.servers) || []).filter(function (sv) { return sv.server === 'Google Drive'; })[0];
+        if (!server) throw { code: 'server_not_connected' };
+        if (server.authStatus === 'needs_reauth') throw { code: 'needs_reauth' };
+        var tool = (server.tools || []).filter(function (t) { return /read.*content/i.test(t.name); })[0];
+        if (!tool) throw { code: 'no_tool' };
+        return mcp.callTool('Google Drive', tool.name, { fileId: id }, { cache: false });
+      });
+    }).then(function (res) {
+      var got = driveFileText(res);
+      takeWrittenText(got.text, 'drive', got.name);
+    }).catch(function (err) {
+      console.warn('Scriptorium: could not read from Google Drive', err);
+      writtenFail(driveProblem(err));
+    });
+  }
+
+  /* ---- Reading a file from the computer ---- */
+
+  // One entry out of a .zip (a .docx is one), as bytes — or null when it is not there.
+  function zipEntry(bytes, wanted) {
+    var view8 = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), end = -1;
+    for (var i = bytes.length - 22; i >= 0 && i >= bytes.length - 66000; i--) { if (view8.getUint32(i, true) === 0x06054b50) { end = i; break; } }
+    if (end < 0) return Promise.resolve(null);
+    var count = view8.getUint16(end + 10, true), at = view8.getUint32(end + 16, true), dec = new TextDecoder();
+    for (var n = 0; n < count && at + 46 <= bytes.length; n++) {
+      if (view8.getUint32(at, true) !== 0x02014b50) break;
+      var method = view8.getUint16(at + 10, true), size = view8.getUint32(at + 20, true), full = view8.getUint32(at + 24, true), nameLen = view8.getUint16(at + 28, true);
+      var extraLen = view8.getUint16(at + 30, true), commentLen = view8.getUint16(at + 32, true), local = view8.getUint32(at + 42, true);
+      var name = dec.decode(bytes.subarray(at + 46, at + 46 + nameLen));
+      if (name === wanted) {
+        if (local + 30 > bytes.length || full > 40000000) return Promise.resolve(null);     // not a file, or far too large to be a script
+        var start = local + 30 + view8.getUint16(local + 26, true) + view8.getUint16(local + 28, true), data = bytes.subarray(start, start + size);
+        if (method === 0) return Promise.resolve(data);
+        if (method !== 8 || typeof DecompressionStream !== 'function') return Promise.resolve(null);
+        return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer().then(function (buf) { return new Uint8Array(buf); });
+      }
+      at += 46 + nameLen + extraLen + commentLen;
+    }
+    return Promise.resolve(null);
+  }
+  function xmlText(str) {
+    return String(str).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&#x([0-9a-f]+);/gi, function (m, hex) { return String.fromCodePoint(parseInt(hex, 16)); })
+      .replace(/&#(\d+);/g, function (m, d) { return String.fromCodePoint(Number(d)); }).replace(/&amp;/g, '&');
+  }
+  // The words of a Word document's main part: one line per paragraph, text that was deleted with tracked changes left out.
+  function docxXmlToText(xml) {
+    var body = String(xml).replace(/^[\s\S]*?<w:body[^>]*>/, '');
+    return body.split(/<\/w:p>/).map(function (para) {
+      var out = '', re = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/>|<w:(?:br|cr)\b[^>]*\/>/g, m;
+      while ((m = re.exec(para))) out += m[1] != null ? xmlText(m[1]) : (/^<w:tab/.test(m[0]) ? '\t' : '\n');
+      return out;
+    }).join('\n');
+  }
+  function docxText(buffer) {
+    return zipEntry(new Uint8Array(buffer), 'word/document.xml').then(function (part) {
+      if (!part) throw { code: 'not_docx' };
+      return docxXmlToText(new TextDecoder().decode(part));
+    });
+  }
+  function readWrittenFile(file) {
+    if (!writtenForm || !file) return;
+    var name = String(file.name || '');
+    if (file.size > WRITTEN_FILE_MAX) { writtenFail('That file is too large to read here. Open it and paste the text in instead.'); return; }
+    writtenForm.busy = 'file'; writtenForm.error = ''; paint();
+    var reading;
+    if (/\.docx$/i.test(name)) reading = file.arrayBuffer().then(docxText);
+    else if (/\.(txt|md|markdown|text)$/i.test(name) || /^text\//.test(file.type || '')) reading = file.text();
+    else reading = Promise.reject({ code: 'kind' });
+    reading.then(function (text) { takeWrittenText(text, 'file', name); }, function (err) {
+      console.warn('Scriptorium: could not read the file', err);
+      writtenFail((err && err.code === 'kind')
+        ? 'That kind of file can’t be read here. Use a Word file (.docx) or a text file (.txt), or open it and paste the text in below.'
+        : 'That file couldn’t be read. If it is a Word file, open it and paste the text in below.');
+    });
+  }
+
+  /* ---- Saving, reading, renaming, deleting ---- */
+
+  function writtenSaveProblem(err) {
+    var code = err && err.code;
+    if (code === 'invalid_argument') return 'This couldn’t be saved. Either the script is too long to keep in one piece, or your access to this artifact is view-only — ask its owner to make you a Contributor.';
+    if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full. Remove something that is no longer needed, then try again.';
+    return 'This couldn’t be saved just now — try again.';
+  }
+  function saveWritten() {
+    var f = writtenForm;
+    if (!f || f.busy) return;
+    var title = String(f.title || '').replace(/\s+/g, ' ').trim(), text = String(f.text || '').replace(/\r\n?/g, '\n').trim();
+    if (!title) { writtenFail('Give it a title first — the book and chapter, such as “Luke 24”.'); return; }
+    if (!text) { writtenFail('There is no script yet. Bring one in from Google Drive or a file, or paste it in.'); return; }
+    if (text.length > WRITTEN_MAX) { writtenFail('This is too long to keep in one piece. Save it as two written scripts.'); return; }
+    if (!dbRoot) { writtenFail('Saved work can’t be reached in this view.'); return; }
+    f.busy = 'save'; f.error = ''; paint();
+    var id = newWrittenId();
+    var doc = { title: title, chars: text.length, at: Date.now(), source: f.source === 'drive' || f.source === 'file' ? f.source : 'paste', sourceName: String(f.sourceName || '').slice(0, 200), sketch: textSketch(text) };
+    // The text first, the listing last: a script that is listed always has its text.
+    dbRoot.doc('writtenText/' + id).set({ text: text }).then(function () { return dbRoot.doc('written/' + id).set(doc); }).then(function () {
+      writtenTexts[id] = text;
+      writtenIndex.push(entryFromDoc(id, doc)); writtenStamp += 1;
+      writtenForm = null;
+      var place = placeLabel(placeOf(title));
+      flash = 'Saved “' + title + '”. ' + (place ? 'It will be matched to guides on ' + place + '.' : 'No book and chapter were found in its title, so it will be matched by its wording alone.');
+      paint();
+    }).catch(function (err) {
+      console.warn('Scriptorium: could not save the written script', err);
+      writtenFail(writtenSaveProblem(err));
+    });
+  }
+  function readWritten(id) {
+    writtenForm = null; writtenOpen = { id: id, text: '', loading: true, error: '', title: null, busy: false };
+    paint();
+    readWrittenText(id).then(function (text) {
+      if (writtenOpen && writtenOpen.id === id) { writtenOpen.text = text; writtenOpen.loading = false; paint(); }
+    }, function () {
+      if (writtenOpen && writtenOpen.id === id) { writtenOpen.loading = false; writtenOpen.error = 'Its text couldn’t be read just now — close this and try again.'; paint(); }
+    });
+  }
+  function renameWritten() {
+    var o = writtenOpen, w = o && writtenIndex.filter(function (x) { return x.id === o.id; })[0];
+    if (!w || o.busy) return;
+    var box = root.querySelector('[data-wfield="rename"]'), title = String(box ? box.value : '').replace(/\s+/g, ' ').trim();
+    if (!title) { o.error = 'A written script needs a title.'; paint(); return; }
+    if (title === w.title) return;
+    o.busy = true; o.error = ''; o.title = title; paint();
+    dbRoot.doc('written/' + w.id).set({ title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sketch: w.sketch }).then(function () {
+      var place = placeOf(title);
+      w.title = title; w.book = place.book; w.chapter = place.chapter; w.part = place.part; writtenStamp += 1;
+      o.busy = false; o.title = null; paint();
+    }).catch(function (err) {
+      console.warn('Scriptorium: could not rename the written script', err);
+      o.busy = false; o.error = writtenSaveProblem(err); paint();
+    });
+  }
+  function askDeleteWritten(id) {
+    var w = writtenIndex.filter(function (x) { return x.id === id; })[0];
+    if (!w) return;
+    openConfirm({
+      title: 'Delete “' + w.title + '”?',
+      body: 'This removes the written script for everyone on the team, and it can’t be undone. Guides already edited with it keep their Edited and Final Transcripts; they will simply have no written script matched from now on.',
+      warn: '', confirmLabel: 'Delete this written script',
+      onConfirm: function () { deleteWritten(id); }
+    });
+  }
+  // The listing goes first, so a script that could only be half removed is at least no longer matched or shown.
+  function deleteWritten(id) {
+    confirmState = null; writtenDeleting = id; if (writtenOpen && writtenOpen.id === id) writtenOpen = null;
+    paint();
+    dbRoot.doc('written/' + id).delete().then(function () {
+      writtenIndex = writtenIndex.filter(function (w) { return w.id !== id; }); writtenStamp += 1; delete writtenTexts[id];
+      return dbRoot.doc('writtenText/' + id).delete().catch(function () {});
+    }).then(function () { writtenDeleting = ''; flash = 'Written script deleted.'; paint(); }, function (err) {
+      console.warn('Scriptorium: could not delete the written script', err);
+      writtenDeleting = ''; flash = 'That written script couldn’t be deleted — try again.'; paint();
+    });
+  }
+
+  /* ---- On a guide's card ---- */
+
+  // One line saying which written script stands behind this guide, and how it was matched — with a way to change it.
+  function renderWrittenLine(s) {
+    if (!writtenIndex.length) return '';
+    var m = matchWritten(s), id = escAttr(s.id), html;
+    if (writtenPick[s.id]) {
+      var options = writtenIndex.slice().sort(function (a, b) { return naturalCompare(a.title, b.title); }).map(function (w) {
+        return '<option value="' + escAttr(w.id) + '"' + (s.writtenId === w.id ? ' selected' : '') + '>' + esc(w.title) + '</option>';
+      }).join('');
+      html = '<label class="speed-pick">Written script <select data-action="set-written" data-id="' + id + '">' +
+        '<option value=""' + (!s.writtenId ? ' selected' : '') + '>Let the page match one</option>' +
+        '<option value="none"' + (s.writtenId === 'none' ? ' selected' : '') + '>Use none for this guide</option>' + options + '</select></label> ' +
+        '<button type="button" class="link-btn" data-action="written-pick-close" data-id="' + id + '">Cancel</button>';
+    } else if (m) {
+      html = 'Written script: <strong>' + esc(m.entry.title) + '</strong> <span class="written-how">— ' + esc(m.how) + '</span> ' +
+        '<button type="button" class="link-btn" data-action="written-pick" data-id="' + id + '">Change</button>';
+    } else {
+      html = (s.writtenId === 'none' ? 'No written script is used for this guide.' : 'No written script matches this guide.') +
+        ' <button type="button" class="link-btn" data-action="written-pick" data-id="' + id + '">Choose one</button>';
+    }
+    var note = '';
+    if (s.status === 'edited') {
+      var used = s.writtenUsed && s.writtenUsed.id;
+      if (m && used !== m.entry.id) note = used ? 'The edit pass used “' + s.writtenUsed.title + '”, not this one. Redo this one to use it.' : 'The edit pass ran before this was matched. Redo this one to use it.';
+      else if (!m && used) note = 'The edit pass used “' + s.writtenUsed.title + '”.';
+    }
+    return '<p class="written-line">' + html + (note ? ' <span class="written-note">' + esc(note) + '</span>' : '') + '</p>';
+  }
+  function setWritten(id, value) {
+    var s = findSection(id);
+    if (!s) return;
+    value = String(value || '');
+    delete writtenPick[id];
+    if (s.writtenId !== value) { s.writtenId = value; touchBook(); saveSection(id); saveMetaSoon(); }
+    paintSection(id);
+  }
+  /* ==================================================================
+     References — checked, and never silently changed (SOURCE-OF-TRUTH 4.10)
+
+     The edit pass works out each reference from memory, and it can be
+     wrong: Luke 24:1 has come back as Luke 1:1. Everything here is code,
+     so it costs nothing (4.6), and it runs each time a card is drawn —
+     so a guide edited before this existed is checked too.
+
+       1. the reference exists            Luke has 24 chapters, not 31
+       2. it agrees with what was said    "verse one" in a guide on Luke 24
+                                          is Luke 24:1
+       3. it agrees with the written      the reference the teacher wrote
+          script, when there is one       beside the same quotation
+
+     When a check disagrees the reference is marked to check and the
+     likelier ones are listed. A person chooses: nothing here replaces a
+     reference on its own.
+
+     Not here yet: matching a quotation's wording against a Bible carried
+     in the page. `bibleCandidates` is the one place it plugs in.
+     ================================================================== */
+
+  // Every book, in the Bible's order, with how many chapters it has.
+  var CANON = [['Genesis', 50], ['Exodus', 40], ['Leviticus', 27], ['Numbers', 36], ['Deuteronomy', 34], ['Joshua', 24], ['Judges', 21], ['Ruth', 4],
+    ['1 Samuel', 31], ['2 Samuel', 24], ['1 Kings', 22], ['2 Kings', 25], ['1 Chronicles', 29], ['2 Chronicles', 36], ['Ezra', 10], ['Nehemiah', 13], ['Esther', 10],
+    ['Job', 42], ['Psalms', 150], ['Proverbs', 31], ['Ecclesiastes', 12], ['Song of Songs', 8], ['Isaiah', 66], ['Jeremiah', 52], ['Lamentations', 5], ['Ezekiel', 48],
+    ['Daniel', 12], ['Hosea', 14], ['Joel', 3], ['Amos', 9], ['Obadiah', 1], ['Jonah', 4], ['Micah', 7], ['Nahum', 3], ['Habakkuk', 3], ['Zephaniah', 3], ['Haggai', 2],
+    ['Zechariah', 14], ['Malachi', 4], ['Matthew', 28], ['Mark', 16], ['Luke', 24], ['John', 21], ['Acts', 28], ['Romans', 16], ['1 Corinthians', 16], ['2 Corinthians', 13],
+    ['Galatians', 6], ['Ephesians', 6], ['Philippians', 4], ['Colossians', 4], ['1 Thessalonians', 5], ['2 Thessalonians', 3], ['1 Timothy', 6], ['2 Timothy', 4],
+    ['Titus', 3], ['Philemon', 1], ['Hebrews', 13], ['James', 5], ['1 Peter', 5], ['2 Peter', 3], ['1 John', 5], ['2 John', 1], ['3 John', 1], ['Jude', 1], ['Revelation', 22]];
+  var CHAPTERS = {};
+  CANON.forEach(function (b) { CHAPTERS[b[0]] = b[1]; });
+
+  // Other ways a book is written. A numbered book is listed once, without its number.
+  var BOOK_ALIASES = { Psalms: 'psalm|ps|pss', 'Song of Songs': 'song of solomon|canticles', Revelation: 'revelations|rev',
+    Genesis: 'gen', Exodus: 'exod', Leviticus: 'lev', Deuteronomy: 'deut', Joshua: 'josh', Judges: 'judg', Samuel: 'sam', Kings: 'kgs', Chronicles: 'chron|chr',
+    Nehemiah: 'neh', Esther: 'esth', Proverbs: 'prov', Ecclesiastes: 'eccl|eccles', Isaiah: 'isa', Jeremiah: 'jer', Lamentations: 'lam', Ezekiel: 'ezek',
+    Daniel: 'dan', Hosea: 'hos', Obadiah: 'obad', Micah: 'mic', Nahum: 'nah', Habakkuk: 'hab', Zephaniah: 'zeph', Haggai: 'hag', Zechariah: 'zech', Malachi: 'mal',
+    Matthew: 'matt', Romans: 'rom', Corinthians: 'cor', Galatians: 'gal', Ephesians: 'eph', Philippians: 'phil', Colossians: 'col', Thessalonians: 'thess',
+    Timothy: 'tim', Philemon: 'phlm', Hebrews: 'heb', Peter: 'pet' };
+  var BOOK_WORDS = {};                 // every spelling, lowercase → the book's name without any number
+  var BOOK_COUNT = {};                 // "Samuel" → 2: how many books share that name
+  CANON.forEach(function (b) {
+    var m = /^([123]) (.+)$/.exec(b[0]), bare = m ? m[2] : b[0];
+    BOOK_WORDS[bare.toLowerCase()] = bare;
+    if (m) BOOK_COUNT[bare] = Math.max(BOOK_COUNT[bare] || 0, Number(m[1]));
+  });
+  Object.keys(BOOK_ALIASES).forEach(function (bare) {
+    BOOK_ALIASES[bare].split('|').forEach(function (a) { BOOK_WORDS[a] = bare; });
+  });
+  var ORDINALS = { first: 1, second: 2, third: 3, '1st': 1, '2nd': 2, '3rd': 3, '1': 1, '2': 2, '3': 3 };
+  var BOOK_PATTERN = '(?:(first|second|third|1st|2nd|3rd|[123])\\s*)?(' +
+    Object.keys(BOOK_WORDS).sort(function (a, b) { return b.length - a.length; }).map(function (w) { return w.replace(/ /g, '\\s+'); }).join('|') + ')\\b\\.?';
+
+  // The book a name means — "1 Samuel", "first samuel", "Ps", "Song of Solomon" — or '' when it is not one.
+  function resolveBook(ordinal, word) {
+    var bare = BOOK_WORDS[String(word || '').toLowerCase().replace(/\s+/g, ' ')];
+    if (!bare) return '';
+    var n = ordinal ? ORDINALS[String(ordinal).toLowerCase()] : 0;
+    if (BOOK_COUNT[bare]) {
+      if (!n) return bare === 'John' ? 'John' : '';                 // "Samuel" alone: which one?
+      return n <= BOOK_COUNT[bare] ? n + ' ' + bare : '';
+    }
+    return n ? '' : bare;                                            // "2 Isaiah" is not a book
+  }
+  var BOOK_ONLY_RE = new RegExp('^\\s*' + BOOK_PATTERN + '\\s*$', 'i');
+  function bookName(text) { var m = BOOK_ONLY_RE.exec(String(text || '')); return m ? resolveBook(m[1], m[2]) : ''; }
+  // The first book named in a short phrase, with where its name starts and ends. Many books are ordinary words too
+  // (job, mark, acts, numbers), so a name counts only where it is used as one: with a chapter after it, or opening
+  // the phrase with nothing but a dash, a verse or the end after it. "Mark my words" is not the Gospel.
+  function findBook(text) {
+    var re = new RegExp('(?:^|[^a-z0-9])' + BOOK_PATTERN, 'ig'), m;
+    text = String(text || '');
+    while ((m = re.exec(text))) {
+      var book = resolveBook(m[1], m[2]), end = m.index + m[0].length;
+      var start = m.index + m[0].search(/[a-z0-9]/i);
+      var rest = text.slice(end);
+      if (book && (/^\s*[,:–—-]?\s*(?:chapters?\b|\d)/i.test(rest) || (!text.slice(0, start).trim() && /^\s*(?:$|[,:(–—-]|verses?\b|intro|conclusion)/i.test(rest)))) return { book: book, start: start, end: end };
+      re.lastIndex = m.index + 1;
+    }
+    return null;
+  }
+  function displayBook(book) { return book === 'Psalms' ? 'Psalm' : book; }
+
+  // "Luke 24:1", "Luke 1:30-33", "1 John 2:3", "Luke 23:56-24:1", "Jude 5", "Luke 24" → { book, chapter, verse, endChapter, endVerse }; null when it cannot be read.
+  function parseRef(text) {
+    var m = /^\s*(.+?)\.?\s+(\d{1,3})(?:\s*[:.]\s*(\d{1,3}))?(?:\s*[-–—]\s*(?:(\d{1,3})\s*:\s*)?(\d{1,3}))?\s*$/.exec(String(text || ''));
+    if (!m) return null;
+    var book = bookName(m[1]);
+    if (!book) return null;
+    var ref = { book: book, chapter: Number(m[2]), verse: m[3] ? Number(m[3]) : 0, endChapter: m[4] ? Number(m[4]) : 0, endVerse: m[5] ? Number(m[5]) : 0 };
+    if (!m[3]) {
+      if (CHAPTERS[book] === 1) { ref.verse = ref.chapter; ref.chapter = 1; }     // "Jude 5": a book of one chapter is cited by verse alone
+      else if (m[5]) { ref.endChapter = ref.endVerse; ref.endVerse = 0; }         // "Luke 1-2": chapters
+    }
+    if (ref.endChapter && ref.endChapter === ref.chapter) ref.endChapter = 0;
+    if (ref.endVerse && !ref.endChapter && ref.endVerse <= ref.verse) ref.endVerse = 0;
+    return ref;
+  }
+  function formatRef(ref) {
+    if (!ref || !ref.book || !ref.chapter) return '';
+    var name = displayBook(ref.book);
+    if (!ref.verse) return name + ' ' + ref.chapter + (ref.endChapter ? '-' + ref.endChapter : '');
+    var end = ref.endChapter ? '-' + ref.endChapter + ':' + ref.endVerse : (ref.endVerse ? '-' + ref.endVerse : '');
+    return CHAPTERS[ref.book] === 1 ? name + ' ' + ref.verse + (ref.endVerse ? '-' + ref.endVerse : '') : name + ' ' + ref.chapter + ':' + ref.verse + end;
+  }
+
+  // How many verses each chapter has. Filled in when the page carries a Bible; until then only chapters are checked.
+  var VERSE_COUNTS = null;             // { 'Luke': [80, 52, …] }
+  function versesIn(book, chapter) { var list = VERSE_COUNTS && VERSE_COUNTS[book]; return (list && list[chapter - 1]) || 0; }
+  // '' when the reference names a real place, else a sentence saying what is wrong with it.
+  function refProblem(ref) {
+    var name = displayBook(ref.book), chapters = CHAPTERS[ref.book];
+    function chapterBad(c) { return c < 1 || c > chapters; }
+    if (chapterBad(ref.chapter) || (ref.endChapter && chapterBad(ref.endChapter))) {
+      return chapters === 1 ? name + ' has one chapter.' : name + ' has ' + chapters + ' chapters, so there is no ' + name + ' ' + (chapterBad(ref.chapter) ? ref.chapter : ref.endChapter) + '.';
+    }
+    var count = versesIn(ref.book, ref.chapter);
+    if (count && (ref.verse > count || (!ref.endChapter && ref.endVerse > count))) return name + ' ' + ref.chapter + ' has ' + count + ' verses.';
+    var endCount = ref.endChapter ? versesIn(ref.book, ref.endChapter) : 0;
+    if (endCount && ref.endVerse > endCount) return name + ' ' + ref.endChapter + ' has ' + endCount + ' verses.';
+    return '';
+  }
+
+  // The reference phrase as it was spoken — "Verse one", "Job 2:4", "Isaiah 3 verses two through four",
+  // "chapter 24, verse 1" — read for whatever it names: { book, chapter, verse, endVerse }, each 0 or '' when unsaid.
+  function parseSpoken(text) {
+    var t = digitsForWords(String(text || '').toLowerCase()).replace(/[–—]/g, '-');
+    var out = { book: '', chapter: 0, verse: 0, endVerse: 0 }, found = findBook(t);
+    if (found) out.book = found.book;
+    var range = '(?:\\s*(?:-|through|thru|to|and)\\s*(\\d{1,3}))?';
+    var colon = new RegExp('(\\d{1,3})\\s*:\\s*(\\d{1,3})' + range).exec(t);
+    if (colon) { out.chapter = Number(colon[1]); out.verse = Number(colon[2]); out.endVerse = Number(colon[3]) || 0; }
+    else {
+      var ch = /\bchapters?\s+(\d{1,3})\b/.exec(t), vs = new RegExp('\\b(?:verses?|vv?\\.?|vs\\.?)\\s*(\\d{1,3})' + range).exec(t);
+      if (ch) out.chapter = Number(ch[1]);
+      else if (found) { var after = /^\s*(\d{1,3})\b/.exec(t.slice(found.end)); if (after) out.chapter = Number(after[1]); }
+      if (vs) { out.verse = Number(vs[1]); out.endVerse = Number(vs[2]) || 0; }
+      if (out.book && CHAPTERS[out.book] === 1 && out.chapter && !out.verse) { out.verse = out.chapter; out.chapter = 1; }
+    }
+    if (out.endVerse && out.endVerse <= out.verse) out.endVerse = 0;
+    return out;
+  }
+
+  // What a guide is about, from its name and the book's title: "Luke – Chapter 24" → { book: 'Luke', chapter: 24 }.
+  function guideRef(s) {
+    // A book counts only when the name is plainly about it: "Luke – Chapter 24", "Luke 24", "Luke" — not "Acts of Kindness".
+    function aboutBook(text) {
+      var f = findBook(text);
+      return (f && !String(text).slice(0, f.start).trim() && /^\s*(?:$|[-–—:,(]|\d|chapters?\b|intro|conclusion)/i.test(String(text).slice(f.end))) ? f : null;
+    }
+    var name = String((s && s.name) || ''), inName = aboutBook(name), found = inName || aboutBook(state.bookTitle), out = { book: found ? found.book : '', chapter: 0 };
+    var ch = /\bchapter\s+(\d{1,3})\b/i.exec(name) || /^\s*(?:psalms?|ps\.?)\s+(\d{1,3})\b/i.exec(name);
+    if (!ch && inName) ch = /^\s*[-–—:,]?\s*(\d{1,3})\b/.exec(name.slice(inName.end));
+    if (ch) out.chapter = Number(ch[1]);
+    if (out.book && CHAPTERS[out.book] === 1) out.chapter = 1;
+    return out;
+  }
+
+  // Does the verse that was said fall inside the reference?
+  function coversVerse(ref, verse) {
+    if (!verse || !ref.verse) return true;
+    return verse >= ref.verse && (ref.endChapter ? true : verse <= (ref.endVerse || ref.verse));
+  }
+  function sameRef(a, b) { var x = parseRef(a), y = parseRef(b); return !!(x && y) && formatRef(x) === formatRef(y); }
+
+  // The seam for a Bible carried in the page: the references whose wording is closest to a quotation.
+  // Returns [] until there is one.
+  function bibleCandidates(/* quoteText */) { return []; }
+
+  var refMemo = {};
+  // One entry per verse of a guide: { issues: [sentence], suggestions: [{ ref, why }], confirmed: '' | 'written' }.
+  function refChecks(s) {
+    var verses = (s && s.verses) || [];
+    var key = [s.name, state.bookTitle].concat(verses.map(function (v) { return [v.canonical, v.reference, v.written, v.byHand ? 1 : 0].join('\u0001'); })).join('\u0002');
+    var memo = refMemo[s.id];
+    if (memo && memo.key === key) return memo.result;
+    var guide = guideRef(s), context = null;
+    var result = verses.map(function (v) {
+      var out = { issues: [], suggestions: [], confirmed: '' };
+      var c = parseRef(v.canonical), sp = v.reference ? parseSpoken(v.reference) : { book: '', chapter: 0, verse: 0, endVerse: 0 };
+      var w = v.written ? parseRef(v.written) : null;
+      function suggest(ref, why) {
+        if (!ref || refProblem(ref)) return;
+        var text = formatRef(ref);
+        if (!text || (v.canonical && sameRef(text, v.canonical)) || out.suggestions.some(function (x) { return x.ref === text; })) return;
+        out.suggestions.push({ ref: text, why: why });
+      }
+      // The reference the words spoken point to, given the chapter they were spoken in. Keeps the length of a span the edit pass counted.
+      function fromSpoken(base) {
+        if (!base || !sp.verse) return null;
+        var book = sp.book || base.book, chapter = sp.chapter || ((sp.book && sp.book !== base.book) ? 0 : base.chapter);
+        if (!book || !chapter) return null;
+        var end = sp.endVerse || ((c && c.endVerse && !c.endChapter) ? sp.verse + (c.endVerse - c.verse) : 0);
+        return { book: book, chapter: chapter, verse: sp.verse, endChapter: 0, endVerse: end };
+      }
+      var bases = [guide].concat(context ? [context] : []);
+
+      if (!v.byHand) {                                  // a reference a person set is theirs
+        if (c) {
+          var bad = refProblem(c);
+          if (bad) out.issues.push(bad);
+          var saidAs = 'The speaker said “' + String(v.reference || '').trim() + '”';
+          if (sp.verse || sp.chapter || sp.book) {
+            // A bare "verse one" can only be checked against a chapter the page knows: the guide's own, or one just named aloud.
+            var named = bases.filter(function (b) { return b.book; }), placed = bases.filter(function (b) { return b.book && b.chapter; }), fits;
+            if (sp.book) fits = c.book === sp.book && (!sp.chapter || c.chapter === sp.chapter);
+            else if (sp.chapter) fits = c.chapter === sp.chapter && (!named.length || named.some(function (b) { return b.book === c.book; }));
+            else fits = !placed.length || placed.some(function (b) { return b.book === c.book && b.chapter === c.chapter; });
+            if (fits && (sp.book || sp.chapter || placed.length) && !coversVerse(c, sp.verse)) fits = false;
+            if (!fits) {
+              var bare = !sp.book && !sp.chapter;
+              out.issues.push(saidAs + ((bare && guide.book && guide.chapter) ? ', and this guide is on ' + displayBook(guide.book) + ' ' + guide.chapter + '.' : '.'));
+              if (sp.verse) bases.forEach(function (b) { suggest(fromSpoken(b), 'what was said aloud'); });
+              else if (sp.chapter) suggest({ book: sp.book || c.book, chapter: sp.chapter, verse: c.verse, endChapter: 0, endVerse: c.endChapter ? 0 : c.endVerse }, 'what was said aloud');
+            }
+          }
+          if (w) {
+            if (w.book === c.book && w.chapter === c.chapter && (!w.verse || !c.verse || coversVerse(c, w.verse) || coversVerse(w, c.verse))) {
+              out.confirmed = 'written'; out.issues = bad ? [bad] : []; out.suggestions = [];      // the teacher's own reference agrees: that settles what was said
+            } else {
+              out.issues.push('The written script has ' + formatRef(w) + ' beside this quotation.');
+              out.suggestions = [];
+              suggest(w, 'the written script');
+              if (sp.verse) bases.forEach(function (b) { suggest(fromSpoken(b), 'what was said aloud'); });
+            }
+          }
+          if (out.issues.length) bibleCandidates().forEach(function (hit) { suggest(hit, 'closest wording in the Bible'); });
+        } else if (!String(v.canonical || '').trim()) {
+          suggest(w, 'the written script');
+          bases.forEach(function (b) { suggest(fromSpoken(b), 'what was said aloud'); });
+        }
+      }
+      // What was named aloud carries forward: after "Isaiah 53", a bare "verse 5" may mean Isaiah 53:5.
+      if (sp.book || sp.chapter) context = { book: sp.book || (context && context.book) || guide.book, chapter: sp.chapter || 0 };
+      return out;
+    });
+    refMemo[s.id] = { key: key, result: result };
+    return result;
+  }
+  // How many of a guide's references still need a person to look at them.
+  function flaggedRefs(s) {
+    var checks = refChecks(s);
+    return ((s && s.verses) || []).filter(function (v, i) { return isUncertain(v) || checks[i].issues.length; }).length;
+  }
+
+  /* ---- The reference the teacher wrote down ---- */
+
+  // Every reference written in a stretch of text, in order: [{ at, ref }]. A bare "7:13" takes the guide's book,
+  // and "verse 13" its book and chapter.
+  function refsIn(chunk, guide) {
+    var found = [], taken = [], m;
+    function add(at, len, ref) { if (ref && !refProblem(ref) && !taken.some(function (t) { return at < t[1] && at + len > t[0]; })) { found.push({ at: at, ref: ref }); taken.push([at, at + len]); } }
+    var full = new RegExp('(?:^|[^A-Za-z0-9])(' + BOOK_PATTERN + '\\s+\\d{1,3}(?:\\s*:\\s*\\d{1,3})?(?:\\s*[-–—]\\s*(?:\\d{1,3}\\s*:\\s*)?\\d{1,3})?)', 'ig');
+    while ((m = full.exec(chunk))) { var lead = m[0].length - m[1].length; add(m.index + lead, m[1].length, parseRef(m[1])); }
+    var bare = /(?:^|[^\d:])(\d{1,3})\s*:\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?(?![\d:])/g;
+    if (guide.book) while ((m = bare.exec(chunk))) {
+      add(m.index + (/^\d/.test(m[0]) ? 0 : 1), m[0].length, { book: guide.book, chapter: Number(m[1]), verse: Number(m[2]), endChapter: 0, endVerse: Number(m[3]) > Number(m[2]) ? Number(m[3]) : 0 });
+    }
+    var verse = /\b(?:verses?|vv?\.|vs\.?|v)\s*(\d{1,3})(?:\s*(?:[-–—]|through|thru|to|and)\s*(\d{1,3}))?\b/ig;
+    if (guide.book && guide.chapter) while ((m = verse.exec(chunk))) {
+      add(m.index, m[0].length, { book: guide.book, chapter: guide.chapter, verse: Number(m[1]), endChapter: 0, endVerse: Number(m[2]) > Number(m[1]) ? Number(m[2]) : 0 });
+    }
+    return found.filter(function (f) { return f.ref.verse; }).sort(function (a, b) { return a.at - b.at; });
+  }
+
+  // The reference the written script gives for one quotation: the one right after it — "…get up.'" (Luke 7:13-14) —
+  // else the nearest one before it — "In verse 13," — else ''. The quotation is found by its opening or closing words.
+  function writtenRefFor(text, v, guide) {
+    text = String(text || '');
+    var head = v.startsWith ? locate(text, v.startsWith, 0, true) : null;
+    var tail = v.endsWith ? locate(text, v.endsWith, head ? head.start : 0, true) : null;
+    if (!head && !tail) return '';
+    var start = head ? head.start : Math.max(0, tail.start - 400);
+    var end = (tail && tail.end > start && tail.end - start < 2500) ? tail.end : (head ? head.end : tail.end);
+    var after = refsIn(text.slice(end, end + 90), guide), before = refsIn(text.slice(Math.max(0, start - 160), start), guide);
+    var pick = (after.length && after[0].at <= 12) ? after[0] : before.length ? before[before.length - 1] : after[0];
+    return pick ? formatRef(pick.ref) : '';
+  }
+  // Called once, when the edit pass has run with a written script: each verse remembers what the teacher wrote beside it.
+  function noteWrittenRefs(s, text) {
+    var guide = guideRef(s);
+    (s.verses || []).forEach(function (v) { v.written = writtenRefFor(text, v, guide); });
+  }
+
+  /* ---- Changing a reference: only ever by a person, and always listed (4.4, 4.10) ---- */
+
+  var refEdit = null;                  // { id, i } while one reference is being typed over
+
+  // Sets verse `i` of a guide to `text`. Returns '' when done, else why it was not.
+  function setReference(id, i, text, why) {
+    var s = findSection(id), v = s && s.verses && s.verses[i];
+    if (!v) return 'That quotation isn’t there any more.';
+    var ref = parseRef(text);
+    if (!ref) return 'That isn’t a reference the page can read. Write it like Luke 24:1 or Luke 1:30-33.';
+    var bad = refProblem(ref);
+    if (bad) return bad;
+    var next = formatRef(ref), was = String(v.canonical || '').trim();
+    if (next !== was || v.confidence === 'low') {
+      s.edits = (s.edits || []).concat([{ find: was || '(no reference)', replace: next, kind: 'hand', note: 'reference — ' + why }]);
+      s.changeCount = s.edits.length;
+      v.canonical = next; v.confidence = 'high'; v.note = ''; v.byHand = true;
+      clearApproval(s); touchBook();            // the reference is part of what is published
+    }
+    return '';
+  }
+  function useSuggestedRef(id, i, text) {
+    var s = findSection(id), check = s && refChecks(s)[i];
+    var hit = check && check.suggestions.filter(function (x) { return x.ref === text; })[0];
+    if (!hit) return;
+    var problem = setReference(id, i, text, 'chosen from ' + hit.why);
+    if (problem) { showFlash(problem); return; }
+    refEdit = null; paint();
+    saveSection(id).then(saveMeta);
+  }
+  function startRefEdit(id, i) {
+    refEdit = { id: id, i: i }; paintSection(id);
+    var box = root.querySelector('[data-ref-input]');
+    if (box) { try { box.focus(); box.select(); } catch (e) {} }
+  }
+  function saveRefEdit() {
+    if (!refEdit) return;
+    var box = root.querySelector('[data-ref-input]'), id = refEdit.id;
+    var problem = setReference(id, refEdit.i, box ? box.value : '', 'typed by hand');
+    if (problem) { showFlash(problem); return; }
+    refEdit = null; paint();
+    saveSection(id).then(saveMeta);
+  }
+  function cancelRefEdit() { var id = refEdit && refEdit.id; refEdit = null; if (id) paintSection(id); }
+  /* ==================================================================
      Events
      ================================================================== */
 
@@ -2602,7 +3697,26 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (action === 'new-book') { createBook(); return; }
     if (action === 'open-book') { openBook(id); return; }
     if (action === 'delete-book') { askDeleteBook(id); return; }
-    if (action === 'go-library') { leaveBook(); return; }
+    if (action === 'go-library') { if (view === 'written') showLibrary(); else leaveBook(); return; }
+    if (action === 'go-written') { openWritten(); return; }
+    if (action === 'written-new') { startWrittenForm(); return; }
+    if (action === 'written-cancel') { writtenForm = null; paint(); return; }
+    if (action === 'written-fetch') { fetchWrittenFromDrive(); return; }
+    if (action === 'written-file') return;                              // a file box: handled on change
+    if (action === 'written-save') { saveWritten(); return; }
+    if (action === 'written-read') { readWritten(id); return; }
+    if (action === 'written-close') { writtenOpen = null; paint(); return; }
+    if (action === 'written-rename') { renameWritten(); return; }
+    if (action === 'written-delete') { askDeleteWritten(id); return; }
+    if (action === 'written-pick') { writtenPick[id] = true; paintSection(id); return; }
+    if (action === 'written-pick-close') { delete writtenPick[id]; paintSection(id); return; }
+    if (action === 'set-written') return;                               // a list: handled on change
+    if (action === 'approve') { approveSection(id); return; }
+    if (action === 'unapprove') { unapproveSection(id); return; }
+    if (action === 'ref-edit') { startRefEdit(id, Number(btn.dataset.i)); return; }
+    if (action === 'ref-save') { saveRefEdit(); return; }
+    if (action === 'ref-cancel') { cancelRefEdit(); return; }
+    if (action === 'use-ref') { useSuggestedRef(id, Number(btn.dataset.i), btn.dataset.ref || ''); return; }
     if (action === 'hand-edit') { startHandEdit(id); return; }
     if (action === 'hand-save') { saveHandEdit(id); return; }
     if (action === 'hand-cancel') { cancelHandEdit(id); return; }
@@ -2631,7 +3745,8 @@ input:disabled, textarea:disabled { cursor: wait; }
   root.addEventListener('change', function (e) {
     var t = e.target;
     if (!t || !t.dataset) return;
-    if (t.dataset.action === 'toggle-approve') toggleApprove(t.checked);
+    if (t.dataset.action === 'set-written') setWritten(t.dataset.id, t.value);
+    if (t.dataset.action === 'written-file') readWrittenFile(t.files && t.files[0]);
     if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
     if (t.dataset.action === 'pull-all') pullPickAll(t.checked);
     if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
@@ -2640,25 +3755,41 @@ input:disabled, textarea:disabled { cursor: wait; }
   });
 
   function fieldTouched(el) {
-    if (!el || !el.dataset || !el.dataset.field || dbStatus === 'loading') return;
-    syncOneField(el);
-    if (el.dataset.field === 'handDraft') return;              // a hand correction is saved only when the reader clicks Save changes
+    if (!el || !el.dataset || !el.dataset.field || dbStatus === 'loading' || view !== 'book') return false;
+    // Nothing is saved for a field that was only clicked into and left. A save writes the whole guide, so a save
+    // with no change behind it could put this reader's older copy over a teammate's newer one.
+    if (!syncOneField(el)) return false;
+    if (el.dataset.field === 'handDraft') return false;        // a hand correction is saved only when the reader clicks Save changes
     if (el.dataset.field === 'captions' && el.dataset.id) {
       var cs = findSection(el.dataset.id);
       saveCaptionsSoon(el.dataset.id);
       if (cs) paintCaptionNote(cs);
       var all = root.querySelector('[data-action="download-all-captions"]');
       if (all) all.disabled = !state.sections.some(function (s) { return s.status === 'edited' && (s.captions || '').trim(); });
-      return;
+      return true;
     }
     if (el.dataset.id) saveSectionSoon(el.dataset.id); else saveMetaSoon();
     if (el.dataset.field === 'raw' && el.dataset.id) { var s = findSection(el.dataset.id); if (s && s.status === 'edited') paintChipOnly(s); }
+    return true;
+  }
+  // The Written Scripts page keeps its own fields; they never touch the open book.
+  function writtenFieldTouched(el) {
+    var field = el.dataset.wfield;
+    if (field === 'query') { writtenQuery = el.value; var list = document.getElementById('written-list'); if (list) list.innerHTML = renderWrittenList(); return; }
+    if (field === 'rename') { if (writtenOpen) writtenOpen.title = el.value; return; }
+    if (!writtenForm) return;
+    writtenForm[field] = el.value;
+    if (field === 'text') {
+      if (writtenForm.source !== 'paste') { writtenForm.source = 'paste'; writtenForm.sourceName = ''; }   // typed over: it is no longer the file as it came
+      var note = root.querySelector('.written-count'); if (note) note.textContent = writtenFormNote();
+    }
   }
   root.addEventListener('input', function (e) {
     var t = e.target;
-    fieldTouched(t);
+    if (t && t.dataset && t.dataset.wfield) { writtenFieldTouched(t); return; }
+    var changed = fieldTouched(t);
     // Typing is work on the book — but not typing in an unsaved hand correction, which changes nothing yet.
-    if (dbApi && t && t.dataset && t.dataset.field && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }
+    if (changed && dbApi && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }
   });
   // Remember which captions boxes are unfolded, so a repaint does not fold one the user just opened.
   root.addEventListener('toggle', function (e) {
@@ -2668,7 +3799,13 @@ input:disabled, textarea:disabled { cursor: wait; }
   root.addEventListener('focusout', function (e) { fieldTouched(e.target); });
 
   root.addEventListener('keydown', function (e) {
-    // Enter in a script's title moves on to its transcript box.
+    // Enter saves a reference being typed, and Escape leaves it as it was.
+    if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-ref-input')) {
+      if (e.key === 'Enter') { e.preventDefault(); saveRefEdit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancelRefEdit(); }
+      return;
+    }
+    // Enter in a guide's name moves on to its transcript box.
     if (e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.field === 'name') {
       e.preventDefault();
       var ta = root.querySelector('[data-field="raw"][data-id="' + e.target.dataset.id + '"]');

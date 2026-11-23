@@ -1,6 +1,6 @@
 /* 01-state.js — App root element and the in-memory state shape. */
   var root = document.getElementById('app-root');
-  var VERSION = '1.2.1';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.3.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -9,7 +9,9 @@
   function newSectionRaw(id) {
     return { id: id, name: '', raw: '', corrected: '', editedFromRaw: null, summary: '', changeCount: 0,
              misheard: [], nonsensical: [], edits: [], unapplied: [], verses: [], method: '',
-             status: 'draft', error: null, editedAt: null, captions: '', descriptId: '', descriptName: '', suggested: [], misquotes: [] };
+             status: 'draft', error: null, editedAt: null, captions: '', descriptId: '', descriptName: '', suggested: [], misquotes: [],
+             approvedAt: 0,                                   // when a person signed this off as the Final Transcript; 0 = not signed off
+             writtenId: '', writtenUsed: null };              // the written script chosen by hand ('' = let the page match one, 'none' = use none); what the last edit pass used
   }
   function defaultState() {
     return { bookTitle: '', wordsToSearchFor: '', sections: [newSectionRaw('s1')],
@@ -30,7 +32,7 @@
   var confirmState = null;     // { title, body, warn, confirmLabel, onConfirm }
   var clearing = false;
 
-  // Not a counter: two people adding a script to the same book at the same moment must not get the same id.
+  // Not a counter: two people adding a guide to the same book at the same moment must not get the same id.
   function uid() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function newSection() { return newSectionRaw(uid()); }
   function findSection(id) { return state.sections.filter(function (x) { return x.id === id; })[0]; }

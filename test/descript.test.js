@@ -140,7 +140,7 @@ test('pulling: each audio guide becomes a script with its transcript and caption
   assert.ok(/00:00:00,000 --> 00:00:02,000\nwelcome back my friends$/.test(scripts[0].captions));
   assert.deepStrictEqual([page.pull.added, page.pull.updated, page.pull.failed.length], [2, 0, 1]);
   assert.ok(/no transcript/.test(page.pull.failed[0].why) && page.pull.failed[0].name === 'ED_Ruth_10_Sample_v1_DS');
-  assert.strictEqual(page.state.approved, false, 'new text means the book must be reviewed again');
+  assert.strictEqual(page.state.approved, true, 'the old whole-book tick is carried, never set: each guide has its own sign-off now');
   assert.deepStrictEqual(page.saved.slice(0, 3), ['script:s1', 'captions:s1', 'meta']);
   assert.ok(/Pulled 2 audio guides/.test(page.renderPull()));
 });
@@ -193,7 +193,10 @@ test('a script is named from its Descript project only when the project starts w
     'ED_John_3_Sample_v1_DS': 'John – Chapter 3',
     'ED_1John_4_Sample_v1_DS': '1 John – Chapter 4',
     'ED_Micah_Intro_Sample_v1_DS': 'Micah – Introduction',
-    'ED_Amos_Conclusion_Sample_v1_DS': 'Amos – Conclusion'
+    'ED_Amos_Conclusion_Sample_v1_DS': 'Amos – Conclusion',
+    // found in review: a book of several words was never recognised
+    'ED_Song_of_Songs_3_Sample_v1_DS': 'Song of Songs – Chapter 3',
+    'ED_Song_of_Solomon_8_Sample_v1_DS': 'Song of Solomon – Chapter 8'
   };
   Object.keys(named).forEach((from) => assert.strictEqual(page.scriptNameFromDescript(from), named[from], from));
   // Not a Bible book, or not clear which: the name is kept exactly as Descript has it.

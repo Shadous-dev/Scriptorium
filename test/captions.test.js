@@ -200,7 +200,7 @@ test('the note under the captions box says where things stand', () => {
   const note = C.captionNote(edited);
   assert.ok(/Caption files ready — 4 captions/.test(note.text) && /1 with no spoken words left out/.test(note.text) && !note.warn, note.text);
   const wrong = { id: 's3', status: 'edited', captions: SRT, corrected: 'Entirely different words appear in this other script, none of them shared.', raw: 'x', editedFromRaw: 'x' };
-  assert.ok(C.captionNote(wrong).warn && /don’t match this script/.test(C.captionNote(wrong).text));
+  assert.ok(C.captionNote(wrong).warn && /don’t match this guide’s transcript/.test(C.captionNote(wrong).text));
   assert.strictEqual(C.captionNote({ id: 's4', status: 'draft', captions: '', corrected: '' }).text, '');
 });
 

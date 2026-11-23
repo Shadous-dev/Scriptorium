@@ -3,7 +3,7 @@
     var code = err && err.code;
     if (code === 'not_granted') return 'permission to use Claude was declined';
     if (code === 'rate_limited') return 'too many requests right now — try again shortly';
-    if (code === 'prompt_too_large') return 'this script is too long for one pass — try splitting it into two sections';
+    if (code === 'prompt_too_large') return 'this transcript is too long for one pass — try splitting it into two guides';
     if (code === 'invalid_json') return 'the response could not be read — try again';
     if (code === 'sampling_disabled' || code === 'not_declared' || code === 'capability_disabled' || code === 'capability_removed') return 'editing isn’t available in this view';
     if (code === 'refused' || code === 'empty_completion') return 'Claude could not produce a result for this one — try again';
@@ -21,7 +21,7 @@
   var CUE_RE = /[ \t]*\[[^\]\n]{1,120}\][ \t]*/g, PAUSE_RE = /(^|\s)_+(?=\s|$)/g;
   var MECH = [                                   // [pattern, replacement] — spacing, marks, sentence ends
     [/[“”]/g, '"'], [/\.\s?\.\s?\.|\u2026+/g, '…'], [/--/g, '—'],
-    [/[ \t]+([,.;:!?…])/g, '$1'],                // no space before punctuation
+    [/[ \t]+([,;:!?…]|\.(?!\d))/g, '$1'],       // no space before punctuation — but "about .5" keeps its space
     [/([,;!?])(?=[A-Za-z])/g, '$1 '],            // a space after it
     [/(\w{2,})\.(?=[A-Z][a-z])/g, '$1. ']        // "word.Next" — but not "a.m."
   ];
@@ -38,7 +38,7 @@
   var SURE = 'jesus christ bible israel jerusalem satan moses abraham isaac jacob joseph david solomon elijah elisha isaiah jeremiah ezekiel daniel paul peter pharisees egypt babylon bethlehem nazareth galilee'.split(' ');
   var SURE_RE = new RegExp('\\b(' + SURE.join('|') + ')\\b', 'gi');
   var GOD_RE = /\b(?<!\b(?:a|an|false|other|their|your|no|any|strange|pagan|greek|roman)\s)god\b(?!s)/gi;
-  var LORD_RE = /\blord\b(?!s)/gi, SPIRIT_RE = /\bholy spirit\b/gi, I_RE = /\bi(?=['’\s]|$)/g;
+  var LORD_RE = /\blord\b(?!s)/gi, SPIRIT_RE = /\bholy spirit\b/gi, I_RE = /\bi(?=['’\s,;:!?]|$)/g;
 
   function cap(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }
   function tally(intoEdits, kind, count, label) {
@@ -62,7 +62,13 @@
   function fixNames(text, intoEdits) {
     var seen = {};
     function note(from, to) { if (from !== to && !seen[from + '>' + to]) { seen[from + '>' + to] = 1; intoEdits.push({ find: from, replace: to, kind: 'capitalization', note: 'name or title' }); } }
-    function sub(re, fn) { text = text.replace(re, function () { var out = fn.apply(null, arguments); note(arguments[0], out); return out; }); }
+    // A word already in capitals was written that way on purpose — emphasis, or LORD in a pasted verse — and is left alone.
+    function sub(re, fn) {
+      text = text.replace(re, function (m) {
+        if (m.length > 1 && m === m.toUpperCase() && m !== m.toLowerCase()) return m;
+        var out = fn.apply(null, arguments); note(m, out); return out;
+      });
+    }
     sub(SURE_RE, function (m) { return cap(m); });
     sub(BOOK_RE, function (m, num, book) { return (num || '') + book.split(' ').map(cap).join(' '); });
     sub(GOD_RE, function () { return 'God'; }); sub(LORD_RE, function () { return 'Lord'; }); sub(SPIRIT_RE, function () { return 'Holy Spirit'; }); sub(I_RE, function () { return 'I'; });
@@ -74,10 +80,14 @@
   }
 
   // No sentence or paragraph may start lowercase. Abbreviations, initials, decimals and trailing-off dots are left alone.
-  function fixCapitals(text, intoEdits) {
+  // Before the edit pass (`beforeEdit`) a paragraph that follows one with no closing punctuation is left as it is:
+  // Descript breaks on pauses, so that break may fall mid-thought, and a capital put there would be stranded in the
+  // middle of a sentence once the break is closed up. After the joins every paragraph start is done.
+  function fixCapitals(text, intoEdits, beforeEdit) {
     var count = 0;
     function note(before, after) { count += 1; if (count <= 20) intoEdits.push({ find: before, replace: after, kind: 'capitalization', note: 'sentence start' }); }
-    text = text.replace(/(^|\n[ \t]*\n[ \t]*)(["“'(]*)([a-z])(\S{0,24})/g, function (m, lead, open, ch, rest) {
+    text = text.replace(/(^|\n[ \t]*\n[ \t]*)(["“'(]*)([a-z])(\S{0,24})/g, function (m, lead, open, ch, rest, offset, whole) {
+      if (beforeEdit && lead && !/[.!?…]["”'’)\]]*[ \t]*$/.test(whole.slice(Math.max(0, offset - 12), offset))) return m;
       note(open + ch + rest, open + ch.toUpperCase() + rest);
       return lead + open + ch.toUpperCase() + rest;
     });
@@ -153,7 +163,14 @@
      ------------------------------------------------------------------ */
 
   // The words of a run with everything that is not wording removed: "So-called," and "so called" are the same wording.
-  function wordingKey(text) { return digitsForWords(String(text).toLowerCase()).replace(/[^a-z0-9\u00C0-\u024F]+/g, ''); }
+  // Where one number stops and the next starts is part of what was said, so it is kept: "3:16" and "31:6" are
+  // different, while "35 1" and "35:1" are the same, and so are "1,000" and "1000". Letters of every alphabet count.
+  function wordingKey(text) {
+    return digitsForWords(String(text).toLowerCase())
+      .replace(/(\d),(?=\d{3}(?!\d))/g, '$1')
+      .replace(/(\d)[^\p{L}\p{N}]+(?=\d)/gu, '$1\u0001')
+      .replace(/[^\p{L}\p{N}\u0001]+/gu, '');
+  }
 
   /* What counts as "sounds the same". Spelling is a poor guide to sound, so this is strict on
      purpose: when in doubt the answer is no, and the change is shown as a suggestion instead.
@@ -166,7 +183,9 @@
           roughly                                                  never can nezzar / Nebuchadnezzar
 
      Short everyday words that merely look or sound close — we / you, son / sin, good / God,
-     is / his, lives / loves — are different words, and are not allowed. */
+     is / his, lives / loves, then / ten, three / tree — are different words, and are not allowed.
+     "th" is its own sound (θ below): it may stand in for "t" only inside a long word, as in
+     Timoty / Timothy. */
 
   var HOMOPHONE_GROUP = {};
   ('their there theyre|to too two|your youre|whose whos|hear here|know no|knew new|right write rite|by buy bye|for four fore|one won|our hour|' +
@@ -186,7 +205,7 @@
     return lettersOf(text)
       .replace(/who(?!l)/g, 'hu').replace(/ph/g, 'f').replace(/ch/g, 'k').replace(/ck/g, 'k').replace(/c(?=[eiy])/g, 's').replace(/c/g, 'k').replace(/q/g, 'k')
       .replace(/x/g, 'ks').replace(/z/g, 's').replace(/oo/g, 'u').replace(/ee/g, 'i').replace(/y/g, 'i')
-      .replace(/([gptwr])h/g, '$1').replace(/wr/g, 'r').replace(/(.)\1+/g, '$1');
+      .replace(/t+h/g, 'θ').replace(/([gpwr])h/g, '$1').replace(/wr/g, 'r').replace(/(.)\1+/g, '$1');
   }
   // How far apart two folded spellings are. A vowel that differs counts half; a consonant counts whole.
   function soundDistance(a, b) {
@@ -197,7 +216,8 @@
       cur = [prev[0] + da];
       for (j = 1; j <= b.length; j++) {
         db = vowel.test(b[j - 1]) ? 0.5 : 1;
-        cur[j] = Math.min(prev[j] + da, cur[j - 1] + db, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : (da + db === 1 ? 0.5 : 1)));
+        var near = da + db === 1 || (a[i - 1] === 'θ' && b[j - 1] === 't') || (a[i - 1] === 't' && b[j - 1] === 'θ');
+        cur[j] = Math.min(prev[j] + da, cur[j - 1] + db, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : (near ? 0.5 : 1)));
       }
       prev = cur;
     }
@@ -215,7 +235,7 @@
     if (x === y) return true;
     var longest = Math.max(x.length, y.length), apart = soundDistance(x, y);
     if ((listed || []).some(function (name) { return wb.indexOf(name) !== -1 || (name.length >= 5 && wb.join('').indexOf(name) !== -1); })) return apart <= longest * 0.34;
-    return longest >= 6 && x.replace(/[aeiou]/g, '') === y.replace(/[aeiou]/g, '') && apart <= 1;
+    return longest >= 6 && x.replace(/[aeiou]/g, '').replace(/θ/g, 't') === y.replace(/[aeiou]/g, '').replace(/θ/g, 't') && apart <= 1;
   }
 
   // A section label: a short line in capitals standing alone in the transcript ("BEARINGS"). Words spoken
@@ -253,7 +273,9 @@
     (edits || []).forEach(function (e) {
       if (!e || typeof e !== 'object') return;
       var why = wordingProblem(e, text, listed);
-      if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'), note: why + (e.note ? ' — ' + String(e.note) : '') });
+      // 4.9: where the written script and the transcript differ in wording, the transcript stays as spoken and the difference names its source.
+      if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'),
+                           note: (e.source === 'script' ? 'the written script reads this way; ' : '') + why + (e.note ? ' — ' + String(e.note) : '') });
       else ok.push(e);
     });
     return { ok: ok, held: held };
@@ -279,7 +301,9 @@
   }
 
   // Close the paragraph breaks the editor says fall mid-thought. Each join becomes a visible "paragraph" edit.
-  function applyJoins(text, joins, intoEdits) {
+  // `sent` is the text as it went to the editor. Where the editor both closed a break and capitalised the word after
+  // it, the capital is taken back: that word is now in the middle of a sentence, and it was lowercase as spoken.
+  function applyJoins(text, joins, intoEdits, sent) {
     if (!repairParagraphs || !Array.isArray(joins)) return text;
     joins.forEach(function (j) {
       var a = str(j && j.endsWith), b = str(j && j.startsWith);
@@ -288,6 +312,11 @@
       var gap = text.slice(ha.end).match(/^\s*\n\s*\n\s*/); if (!gap) return;
       var hb = locate(text, b, ha.end + gap[0].length, false);
       if (!hb || hb.start !== ha.end + gap[0].length) return;
+      var head = text.slice(hb.start, hb.start + 16), lowered = head.charAt(0).toLowerCase() + head.slice(1);
+      if (sent && head !== lowered && !/[.!?…]["”'’)\]]*$/.test(text.slice(0, ha.end)) && sent.indexOf('\n\n' + lowered) !== -1 && sent.indexOf('\n\n' + head) === -1) {
+        text = text.slice(0, hb.start) + lowered.charAt(0) + text.slice(hb.start + 1);
+        b = b.charAt(0).toLowerCase() + b.slice(1);
+      }
       text = text.slice(0, ha.end) + ' ' + text.slice(hb.start);
       intoEdits.push({ find: a + ' ¶ ' + b, replace: a + ' ' + b, kind: 'paragraph', note: 'joined a mid-thought break' });
     });
@@ -297,56 +326,67 @@
   // One route: ask for the edit list, apply it here. Edits that cannot be placed are kept and
   // shown for a hand check — never silently dropped, and never traded for a full rewrite
   // (which costs a whole script's worth of output and shows no edit table).
-  function runEditOnSection(s, sample, signal, isRetry) {
+  // `written` is the guide's written script, when it has one: { id, title, text }. It travels in this same one call (4.6).
+  function runEditOnSection(s, sample, signal, isRetry, written) {
     if (s.raw.length > 55000) {
-      s.status = 'error'; s.error = 'this script is too long for one pass — try splitting it into two sections';
+      s.status = 'error'; s.error = 'this transcript is too long for one pass — try splitting it into two guides';
       return Promise.resolve();
     }
-    var local = [];
-    var prepared = fixCapitals(fixNames(fixReferences(mechanics(s.raw, local), local), local), local);
-    return sample.json(buildEditsPrompt(s, prepared), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
+    // The transcript as it stood when this pass began. Typing in it while the pass runs must leave the guide marked as changed since.
+    var rawAtStart = s.raw, local = [], writtenNote = '';
+    if (written && written.error) { writtenNote = written.error; written = null; }
+    if (written && !String(written.text || '').trim()) written = null;
+    var prepared = fixCapitals(fixNames(fixReferences(mechanics(rawAtStart, local), local), local), local, true);
+    return sample.json(buildEditsPrompt(s, prepared, written ? written.text : ''), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
-      var guard = guardEdits(Array.isArray(data.edits) ? data.edits : [], prepared);       // 4.1: only what keeps the speaker's words
+      var proposed = (Array.isArray(data.edits) ? data.edits : []).filter(function (e) { return e && typeof e === 'object'; });
+      proposed.forEach(function (e) { if (!written || e.source !== 'script') delete e.source; });
+      var guard = guardEdits(proposed, prepared);                                          // 4.1: only what keeps the speaker's words
       var result = applyEdits(prepared, guard.ok);
+      result.applied.forEach(function (e) { if (e.source === 'script') e.note = (e.note ? e.note + ' — ' : '') + 'supported by the written script'; });
       var applied = local.concat(result.applied);
-      var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied), applied), applied);
+      var text = endSentences(fixCapitals(applyJoins(result.text, data.joins, applied, prepared), applied), applied);
       var summary = str(data.summary);
       if (result.unapplied.length > 2) summary += (summary ? ' ' : '') + result.unapplied.length + ' suggested changes could not be placed and are listed below for a hand check — Redo this one if that seems like too many.';
       if (guard.held.length) summary += (summary ? ' ' : '') + guard.held.length + ' suggested change' + plural(guard.held.length) + ' would have altered the speaker’s words and ' + (guard.held.length === 1 ? 'was' : 'were') + ' not applied — listed below.';
+      if (writtenNote) summary += (summary ? ' ' : '') + writtenNote;
       s.corrected = text; s.summary = summary; s.changeCount = applied.length;
       s.edits = applied; s.unapplied = result.unapplied;
       s.misheard = applied.filter(function (e) { return e.kind === 'misheard'; }).map(function (e) { return { heard: e.find, likely: e.replace, note: e.note }; });
       s.nonsensical = cleanNonsense(data.nonsensical); s.verses = cleanVerses(data.verses); s.method = 'edits';
       s.suggested = guard.held; s.misquotes = cleanMisquotes(data.misquotes); delete s.handDraft;
-      s.editedFromRaw = s.raw; s.status = 'edited'; s.editedAt = Date.now(); s.error = null; touchBook();
+      s.writtenUsed = written ? { id: String(written.id || ''), title: String(written.title || '') } : null;
+      if (written) noteWrittenRefs(s, written.text);                                       // 4.10: the reference the teacher wrote down
+      clearApproval(s);                                                                    // new text is an Edited Transcript until a person approves it
+      s.editedFromRaw = rawAtStart; s.status = 'edited'; s.editedAt = Date.now(); s.error = null; touchBook();
     }).catch(function (err) {
       if (err && err.code === 'cancelled') { s.status = 'error'; s.error = '__stopped__'; return; }
       // A garbled or empty answer is not cached, so one more ask is a genuine second attempt.
-      if (!isRetry && err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runEditOnSection(s, sample, signal, true);
+      if (!isRetry && err && (err.code === 'invalid_json' || err.code === 'empty_completion')) return runEditOnSection(s, sample, signal, true, written || (writtenNote ? { error: writtenNote } : null));
       s.status = 'error'; s.error = sampleErrorMessage(err);
     });
   }
 
-  // Runs `concurrency` scripts at once (1 or 2). Each finished script is saved on its own
+  // Runs `concurrency` guides at once (1 or 2). Each finished guide is saved on its own
   // before the worker picks up the next, so an interruption costs at most what was in flight.
   function editAll(force) {
     syncFieldsFromDom();
-    if (dbStatus === 'loading') { showFlash('Still loading your saved scripts — give it a second and try again.'); return; }
+    if (dbStatus === 'loading') { showFlash('Still loading your saved guides — give it a second and try again.'); return; }
     useCap('sample').then(function (sample) {
       if (!sample) { showFlash('This page needs permission to use Claude for editing. Open it in a Claude viewer that allows that, then try again.'); return; }
       var toProcess = state.sections.filter(needsEdit);
       var byHand = toProcess.filter(hasHandWork).length;
       if (force !== true && byHand) {                          // 4.5: hand corrections are never silently replaced
         openConfirm({
-          title: 'Edit ' + byHand + ' script' + plural(byHand) + ' again?',
-          body: byHand + ' of the scripts about to be edited ' + (byHand === 1 ? 'has' : 'have') + ' corrections made by hand. Their transcript has changed, so the edit pass will replace the corrected script, and those corrections are lost.',
+          title: 'Edit ' + byHand + ' guide' + plural(byHand) + ' again?',
+          body: byHand + ' of the guides about to be edited ' + (byHand === 1 ? 'has' : 'have') + ' corrections made by hand. Their transcript has changed, so the edit pass will replace the Edited Transcript, and those corrections are lost.',
           warn: '', confirmLabel: 'Edit and replace',
           onConfirm: function () { confirmState = null; editAll(true); }
         });
         return;
       }
       if (!toProcess.length) {
-        showFlash(state.sections.some(function (s) { return s.raw.trim(); }) ? 'Every script with text is already up to date.' : 'Add a transcript to at least one script first.');
+        showFlash(state.sections.some(function (s) { return s.raw.trim(); }) ? 'Every guide with a transcript is already up to date.' : 'Add a transcript to at least one guide first.');
         return;
       }
       var queue = toProcess.slice(), stoppedFlag = false;
@@ -358,11 +398,13 @@
         if (stoppedFlag) return Promise.resolve();
         var item = queue.shift();
         if (!item) return Promise.resolve();
+        // Already being edited — "Redo this one" was clicked while it waited its turn. One guide is one call (4.6).
+        if (item.status === 'editing') { editState.done += 1; paintStatus(); return worker(); }
         var ctl = new AbortController();
         editControllers.push(ctl);
         item.status = 'editing'; item.error = null;
         paintSection(item.id); paintStatus();
-        return runEditOnSection(item, sample, ctl.signal).then(function () {
+        return writtenFor(item).then(function (written) { return runEditOnSection(item, sample, ctl.signal, false, written); }).then(function () {
           editControllers = editControllers.filter(function (c) { return c !== ctl; });
           if (item.status === 'error' && item.error === '__stopped__') stoppedFlag = true;
           editState.done += 1;
@@ -375,7 +417,7 @@
       for (var i = 0; i < concurrency; i++) workers.push(worker());
       return Promise.all(workers).then(function () {
         editState = null; editControllers = [];
-        state.lastEditAt = Date.now(); state.approved = false;
+        state.lastEditAt = Date.now();
         paint();
         return saveMeta();
       });
@@ -387,19 +429,18 @@
   function redoSection(id) {
     syncFieldsFromDom();
     var s = findSection(id);
-    if (!s || !s.raw.trim()) return;
+    if (!s || !s.raw.trim() || s.status === 'editing') return;
     useCap('sample').then(function (sample) {
       if (!sample) { showFlash('This page needs permission to use Claude for editing.'); return; }
+      if (s.status === 'editing') return;
       var ctl = new AbortController();
       editControllers.push(ctl);
       s.status = 'editing'; paintSection(id);
-      return runEditOnSection(s, sample, ctl.signal).then(function () {
+      return writtenFor(s).then(function (written) { return runEditOnSection(s, sample, ctl.signal, false, written); }).then(function () {
         editControllers = editControllers.filter(function (c) { return c !== ctl; });
-        state.approved = false;
         paint();
         return saveSection(s.id).then(saveMeta);
       });
     });
   }
 
-  function toggleApprove(checked) { state.approved = !!checked; paint(); saveMeta(); }

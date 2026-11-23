@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.3.0 — written scripts, checked references, and a sign-off for each guide (not yet published)
+
+`SOURCE-OF-TRUTH.md` was amended first, in its own commits: rules 4.9 and 4.10 are new, and each stage of a guide now has one name.
+
+The words
+- **Written script**: what the teacher wrote before recording. **1st Draft Transcript**: what Descript heard. **Edited Transcript**: that, after the edit pass and any corrections by hand. **Final Transcript**: an Edited Transcript a person has approved.
+- "Script" on its own now always means the written script. A card in a book is an **audio guide**, so the page says "+ Add Guide" and "Edit All Guides".
+
+Written scripts (4.9)
+- A **Written Scripts** page, reached from the front page. Add one with a title and its text: pasted in, from a Google Doc or Sheet link, or from a Word (.docx) or text file on the computer. Search by title, book or chapter. Read one, rename it, delete it.
+- Each guide is matched to its written script by title ("Luke 24") and by wording, and its card says which one and how. A person can change the match or use none.
+- The written script travels in the guide's one edit call, and only for a guide that has one. It is evidence for a change the wording rule already allows; the row says "supported by the written script".
+- The transcript is never made to match it. Where the two differ in wording, the transcript stays as spoken and the difference is listed under "Suggested but not applied", naming the written script as its source.
+- Written scripts belong to no book. Clearing or deleting a book never touches them.
+
+References (4.10)
+- Luke 24:1 came back as Luke 1:1 with nothing to catch it. Every reference is now checked by the page, for free: that the chapter exists; that it agrees with the chapter the guide is on and with what was said aloud ("verse one" in the guide on Luke 24 is Luke 24:1); and against the reference written beside the same quotation in the written script.
+- When a check disagrees the reference is marked, the reason is given in a sentence, and the likelier references are listed. Click one to use it, or **Change** to type your own. Either way it is listed under "Changed by hand".
+- Nothing replaces a reference on its own. A guide edited before this version is checked too.
+- Not built yet: matching a quotation's wording against a Bible carried in the page.
+
+The sign-off
+- **Approve as Final** on each guide replaces the one tick for the whole book. Changing a Final Transcript by hand, running the edit pass again, or changing a reference takes it back to Edited.
+- Approving a guide that still has a reference marked to check asks first.
+- **Only Final Transcripts go into the Google Doc** and the downloaded copy. Copy for YouVersion and caption files work on an Edited Transcript too.
+- A book approved under the old tick keeps that approval for the guides it covered.
+
+Found in a QA pass of 1.2.1. Each has a test that fails on the old code, except the double edit, which is guarded in code and was checked by reading.
+- **A floating `'"` after a verse.** When speech inside a verse closed just before the verse did, the closing marks were left at the head of the next paragraph and the verse lost its own. Every variation (`""`, `" "`, `".`) is now kept with the verse.
+- **Numbers could be regrouped.** The wording guard read "John 3:16" and "John 31:6" as the same words. Where one number ends and the next begins is now part of what was said.
+- **"th" counted as "t".** "then" → "ten", "three" → "tree" and "wrath" → "rat" were allowed as sound-alikes. "th" is now its own sound, and may stand in for "t" only inside a long name ("Timoty" / "Timothy").
+- **A word in another alphabet could be deleted.** The guard only counted Latin letters.
+- **Leaving a field saved the guide.** Clicking into a name or transcript box and out again wrote the whole guide back, which could put an older copy over a teammate's newer one. Nothing is saved now unless something changed.
+- **Typing during the edit pass hid the change.** A transcript edited while its pass was running was marked up to date. It is now marked as changed since.
+- **A capital stranded mid-sentence.** A paragraph start was capitalised before the edit pass, then left that way when the break before it was closed up ("the spices Went to the tomb").
+- **Two verses with the same opening words.** The second was not set in bold.
+- **Words in capitals were lowered.** "LORD" and "JESUS" became "Lord" and "Jesus". A word already in capitals is now left alone.
+- **"about .5" lost its space**, and a lone "i" before a comma was not capitalised.
+- **"Song of Songs" projects were not named.** A book of several words was never recognised in a Descript project name.
+- **A guide could be edited twice at once**, by clicking "Redo this one" while it waited its turn in Edit All.
+- **The Google Doc included empty and unedited cards.** It now takes Final Transcripts only.
+
 ## 1.2.1 — fixes from a review of 1.2.0 (2026-11-19)
 
 Ten findings from a review of the whole source. Each now has a test that fails on the old code.
