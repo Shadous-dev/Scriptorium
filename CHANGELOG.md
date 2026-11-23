@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.3.0 — written scripts, checked references, and a sign-off for each guide (not yet published)
+## 1.3.0 — written scripts, checked references, and a sign-off for each guide (2026-11-23)
+
+Published before the edit instructions were run against a transcript whose correct result is already known, which `SOURCE-OF-TRUTH.md` section 8 asks for when `09-prompts.js` changes. The first real edit pass on a guide that has a written script is that check: look at what it changed, and at what it listed under "Suggested but not applied".
 
 `SOURCE-OF-TRUTH.md` was amended first, in its own commits: rules 4.9 and 4.10 are new, and each stage of a guide now has one name.
 

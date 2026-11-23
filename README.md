@@ -12,9 +12,8 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.2.1. It opens for members of the Through the Word organization on
-Claude. This is the one published copy; see [Publishing](#publishing). `main`
-holds 1.3.0, which is not published yet.
+version 1.3.0. It opens for members of the Through the Word organization on
+Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
 
@@ -260,7 +259,7 @@ them (with that feature switched off):
 | `sample` | the edit pass — the one thing that spends usage |
 | `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) and the written scripts (`written/<id>`, `writtenText/<id>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
-| `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. New in 1.3.0: it has to be added to the artifact's connector list when 1.3.0 is published. |
+| `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. Added to the artifact's connector list in 1.3.0. |
 | `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
 
@@ -292,7 +291,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
-| `v1.3.0` | Written scripts as a reference, checked references, a sign-off for each guide, and thirteen fixes from a QA pass. **Not yet published or tagged.** |
+| `v1.3.0` | Written scripts as a reference, checked references, a sign-off for each guide, and thirteen fixes from a QA pass. Published 2026-11-23. |
 | `v1.2.1` | Ten fixes from a review of 1.2.0, three of them in the wording guard. Published 2026-11-19. |
 | `v1.2.0` | The page enforces the speaker's words (wording guard), notes for the teacher, references in digits, names from Descript, hand corrections. Published 2026-11-19. |
 | `v1.1.0` | Pull from Descript: transcripts and timed captions straight from the TTW Drive. Published 2026-11-18. |
