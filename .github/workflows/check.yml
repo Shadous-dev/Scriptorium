@@ -1,5 +1,5 @@
 # Runs on every push and pull request. Fails if dist/index.html has drifted from src/,
-# or if a caption rule in SOURCE-OF-TRUTH 4.7 no longer holds.
+# or if a rule in SOURCE-OF-TRUTH section 4 no longer holds.
 name: Check
 
 on:
@@ -22,3 +22,7 @@ jobs:
         run: node test/descript.test.js
       - name: Edit rules hold
         run: node test/edit-rules.test.js
+      - name: Written scripts and sign-off hold
+        run: node test/written-scripts.test.js
+      - name: Reference checks hold
+        run: node test/references.test.js

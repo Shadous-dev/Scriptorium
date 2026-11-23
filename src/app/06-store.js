@@ -1,10 +1,15 @@
-/* 06-store.js — Persistence: a shared library of books; per book, one small document per script and one per script's captions. */
+/* 06-store.js — Persistence: a shared library of books; per book, one small document per guide and one per guide's captions. */
   /* ==================================================================
      Saving — the artifact's document store, shared by the whole team.
 
-       books/<book>                    title, word list, script order, counts
-       books/<book>/scripts/<script>   one script
-       books/<book>/captions/<script>  that script's timed captions
+       books/<book>                    title, word list, guide order, counts
+       books/<book>/scripts/<guide>    one audio guide: its transcripts, changes and sign-off
+       books/<book>/captions/<guide>   that guide's timed captions
+       written/<id>                    one written script's title and fingerprint   (15-written-scripts.js)
+       writtenText/<id>                that written script's text
+
+     The path says "scripts" because that is what a guide was called when the
+     store was laid out. It is kept: renaming it would strand every saved book.
 
      Every book is its own workbench. Opening, clearing or deleting one
      never touches another.
@@ -21,9 +26,9 @@
   var dbRoot = null;           // the store itself, once it can be reached
   var dbApi = null;            // the store, but only while a book is open and loaded — the gate for every write to it
   var dbStatus = 'loading';    // loading | ready | unavailable
-  var view = 'library';        // library | book
+  var view = 'library';        // library | book | written
   var bookId = null;           // the open book
-  var library = [];            // [{ id, title, scripts, edited, at }], most recently worked on first
+  var library = [];            // [{ id, title, scripts, edited, finals, at }], most recently worked on first
   var deletingBook = null;
   var saveError = null;
   var pendingSaves = {};
@@ -47,7 +52,9 @@
              summary: s.summary || '', changeCount: s.changeCount || 0, misheard: s.misheard || [], nonsensical: s.nonsensical || [],
              edits: s.edits || [], unapplied: s.unapplied || [], verses: s.verses || [], method: s.method || '',
              status: s.status || 'draft', error: s.error || '', editedAt: s.editedAt || 0, descriptId: s.descriptId || '', descriptName: s.descriptName || '',
-             suggested: s.suggested || [], misquotes: s.misquotes || [] };
+             suggested: s.suggested || [], misquotes: s.misquotes || [],
+             approvedAt: Number(s.approvedAt) || 0, writtenId: s.writtenId || '',
+             writtenUsed: s.writtenUsed ? { id: String(s.writtenUsed.id || ''), title: String(s.writtenUsed.title || '') } : null };
   }
   function docToSection(id, d, captions) {
     d = d || {};
@@ -58,13 +65,17 @@
              edits: Array.isArray(d.edits) ? d.edits : [], unapplied: Array.isArray(d.unapplied) ? d.unapplied : [],
              verses: Array.isArray(d.verses) ? d.verses : [], method: String(d.method || ''),
              status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
-             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [] };
+             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [],
+             approvedAt: Number(d.approvedAt) || 0, writtenId: String(d.writtenId || ''),
+             writtenUsed: (d.writtenUsed && d.writtenUsed.id) ? { id: String(d.writtenUsed.id), title: String(d.writtenUsed.title || '') } : null };
   }
-  // The book's own document. The two counts are there so the library can describe a book without opening it.
+  // The book's own document. The counts are there so the library can describe a book without opening it.
+  // `approved` is the whole-book tick that earlier versions kept. It is carried, never set: see applyStored.
   function metaToDoc() {
     return { bookTitle: state.bookTitle || '', wordsToSearchFor: state.wordsToSearchFor || '',
              order: state.sections.map(function (s) { return s.id; }), nextId: state.nextId || 2,
              lastEditAt: state.lastEditAt || 0, approved: !!state.approved, createdAt: state.createdAt || 0, touchedAt: state.touchedAt || 0,
+             finalCount: state.sections.filter(isFinal).length,
              scriptCount: state.sections.filter(function (s) { return s.raw.trim() || s.name.trim(); }).length,
              editedCount: state.sections.filter(function (s) { return s.status === 'edited'; }).length,
              lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
@@ -130,9 +141,9 @@
   }
   function dbErrorMessage(err) {
     var code = err && err.code;
-    if (code === 'quota_exceeded') return 'The workbench is full — remove some scripts before adding more.';
+    if (code === 'quota_exceeded') return 'The workbench is full — remove some guides before adding more.';
     if (code === 'resource_exhausted') return 'Saving is being throttled — it will catch up in a moment.';
-    if (code === 'invalid_argument') return 'This couldn’t be saved. Either one script is too large — try splitting it in two — or your access to this artifact is view-only.';
+    if (code === 'invalid_argument') return 'This couldn’t be saved. Either one guide is too large — try splitting it in two — or your access to this artifact is view-only.';
     if (code === 'revoked') return 'Saving access was withdrawn — reload the page.';
     return 'Saving hit a snag — your work is still on screen and will retry on your next change.';
   }
@@ -158,6 +169,12 @@
     });
     if (!rebuilt.length) rebuilt.push(newSection());
     state.sections = rebuilt;
+    // Before each guide had its own sign-off there was one tick for the whole book, cleared whenever anything changed.
+    // A book saved with that tick on was reviewed as it stood, so each of its edited guides that has never been saved
+    // by this version is Final. Once a guide is saved it carries its own answer and this no longer applies to it.
+    if (meta.approved) state.sections.forEach(function (s) {
+      if ((byId[s.id] || {}).approvedAt === undefined && s.status === 'edited' && s.corrected) s.approvedAt = Number(meta.lastEditAt) || Date.now();
+    });
     var maxNum = state.sections.reduce(function (m, s) { var n = Number(String(s.id).replace(/^s/, '')); return n > m ? n : m; }, 0);
     if (state.nextId <= maxNum) state.nextId = maxNum + 1;
     state.sections.forEach(function (s) { if (s.status === 'editing') { s.status = 'draft'; s.error = null; } });
@@ -176,7 +193,7 @@
     return readAll('books').then(function (qs) {
       library = ((qs && qs.docs) || []).map(function (d) {
         var b = d.data() || {};
-        return { id: d.id, title: String(b.bookTitle || ''), scripts: Number(b.scriptCount) || 0, edited: Number(b.editedCount) || 0,
+        return { id: d.id, title: String(b.bookTitle || ''), scripts: Number(b.scriptCount) || 0, edited: Number(b.editedCount) || 0, finals: Number(b.finalCount) || 0,
                  at: Math.max(Number(b.touchedAt) || 0, Number(b.lastEditAt) || 0, Number(b.createdAt) || 0) };
       }).sort(function (a, b) { return b.at - a.at; });
     });
@@ -218,7 +235,7 @@
     collapsed = {};
     (prefGet('collapsed.' + book, []) || []).forEach(function (id) { collapsed[id] = true; });
   }
-  function resetBookUi() { flash = null; saveError = null; editState = null; confirmState = null; captionOpen = {}; captionMemo = {}; pull = null; }
+  function resetBookUi() { flash = null; saveError = null; editState = null; confirmState = null; captionOpen = {}; captionMemo = {}; pull = null; writtenPick = {}; refEdit = null; }
 
   function openBook(id) {
     flushSaves();
@@ -235,6 +252,7 @@
       dbApi = dbRoot;                                     // only now may anything be written
       dbStatus = 'ready'; prefSet('book', id);
       paint();
+      loadWrittenIndex().then(paint);                     // the written scripts, re-read so a teammate's new one can be matched
     }).catch(function (err) {
       console.warn('Scriptorium: could not open book', err);
       return showLibrary('Couldn’t open that book just now — try again.');
@@ -252,7 +270,7 @@
     if (pull && pull.step === 'pulling') { showFlash('Still pulling from Descript. Let it finish, or stop it, before leaving this book.'); return; }
     syncFieldsFromDom();
     var unsaved = state.sections.filter(function (s) { return s.handDraft != null && s.handDraft !== s.corrected; })[0];
-    if (unsaved) { showFlash('“' + (unsaved.name || 'A script') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }
+    if (unsaved) { showFlash('“' + (unsaved.name || 'A guide') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }
     if (editState || state.sections.some(function (s) { return s.status === 'editing'; })) { showFlash('The edit pass is still running. Let it finish, or stop it, before leaving this book.'); return; }
     syncFieldsFromDom(); flushSaves();
     // One last save of the book's own document, so its title and counts are right in the list.
@@ -286,7 +304,7 @@
     if (!b) return;
     openConfirm({
       title: 'Delete “' + (b.title || 'Untitled book') + '”?',
-      body: 'This deletes the book for everyone on the team — ' + (b.scripts > 1 ? 'all ' + b.scripts + ' of its scripts' : 'its scripts') + ', their corrected text and their timed captions — and it can’t be undone. Any Google Doc already created is untouched.',
+      body: 'This deletes the book for everyone on the team — ' + (b.scripts > 1 ? 'all ' + b.scripts + ' of its audio guides' : 'its audio guides') + ', their transcripts and their timed captions — and it can’t be undone. Written scripts are kept, and any Google Doc already created is untouched.',
       warn: '',
       confirmLabel: 'Delete this book',
       onConfirm: function () { deleteBook(id); }
@@ -320,6 +338,7 @@
       return carryOverOldWorkbench().catch(function (err) { console.warn('Scriptorium: could not carry over the old workbench', err); })
         .then(loadLibrary)
         .then(function () {
+          loadWrittenIndex().then(function () { if (view !== 'book' || dbStatus === 'ready') paint(); });
           var last = prefGet('book', null);
           if (last && library.some(function (b) { return b.id === last; })) return openBook(last);
           dbStatus = 'ready'; view = 'library'; paint();

@@ -23,6 +23,15 @@
   function safeLink(url) { url = String(url == null ? '' : url).trim(); return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : ''; }
   function needsEdit(s) { return !!s.raw.trim() && (s.status !== 'edited' || s.raw !== s.editedFromRaw); }
 
+  /* The stages of a guide (SOURCE-OF-TRUTH, "The words this document uses"): the 1st Draft Transcript is what
+     Descript heard; the Edited Transcript is that after the edit pass and any corrections by hand; the Final
+     Transcript is an Edited Transcript a person has approved. The approval is of that text, so anything that
+     changes the text takes it back to Edited (clearApproval) — and while its 1st Draft has changed since the
+     edit, it does not count as Final either: what was approved is no longer what Descript has. */
+  function isFinal(s) { return s.status === 'edited' && !!s.corrected && Number(s.approvedAt) > 0 && !isStale(s); }
+  function clearApproval(s) { s.approvedAt = 0; }
+  function stageName(s) { return isFinal(s) ? 'Final Transcript' : 'Edited Transcript'; }
+
   // Per-viewer conveniences only; the page must work when storage is unavailable.
   function prefGet(key, fallback) { try { var v = localStorage.getItem('scriptorium.' + key); return v == null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }
   function prefSet(key, value) { try { localStorage.setItem('scriptorium.' + key, JSON.stringify(value)); } catch (e) {} }

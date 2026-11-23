@@ -8,7 +8,7 @@
      fixNames and fixCapitals).
      ------------------------------------------------------------------ */
 
-  function promptHeader(section) {
+  function promptHeader(section, hasWritten) {
     return 'Proofread this Descript AI transcript of a spoken audio guide. Descript captures the SOUND of words, not always the right words — unfamiliar names often come through as an ordinary phrase that sounds similar.\n\n' +
       'Book or plan: ' + (state.bookTitle || '(untitled)') + '\n' +
       'Script name: ' + (section.name || '(untitled section)') + '\n' +
@@ -27,7 +27,12 @@
       '- Bible references in digits, never number words or a mix ("Isaiah 35:1", "chapter 12", "verse 3"); keep the words "chapter" and "verse" where spoken. Other numbers stay as spoken.\n' +
       '2. MISHEARD WORDS: plausible mishearings of a listed name or term ("Eli who" for Elihu, "so far" for Zophar), and other names where the sentence only makes sense with a different word. A correction must SOUND like what was transcribed — never swap in a different word that means the same.\n' +
       '3. SCRIPTURE: the speaker quotes Bible verses, usually after a reference ("Verse one", "Job 2:4", "Isaiah 3 verses two through four"). Inside a quoted verse fix ONLY misheard words ("the land of us" to "the land of Uz"); change nothing else — not wording, order, capitalization, or punctuation, even where it looks wrong. Translations read oddly on purpose. The speaker quotes the NIV, sometimes the ESV: never change a quotation to match a verse. If one matches neither translation in meaning or a key word, leave it and report it under "misquotes".\n' +
-      '4. Flag any sentence that still makes no sense after your edits, with your best guess at what is wrong.\n\n';
+      '4. Flag any sentence that still makes no sense after your edits, with your best guess at what is wrong.\n' +
+      // SOURCE-OF-TRUTH 4.9. Sent only for a guide that has a written script, so no other call pays for it (4.6).
+      (hasWritten ? '5. WRITTEN SCRIPT: what the teacher wrote before recording is given below as a reference. The teacher did not read it out word for word, so NEVER change the transcript to match it. ' +
+        'Use it only as evidence for a fix rules 1 to 3 already allow: a misheard word or name, a question mark where a question was meant, a comma, where a sentence or a quotation ends. Add "source":"script" to an edit it supports. ' +
+        'Where the transcript looks wrong against it in another way — a word dropped or misheard as a different-sounding word, NOT the speaker rewording — still give the edit, with "source":"script"; the page lists it as a suggestion and leaves the transcript as spoken.\n' : '') +
+      '\n';
   }
 
   // Verses come back as short anchors, not the whole quotation: the page finds the span between
@@ -44,8 +49,10 @@
     return '"joins": paragraph breaks that fall in the middle of one continuous thought (a breath, not a real new paragraph). Each: {"endsWith": "the last five or so words before the break", "startsWith": "the first five or so words after it"}, copied exactly as the text reads after your edits. Leave genuine paragraph changes alone, and never join across the start or end of a quoted verse.\n';
   }
 
-  function buildEditsPrompt(section, text) {
-    return promptHeader(section) +
+  var WRITTEN_PROMPT_MAX = 60000;      // characters of a written script sent with its guide
+  function buildEditsPrompt(section, text, written) {
+    written = String(written || '').trim().slice(0, WRITTEN_PROMPT_MAX);
+    return promptHeader(section, !!written) +
       'Return your corrections as a list of EDITS, not a rewrite. Each: "find" — a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes, spacing), long enough to be unambiguous, usually 3 to 15 words, never crossing a blank line; "replace" — the corrected version of exactly that run. In order, one per occurrence. ' +
       'Add "kind": "misheard" for a misheard word or name, or "verse-fix" for one inside a quoted verse, each with a "note" of a few words; grammar edits need neither.\n' +
       versesSpec() +
@@ -55,5 +62,6 @@
       'Return ONLY this JSON object:\n' +
       '{"edits":[{"find":"","replace":""}],"verses":[{"reference":"","startsWith":"","endsWith":"","canonical":"","confidence":"high","note":""}],' + (repairParagraphs ? '"joins":[{"endsWith":"","startsWith":""}],' : '') + '"misquotes":[{"said":"","verse":"","reference":""}],"nonsensical":[{"original":"","issue":""}],"summary":""}\n' +
       'Use empty arrays when there is nothing to report. No text outside the JSON.\n\n' +
+      (written ? 'WRITTEN SCRIPT (reference only — never copy its wording into the transcript):\n"""\n' + written + '\n"""\n\n' : '') +
       'TRANSCRIPT:\n"""\n' + text + '\n"""';
   }

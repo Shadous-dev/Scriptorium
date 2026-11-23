@@ -1,4 +1,4 @@
-/* 08-actions.js — Adding, removing, collapsing and copying scripts. */
+/* 08-actions.js — Adding, removing, collapsing, copying, correcting by hand and signing off guides. */
   /* ==================================================================
      Actions
      ================================================================== */
@@ -9,7 +9,7 @@
     syncFieldsFromDom();
     var added = newSection();
     state.sections.push(added);
-    state.approved = false; touchBook();
+    touchBook();
     paint();
     saveSection(added.id); saveMeta();
     var nameEl = root.querySelector('[data-field="name"][data-id="' + added.id + '"]');
@@ -22,12 +22,12 @@
     state.sections = state.sections.filter(function (s) { return s.id !== id; });
     var replacement = null;
     if (!state.sections.length) { replacement = newSection(); state.sections.push(replacement); }
-    state.approved = false; touchBook();
-    delete collapsed[id]; persistCollapsed();
+    touchBook();
+    delete collapsed[id]; persistCollapsed(); delete writtenPick[id];
     paint();
     if (dbApi) {
       scriptRef(bookId, id).delete().catch(function () {
-        showFlash('“' + ((victim && victim.name) || 'That script') + '” was removed from view but could not be deleted from storage — it may reappear when you reload. Try removing it again then.');
+        showFlash('“' + ((victim && victim.name) || 'That guide') + '” was removed from view but could not be deleted from storage — it may reappear when you reload. Try removing it again then.');
       });
     }
     if (dbApi) captionRef(bookId, id).delete().catch(function () {});
@@ -46,7 +46,7 @@
     var blocks = layoutBlocks(s);
     var html = '<div>' + blocksToHtml(blocks, true) + '</div>', plain = blocksToPlain(blocks);
     var done = function () { if (btn) { btn.textContent = 'Copied'; btn.classList.add('is-done'); setTimeout(function () { btn.textContent = 'Copy for YouVersion'; btn.classList.remove('is-done'); }, 1800); } };
-    var fail = function () { showFlash('Couldn’t copy automatically in this view — select the corrected script and copy it by hand.'); };
+    var fail = function () { showFlash('Couldn’t copy automatically in this view — select the transcript and copy it by hand.'); };
     function plainOnly() {
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(plain).then(done, fail); else fail();
     }
@@ -58,7 +58,7 @@
     } else plainOnly();
   }
 
-  /* ---- Correcting a finished script by hand ---- */
+  /* ---- Correcting an Edited Transcript by hand ---- */
 
   function hasHandWork(s) { return s.handDraft != null || (s.edits || []).some(function (e) { return e.kind === 'hand'; }); }
 
@@ -79,28 +79,59 @@
     var s = findSection(id);
     if (!s || s.handDraft == null) return;
     var text = String(s.handDraft).replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-    if (!text) { showFlash('The corrected script can’t be left empty. Cancel to keep it as it was.'); return; }
+    if (!text) { showFlash('The transcript can’t be left empty. Cancel to keep it as it was.'); return; }
     if (text !== s.corrected) {
       s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));
       s.changeCount = s.edits.length;
       s.corrected = text;
-      state.approved = false; touchBook();
+      clearApproval(s); touchBook();            // the approval was of the text as it stood
     }
     delete s.handDraft;
     paint();
     saveSection(id).then(saveMeta);
   }
 
-  // Redoing the edit pass replaces the corrected script, hand corrections included — so ask first (4.5).
+  // Redoing the edit pass replaces the Edited Transcript, hand corrections included — so ask first (4.5).
   function askRedo(id) {
     var s = findSection(id);
     if (!s) return;
     if (!hasHandWork(s)) { redoSection(id); return; }
     openConfirm({
-      title: 'Redo “' + (s.name || 'this script') + '”?',
-      body: 'This script has corrections made by hand. Redoing the edit pass replaces the corrected script with a fresh result, and those corrections are lost.',
+      title: 'Redo “' + (s.name || 'this guide') + '”?',
+      body: 'This guide has corrections made by hand. Redoing the edit pass replaces the Edited Transcript with a fresh result, and those corrections are lost.',
       warn: '',
       confirmLabel: 'Redo and replace',
       onConfirm: function () { confirmState = null; delete s.handDraft; redoSection(id); }
     });
+  }
+
+  /* ---- Signing off: an Edited Transcript a person has reviewed becomes the Final Transcript ---- */
+
+  // Asks first when something on the card is still open, so a sign-off is never given past a warning unseen.
+  function approveSection(id, sure) {
+    syncFieldsFromDom();
+    var s = findSection(id);
+    if (!s || s.status !== 'edited' || !s.corrected) return;
+    if (s.handDraft != null) { showFlash('Save or cancel the corrections you are making by hand first.'); return; }
+    if (isStale(s)) { showFlash('The 1st Draft Transcript has changed since this was edited. Run the edit pass again before approving it.'); return; }
+    var refs = flaggedRefs(s);
+    if (sure !== true && refs) {
+      openConfirm({
+        title: 'Approve “' + (s.name || 'this guide') + '” as the Final Transcript?',
+        body: refs + ' scripture reference' + plural(refs) + ' on this guide ' + (refs === 1 ? 'is' : 'are') + ' still marked to check. A Final Transcript goes into the Google Doc as it stands, references included.',
+        warn: '', confirmLabel: 'Approve anyway',
+        onConfirm: function () { confirmState = null; approveSection(id, true); }
+      });
+      return;
+    }
+    s.approvedAt = Date.now(); touchBook();
+    paint();
+    saveSection(id).then(saveMeta);
+  }
+  function unapproveSection(id) {
+    var s = findSection(id);
+    if (!s || !s.approvedAt) return;
+    clearApproval(s); touchBook();
+    paint();
+    saveSection(id).then(saveMeta);
   }

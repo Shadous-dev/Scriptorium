@@ -13,10 +13,10 @@
     var count = state.sections.length;
     var unedited = state.sections.filter(function (s) { return s.raw.trim() && s.status !== 'edited'; }).length;
     openConfirm({
-      title: 'Remove all ' + count + ' script' + plural(count) + '?',
-      body: 'This deletes every script in this book, for everyone on the team, including the corrected text, the words flagged in each one, and any timed captions, and it can’t be undone. This book’s title and Words to Search For list stay put, other books are not touched, and any Google Doc you already created is untouched.',
+      title: 'Remove all ' + count + ' guide' + plural(count) + '?',
+      body: 'This deletes every audio guide in this book, for everyone on the team, including its transcripts, the words flagged in each one, and any timed captions, and it can’t be undone. This book’s title and Words to Search For list stay put, other books and the written scripts are not touched, and any Google Doc you already created is untouched.',
       warn: unedited ? unedited + ' of them ' + (unedited === 1 ? 'has' : 'have') + ' not been edited yet.' : '',
-      confirmLabel: 'Remove all ' + count + ' script' + plural(count),
+      confirmLabel: 'Remove all ' + count + ' guide' + plural(count),
       onConfirm: clearAllScripts
     });
   }
@@ -26,7 +26,7 @@
     var fresh = newSection();
     state.sections = [fresh];
     state.lastEditAt = null; state.approved = false; state.docResult = null; touchBook();
-    collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {};
+    collapsed = {}; persistCollapsed(); captionOpen = {}; captionMemo = {}; writtenPick = {}; refEdit = null;
     confirmState = null; clearing = true;
     paint();
     var failed = 0, chain = Promise.resolve();
@@ -37,8 +37,8 @@
     return chain.then(function () {
       clearing = false;
       flash = failed
-        ? 'Cleared the workbench, but ' + failed + ' script' + plural(failed) + ' could not be removed from storage and may come back when you reload. Try Clear All once more.'
-        : 'Cleared ' + ids.length + ' script' + plural(ids.length) + '. This book’s title and word list are still here.';
+        ? 'Cleared the workbench, but ' + failed + ' guide' + plural(failed) + ' could not be removed from storage and may come back when you reload. Try Clear All once more.'
+        : 'Cleared ' + ids.length + ' guide' + plural(ids.length) + '. This book’s title and word list are still here.';
       paint();
     });
   }

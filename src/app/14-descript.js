@@ -159,7 +159,7 @@
     });
   }
 
-  // Put one audio guide into the open book: its own script if it has one already, else an empty script, else a new one.
+  // Put one audio guide into the open book: its own card if it has one already, else an empty card, else a new one.
   function placeFromDescript(project, text, srt) {
     syncFieldsFromDom();
     var s = state.sections.filter(function (x) { return x.descriptId === project.id; })[0], isNew = !s;
@@ -176,7 +176,7 @@
     s.descriptName = project.name;
     s.raw = String(text).replace(/\s+$/, '');
     s.captions = String(srt || '').replace(/\s+$/, '');
-    state.approved = false; touchBook();
+    touchBook();
     return saveSection(s.id).then(function () { return saveCaptions(s.id); }).then(function () { return saveMeta(); }).then(function () { return isNew; });
   }
 
@@ -234,7 +234,7 @@
       return '<section class="pull-panel">' + head +
         '<p class="pull-progress">' + esc(line) + '</p>' +
         (pull.failed.length ? '<ul class="pull-failed">' + pull.failed.map(function (f) { return '<li><strong>' + esc(f.name) + '</strong> — ' + esc(f.why) + '</li>'; }).join('') + '</ul>' : '') +
-        (got ? '<p class="hint">Next: check the script names, list any names Descript tends to mishear under Words to Search For, then click Edit All Scripts.</p>' : '') +
+        (got ? '<p class="hint">Next: check the guide names, list any names Descript tends to mishear under Words to Search For, then click Edit All Guides.</p>' : '') +
         '<div class="pull-foot"><button type="button" class="btn" data-action="pull-more">Pull more</button></div>' +
         '</section>';
     }
@@ -259,7 +259,7 @@
       var projects = pull.projects.map(function (p) {
         return '<li><label class="pull-item"><input type="checkbox" data-action="pull-pick" data-id="' + escAttr(p.id) + '"' + (pull.selected[p.id] ? ' checked' : '') + '>' +
           '<span class="pull-name">' + esc(p.name) + '</span>' +
-          (have[p.id] ? '<span class="pull-tag">already in this book — pulling again replaces its transcript</span>' : '') + '</label></li>';
+          (have[p.id] ? '<span class="pull-tag">already in this book — pulling again replaces its 1st Draft Transcript</span>' : '') + '</label></li>';
       }).join('');
       // At the top of the Drive, one extra row reaches the projects that are in no folder.
       var loose = (!pull.path && !pull.unfiled) ? '<li><button type="button" class="pull-folder" data-action="pull-open" data-path="" data-unfiled="1"><span aria-hidden="true">▸</span> Not in a folder</button></li>' : '';
@@ -276,12 +276,12 @@
           '<span class="pull-count"></span></div>' : '');
     }
     return '<section class="pull-panel">' + head +
-      '<p class="hint">Pick the audio guides to bring into this book. Each one becomes a script with its transcript and its timed captions. Nothing in Descript is changed.</p>' +
+      '<p class="hint">Pick the audio guides to bring into this book. Each one gets its own card, with its 1st Draft Transcript and its timed captions. Nothing in Descript is changed.</p>' +
       '<p class="pull-path">' + crumbs + '</p>' + body +
       '</section>';
   }
 
-  /* ---- Names — SOURCE-OF-TRUTH 6. A script pulled from Descript is named from its project. ---- */
+  /* ---- Names — SOURCE-OF-TRUTH 6. A guide pulled from Descript is named from its project. ---- */
 
   var BIBLE_BOOKS = ('Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Ezra|Nehemiah|Esther|Job|Psalms|Proverbs|Ecclesiastes|Song of Songs|Song of Solomon|' +
     'Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|' +
@@ -296,7 +296,12 @@
     var t = String(name).replace(/\s*\(.*$/, '').replace(/^ED[_ ]+/i, '').split(/[_ ]+/).filter(Boolean), which = '';
     if (/^[123]$/.test(t[0] || '') && t.length > 1) which = t.shift();
     else { var m = /^([123])(?:st|nd|rd)?([A-Za-z].*)$/.exec(t[0] || ''); if (m) { which = m[1]; t[0] = m[2]; } }
-    var book = BOOK_BY_KEY[String(t.shift() || '').toLowerCase().replace(/[^a-z]/g, '')];
+    // A book of several words is tried first ("Song_of_Songs_3"); a single word otherwise.
+    var book = null;
+    for (var take = 3; take >= 1 && !book; take--) {
+      var found = BOOK_BY_KEY[t.slice(0, take).join('').toLowerCase().replace(/[^a-z]/g, '')];
+      if (found && (take === 1 || (/ /.test(found) && t.slice(0, take).every(function (w) { return /^[A-Za-z]+$/.test(w); })))) { book = found; t = t.slice(take); }
+    }
     if (!book) return name;
     if (which && !(Number(which) <= NUMBERED_BOOKS[book])) return name;        // "2 Isaiah", "3 Kings": not a book
     if (!which && NUMBERED_BOOKS[book] && book !== 'John') return name;         // "Samuel" alone: which one?

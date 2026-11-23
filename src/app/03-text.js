@@ -48,6 +48,7 @@
       text = text.slice(0, hit.start) + repl + text.slice(hit.end);
       cursor = hit.start + repl.length;
       applied.push({ find: find, replace: repl, kind: String((e && e.kind) || 'grammar'), note: String((e && e.note) || '') });
+      if (e && e.source === 'script') applied[applied.length - 1].source = 'script';     // 4.9: a change the written script supported says so
     });
     return { text: text, applied: applied, unapplied: unapplied };
   }
@@ -70,8 +71,17 @@
   // One clean pair of double quotes around the verse; speech inside it in single quotes. The
   // transcript's own marks are often doubled, curly, or missing a partner, so the inner speech
   // quotes are re-balanced from their positions rather than trusted.
+  //
+  // The end of a verse is where the marks pile up: the speech inside it closes, the verse closes, and a
+  // full stop or a second mark is often left outside (get up.'"  get up".  get up." "). So the end is
+  // rebuilt rather than trusted: the verse's own closing punctuation, once; then one closing mark for the
+  // speech inside it, if that speech is open.
   function normalizeVerseQuotes(inner) {
-    inner = inner.replace(/^["“”]+\s*/, '').replace(/\s*["“”]+$/, '').trim();
+    inner = String(inner).trim().replace(/^(?:["“”]\s*)+/, '');
+    var tail = inner.match(/[\s"“”'’.,!?…]*$/)[0], core = inner.slice(0, inner.length - tail.length);
+    var own = tail.match(/^[.,!?…]+/), later = tail.match(/[.,!?…]/);
+    var hadSingle = /['’]/.test(tail);
+    inner = core + (own ? own[0] : later ? later[0] : '');
     var open = false, needLead = false, re = /["“”]/g, m;
     while ((m = re.exec(inner))) {
       var ch = m[0], prev = m.index ? inner[m.index - 1] : '';
@@ -80,7 +90,8 @@
     }
     inner = inner.replace(/[“”"]/g, "'");
     if (needLead) inner = "'" + inner;
-    if (open) inner = inner + "'";
+    // A single mark found at the end closes speech that opened earlier in the verse. With nothing open it was a stray, and is dropped.
+    if (open || (hadSingle && /(?:^|[\s(:—–\-\[])['‘](?=\S)/.test(inner))) inner = inner + "'";
     return '"' + inner + '"';
   }
 
@@ -89,17 +100,17 @@
   // Where a verse sits in the corrected text. New results carry two short anchors (the first
   // and last few words); older saved results carry the whole quote. Either way the text itself
   // is the source — the span is found here, not re-typed by the editor.
-  function verseSpan(text, v) {
+  function verseSpan(text, v, from) {
     if (v.startsWith) {
-      var head = locate(text, v.startsWith, 0, true); if (!head) return null;
+      var head = locate(text, v.startsWith, from || 0, true); if (!head) return null;
       var tail = v.endsWith ? locate(text, v.endsWith, head.start, true) : null;
       if (!tail || tail.start < head.start || tail.end - head.start > 2500) return null;
       return { start: head.start, end: tail.end };
     }
     var quote = String(v.quote || ''); if (!quote) return null;
-    var q = locate(text, quote, 0, true);
+    var q = locate(text, quote, from || 0, true);
     if (!q && quote.length > 60) {
-      var h = locate(text, quote.slice(0, 50), 0, true);
+      var h = locate(text, quote.slice(0, 50), from || 0, true);
       if (h) q = { start: h.start, end: Math.min(text.length, h.start + quote.length) };
     }
     return q;
@@ -107,16 +118,31 @@
 
   function layoutBlocks(s) {
     var text = String(s.corrected || '');
-    var hits = [];
-    (s.verses || []).forEach(function (v) {
-      var q = v && verseSpan(text, v); if (!q) return;
+    var hits = [], cursor = 0;
+    (s.verses || []).forEach(function (v, vi) {
+      // Verses are listed in order, so each is looked for after the one before it: two that open with the
+      // same words ("Jesus answered and said") are then two places in the text, not the first one twice.
+      var q = v && verseSpan(text, v, cursor); if (!q) return;
       var st = q.start, en = q.end;
-      while (st > 0 && /["“]/.test(text[st - 1])) st--;
-      while (en < text.length && /["”]/.test(text[en])) en++;
+      // Opening marks that belong to the verse: the quote marks right before it, and one left a space away.
+      while (st > 0 && (/["“]/.test(text[st - 1]) || (/['‘]/.test(text[st - 1]) && (st === 1 || /[\s"“(—]/.test(text[st - 2]))))) st--;
+      var lead = text.slice(0, st).match(/(?:^|[\s(])(["“'‘]+[ \t]+)$/);
+      if (lead) st -= lead[1].length;
+      // Closing marks that belong to the verse: the run of marks right after it — the ' and the " in
+      // «get up.'" The dead man sat up» — and a stray one left a space away. A mark that opens the next
+      // quotation is followed by a letter, and is left where it is.
+      // Punctuation hard against the last word is that word's, even when the anchor stopped short of it.
+      var stop = text.slice(en).match(/^[.,;:!?…]+/);
+      if (stop) en += stop[0].length;
+      var close = text.slice(en).match(/^(?:[ \t]*["”'’])+(?=[\s.,;:!?)]|$)/);
+      if (close) en += close[0].length; else { while (en < text.length && /["”]/.test(text[en])) en++; }
       // Absorb a reference the speaker or an earlier pass already put after the quote.
       var tail = text.slice(en).match(/^\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)/);
       if (tail) en += tail[0].length;
-      hits.push({ start: st, end: en, verse: v });
+      // A full stop or comma left outside the closing mark goes with the verse, not at the head of the next paragraph.
+      if ((close || tail) && /^[.,](?=\s|$)/.test(text.slice(en))) en += 1;
+      hits.push({ start: st, end: en, verse: v, index: vi });
+      cursor = Math.max(cursor, en);
     });
     hits.sort(function (a, b) { return a.start - b.start; });
     var kept = []; hits.forEach(function (h) { var last = kept[kept.length - 1]; if (!last || h.start >= last.end) kept.push(h); });
@@ -125,17 +151,20 @@
     function prose(chunk) {
       chunk.split(/\n\s*\n/).forEach(function (p) {
         p = p.replace(/\s*\n\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
-        if (p) blocks.push({ type: 'p', text: p });
+        // A quote mark with a space after it opens nothing, and one with a space before it closes nothing: both are
+        // left-overs from around a verse. They are dropped here, and so is a paragraph that is nothing but marks.
+        p = p.replace(/^(?:["“”'‘’]+\s+)+/, '').replace(/(?:\s+["“”'‘’]+)+$/, '');
+        if (p && !/^["“”'‘’.,\s]*$/.test(p)) blocks.push({ type: 'p', text: p });
       });
     }
     kept.forEach(function (h) {
       prose(text.slice(pos, h.start));
-      var inner = text.slice(h.start, h.end).replace(/\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)\s*$/, '').replace(/\s*\n+\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
+      var inner = text.slice(h.start, h.end).replace(/\s*\(([1-3]?\s?[A-Za-z]+\.?\s+\d+(?::\d+(?:[-–]\d+)?)?)\)[.,]?\s*$/, '').replace(/\s*\n+\s*/g, ' ').replace(/[ \t]+/g, ' ').trim();
       // Strip whatever quote marks the transcript had around the verse (doubled, curly, mismatched),
       // turn any double quotes still inside it into single quotes for the speech within the verse,
       // then wrap the whole verse in one clean pair of double quotes.
       inner = normalizeVerseQuotes(inner);
-      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: isUncertain(h.verse), note: String(h.verse.note || '') });
+      blocks.push({ type: 'verse', text: inner, ref: refLabel(h.verse), uncertain: isUncertain(h.verse), note: String(h.verse.note || ''), index: h.index });
       pos = h.end;
     });
     prose(text.slice(pos));

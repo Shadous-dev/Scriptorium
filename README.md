@@ -1,17 +1,18 @@
 # The Scriptorium
 
-**Through the Word's transcript editor for audio guide scripts from Descript.**
+**Through the Word's transcript editor for audio guide transcripts from Descript.**
 
 It turns Descript's raw transcript of an audio guide into clean, publishable
-text and searchable caption files, without changing what the speaker said. It
-runs as a Claude artifact: one web page, opened inside Claude.
+text and searchable caption files, without changing what the speaker said. The
+teacher's own written script stands beside it as a reference. It runs as a
+Claude artifact: one web page, opened inside Claude.
 
 > **This repository is the only copy of the Scriptorium.** The `main` branch
 > is the tool. If something is not here, it is not part of the tool. See
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.2.1. It opens for members of the Through the Word organization on
+version 1.3.0. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -27,66 +28,93 @@ punctuation: questions ending in periods, sentences starting lowercase, clauses
 chained together with "and" and "so" until a paragraph is a single breathless
 sentence.
 
-Cleaning one script by hand is a slow afternoon. A book like Job is 44 of them,
+Cleaning one transcript by hand is a slow afternoon. A book like Job is 44 of them,
 each 6,000–15,000 characters. The Scriptorium does the pass in one go, shows
 exactly what it changed, and hands back text that can be pasted straight into
 YouVersion, plus caption files that make every word of the guide searchable.
 
 ## Using it
 
+Each audio guide moves through four stages, and each has one name:
+
+| Stage | What it is |
+|---|---|
+| **Written script** | What the teacher wrote before recording. A reference. Never edited here. |
+| **1st Draft Transcript** | What Descript heard, exactly as it arrived. |
+| **Edited Transcript** | The 1st Draft after the edit pass and any corrections by hand. |
+| **Final Transcript** | An Edited Transcript a person has reviewed and approved. |
+
+"Script" on its own always means the written script.
+
 0. **Pick a book, or start one.** The front page lists every book the team
    has. Each is its own workbench, shared with everyone: open one to pick up
    where anyone left off, or use **+ New Book**.
-1. **Pull the audio guides from Descript.** Click **Pull from Descript**, open
+1. **Add the written scripts.** On the front page, **Written Scripts** holds
+   what each teacher wrote before recording. Give one a title that starts
+   with its book and chapter ("Luke 24 — Jones") and bring in its text: paste
+   it, give the link to a Google Doc or Sheet, or choose a Word (.docx) or
+   text file. This can be done at any time, before or after the edit pass.
+2. **Pull the audio guides from Descript.** Click **Pull from Descript**, open
    the book's folder in the TTW Drive, tick the audio guides you want, and
-   pull them. Each becomes a script with its transcript and its timed
+   pull them. Each gets a card with its 1st Draft Transcript and its timed
    captions. Nothing in Descript is changed. You can also paste a transcript
-   into a script by hand. Then name the book and list the names the speaker
+   into a card by hand. Then name the book and list the names the speaker
    uses that Descript is likely to mangle.
-2. **Run the edit pass.** Each script is corrected for punctuation,
-   capitalization, run-on sentences, and misheard names — *without* changing the
-   speaker's wording, meaning, tone, or intent. Stage cues and pause marks are
-   stripped. Paragraph breaks that fall mid-thought are closed up.
-3. **Review what changed.** Every card shows a before/after table of misheard
+3. **Check the match.** Each card says which written script it is matched to,
+   and how: by title, by wording, or both. **Change** picks another, or none.
+4. **Run the edit pass.** Each transcript is corrected for punctuation,
+   capitalization, run-on sentences, and misheard names — *without* changing
+   the speaker's wording, meaning, tone, or intent. Stage cues and pause marks
+   are stripped. Paragraph breaks that fall mid-thought are closed up. The
+   written script is evidence for a fix (a misheard name, a question mark,
+   where a sentence ends). The transcript is never changed to match it.
+5. **Review what changed.** Every card shows a before/after table of misheard
    words, verse fixes, and grammar changes, plus any sentence that still does
    not make sense. Two lists need a person:
    - **Suggested but not applied.** The edit pass wanted a change that would
-     alter the speaker's words. The page refused it; the script still reads
-     as spoken.
+     alter the speaker's words. The page refused it; the transcript still
+     reads as spoken. One that came from the written script says so.
    - **For the teacher.** A quotation that may match neither the NIV nor the
      ESV. It is left as spoken; raise it with the teacher if it matters.
-   For a small fix of your own, click **Edit by hand** on the corrected
-   script. Each change you save is listed under "Changed by hand".
-4. **Check the scripture.** Every quoted verse is pulled out with the reference
-   the speaker spoke aloud, the canonical reference worked out from the text,
-   and a confidence flag so uncertain references are easy to spot.
-5. **Copy or publish.** Copy a single script with its verses already bold and
-   block-quoted, or build the whole book into one Google Doc.
-6. **Download caption files.** A script pulled from Descript already has its
+   For a small fix of your own, click **Edit by hand**. Each change you save
+   is listed under "Changed by hand".
+6. **Check the scripture.** Every quoted verse is listed with the reference
+   the speaker spoke aloud, the reference in the written script, and the
+   reference the edit pass worked out. The page checks that one against the
+   others and against the chapter the guide is on. Where they disagree it says
+   why and lists the likelier references: click one to use it, or **Change**
+   to type your own.
+7. **Approve it.** When a guide has been reviewed, click **Approve as Final**.
+   Changing it afterwards, by hand or by running the edit pass again, takes
+   it back to an Edited Transcript until it is approved again.
+8. **Copy or publish.** Copy a single transcript with its verses already bold
+   and block-quoted, or build the book's Final Transcripts into Google Docs.
+   Only Final Transcripts go into a Google Doc.
+9. **Download caption files.** A guide pulled from Descript already has its
    timed captions. For one pasted by hand, open **Timed captions for search**
    and paste in the `.srt` file Descript exports for that audio guide (in
    Descript: Export › Subtitles › .srt). After the edit pass, download an
    `.srt` and a `.vtt`. Both carry the *corrected* words on Descript's own
    timings, so a search for "Uz" finds it even though Descript heard "us".
    **Download all caption files** at the bottom gives the whole book in one
-   `.zip`.
+   `.zip`. Caption files do not wait for approval.
 
 ### What a caption file is, and is not
 
-- Every word of the corrected script appears once, in order.
+- Every word of the corrected transcript appears once, in order.
 - The timings are Descript's. The Scriptorium never moves or invents one.
 - The `.srt` and the `.vtt` hold the same words and times; only the file format
   differs. Making them costs nothing — no call to Claude.
 - Timings are per caption (a few seconds), not per word, because that is what
   Descript exports. A search lands on the caption a word is in.
-- If the captions pasted in belong to a different script, the tool says so and
+- If the captions pasted in belong to a different guide, the tool says so and
   builds nothing.
 
 ### Known limits
 
 - **Books are shared, not live.** Everyone sees the same books, but a book is
-  read when you open it. If two people type in the same script at the same
-  time, the last save wins. Different scripts in the same book are safe.
+  read when you open it. If two people type in the same guide at the same
+  time, the last save wins. Different guides in the same book are safe.
 - **Saving needs Contributor access.** Someone who can only view the artifact
   can read the books but not change them.
 - **Pulling from Descript is paced.** Descript allows a page about five audio
@@ -97,18 +125,40 @@ YouVersion, plus caption files that make every word of the guide searchable.
   it the first time.
 - **One composition per project.** If a Descript project holds more than one
   composition, the first is pulled.
-- **A book holds up to 1,000 scripts**, and a Descript folder lists up to 1,000
-  projects. Past that the page says so rather than showing part.
+- **A book holds up to 1,000 guides**, a Descript folder lists up to 1,000
+  projects, and the Written Scripts page lists up to 1,000 written scripts.
+  Past that the page says so rather than showing part.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
-- **Verses are worked out from memory, not looked up.** The edit pass infers
-  each reference, and judges whether a quotation matches the NIV or ESV, from
-  what the model knows. It does not open a Bible. Treat "For the teacher"
-  as a prompt to check, not a finding.
+- **A reference is checked, not looked up.** The edit pass works out each
+  reference from what the model knows, and judges from memory whether a
+  quotation matches the NIV or ESV. The page then checks the reference
+  against the chapter the guide is on, what was said aloud, and the written
+  script. It does not yet carry a Bible, so it cannot tell that a quotation's
+  *words* belong to a different verse, and it does not check verse numbers
+  against how long a chapter is. Treat "For the teacher" as a prompt to
+  check, not a finding.
+- **A reference with nothing said beside it is hard to check.** With no spoken
+  reference and no written script, only the chapter's existence is checked.
+- **A written script is matched, not understood.** The match is by the book
+  and chapter in its title and by runs of words it shares with the
+  transcript. A title with no book and chapter is matched by wording alone.
+  The card shows the match so a person can correct it.
+- **A guide edited before its written script was added is not re-edited.** Its
+  card says so; **Redo this one** uses it. The reference checks apply either
+  way.
+- **Written scripts come in as text.** Paste, a Google Doc or Sheet link, a
+  Word file (.docx) or a text file. For a PDF, Pages or an older .doc, open it
+  and paste the text. Reading a Google Doc uses your own Google Drive
+  connector in Claude.
+- **The Google Drive read has not been run against the live connector.** It
+  was built and tested against a stand-in. If a Doc link brings in nothing,
+  paste the text and report it.
 - **The wording guard is strict on purpose.** It allows known homophones, the
   same sound spelled differently, and names you list under Words to Search
   For. A real mishearing outside those can land under "Suggested but not
-  applied". Make it with Edit by hand, or list the name and Redo.
+  applied". Make it with Edit by hand, or list the name and Redo. The same
+  goes for a short name spelled without its "h" ("Ester" for Esther).
 - **Spoken references are turned into digits by the edit pass**, except a
   number beside a reference colon, which the page fixes itself. "Verse one"
   can occasionally stay as words.
@@ -143,30 +193,38 @@ src/
   app/
     manifest.json     the concatenation order — the only place order is defined
     01-state.js       app root element and the state shape
-    02-helpers.js     escaping, relative times, stored per-viewer prefs
+    02-helpers.js     escaping, relative times, the stages of a guide, stored per-viewer prefs
     03-text.js        locating and applying edits; verse quoting and layout
     04-render.js      all HTML rendering, plus focus-preserving repaints
     05-capabilities.js runtime capability lookup
-    06-store.js       persistence — the shared library of books; per book, a document per script and per script's captions
+    06-store.js       persistence — the shared library of books; per book, a document per guide and per guide's captions
     07-fields.js      reading form fields back out of the DOM
-    08-actions.js     add, remove, collapse, copy
+    08-actions.js     add, remove, collapse, copy, correct by hand, approve as Final
     09-prompts.js     THE EDITING INSTRUCTIONS — see SOURCE-OF-TRUTH.md
-    10-edit-pipeline.js  the edit run: cues, capitals, joins, concurrency
+    10-edit-pipeline.js  the edit run: cues, capitals, the wording guard, joins, concurrency
     11-clear.js       clearing the workbench for the next book
-    12-google-doc.js  building the Google Doc, with an HTML fallback
+    12-google-doc.js  building the Google Doc from Final Transcripts, with an HTML fallback
     13-captions.js    timed captions: reading .srt/.vtt, building .srt, .vtt and .zip
     14-descript.js    pulling transcripts and captions from Descript (reading only)
-    15-events.js      event delegation, shortcuts, start-up
+    15-written-scripts.js  the written scripts: their page, matching to guides, reading .docx and Google Docs (4.9)
+    16-references.js  checking each scripture reference, and changing one by hand (4.10)
+    17-events.js      event delegation, shortcuts, start-up — last in the manifest
 test/
-  captions.test.js    checks the caption rules (SOURCE-OF-TRUTH 4.7)
-  descript.test.js    checks the Descript pull against a stand-in connector (4.8)
-  edit-rules.test.js  checks the wording guard, references, and hand corrections (4.1, 4.2, 4.4, 6)
+  captions.test.js         checks the caption rules (SOURCE-OF-TRUTH 4.7)
+  descript.test.js         checks the Descript pull against a stand-in connector (4.8)
+  edit-rules.test.js       checks the wording guard, references in digits, verse layout, and hand corrections (4.1, 4.2, 4.4, 6)
+  written-scripts.test.js  checks written scripts, matching, the sign-off, and what reaches the Google Doc (4.9)
+  references.test.js       checks the reference checks (4.10)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
 SOURCE-OF-TRUTH.md    what this tool is for, and the lines not to cross
 CHANGELOG.md          what changed in each version
 .github/workflows/    the checks GitHub runs on every push
 ```
+
+The store still keeps each guide under `books/<book>/scripts/<guide>`, the
+name it had when the store was laid out. Renaming it would strand every saved
+book.
 
 **The split is for reviewing, not for modules.** `build.js` pastes every file in
 `src/app` into one shared function scope, in manifest order. A function defined
@@ -180,7 +238,9 @@ node build.js                 # write dist/index.html from src/
 node build.js --check         # verify dist/index.html matches src/ — exits 1 if not
 node test/captions.test.js    # check the caption rules
 node test/descript.test.js    # check the Descript pull, against a stand-in connector
-node test/edit-rules.test.js  # check the wording guard, references, and hand corrections
+node test/edit-rules.test.js  # check the wording guard, references in digits, verse layout, and hand corrections
+node test/written-scripts.test.js  # check written scripts, matching, the sign-off, and the Google Doc
+node test/references.test.js  # check the reference checks
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
@@ -197,8 +257,9 @@ them (with that feature switched off):
 | Capability | Used for |
 |---|---|
 | `sample` | the edit pass — the one thing that spends usage |
-| `db` | saving the library (`books/<book>`, and under it `scripts/<script>` and `captions/<script>`) |
+| `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) and the written scripts (`written/<id>`, `writtenText/<id>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
+| `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. Added to the artifact's connector list in 1.3.0. |
 | `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
 
@@ -230,6 +291,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.3.0` | Written scripts as a reference, checked references, a sign-off for each guide, and thirteen fixes from a QA pass. Published 2026-11-23. |
 | `v1.2.1` | Ten fixes from a review of 1.2.0, three of them in the wording guard. Published 2026-11-19. |
 | `v1.2.0` | The page enforces the speaker's words (wording guard), notes for the teacher, references in digits, names from Descript, hand corrections. Published 2026-11-19. |
 | `v1.1.0` | Pull from Descript: transcripts and timed captions straight from the TTW Drive. Published 2026-11-18. |

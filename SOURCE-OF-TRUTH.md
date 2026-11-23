@@ -8,7 +8,7 @@ document gets changed first and deliberately.
 
 ## 1. Purpose
 
-> **TTW transcript editor for TTW. For active scripts from Descript.**
+> **TTW transcript editor for TTW. For active transcripts from Descript.**
 >
 > Observes, edits, and corrects any grammatical or capitalization errors.
 > Resets and prepares format to be ready for third-party platforms.
@@ -19,24 +19,52 @@ One sentence version: **the Scriptorium turns a raw Descript transcript of a
 Through the Word audio guide into clean, publishable text — without changing
 what the speaker said.**
 
+### The words this document uses
+
+Each audio guide moves through these stages, and each has one name.
+
+| Name | What it is |
+|---|---|
+| **Audio guide** (guide) | One recording: an intro, a chapter, a conclusion. Each has its own card in a book. |
+| **Written script** | What the teacher wrote before recording. A reference. The tool never edits it (4.9). |
+| **1st Draft Transcript** | What Descript heard, exactly as it arrived. |
+| **Edited Transcript** | The 1st Draft after the edit pass and any corrections by hand. Not yet signed off. |
+| **Final Transcript** | An Edited Transcript that a person has reviewed and approved. |
+
+"Script" on its own always means the written script. "The corrected
+transcript" means the Edited or Final Transcript, whichever the guide has
+reached. Changing a Final Transcript, by hand or by running the edit pass
+again, makes it an Edited Transcript until it is approved again: the approval
+is of that text, not of the guide. A reference is part of that text. And while
+a guide's 1st Draft has changed since it was edited, its transcript does not
+count as Final: what was approved is no longer what Descript has.
+
 ## 2. What it is for
 
-- Through the Word audio guide scripts, book by book or plan by plan.
+- Through the Word audio guides, book by book or plan by plan.
 - The whole team at once: a shared library of books, each one its own
   workbench, so work on one book never disturbs another.
-- A set of scripts at a time: an intro, each chapter, a conclusion. Roughly
+- A set of guides at a time: an intro, each chapter, a conclusion. Roughly
   6,000–15,000 characters each.
 - Output that goes straight into YouVersion for an audience to read, with as
   little hand-editing afterward as possible.
-- Collecting a finished book into one Google Doc, one section per script,
-  named to match.
+- Collecting a book's Final Transcripts into one Google Doc, one section per
+  guide, named to match. Only a Final Transcript goes in. Copying a transcript
+  out and building its caption files do not wait for approval.
 - Timed caption files (`.srt` and `.vtt`) for each audio guide: the corrected
-  script carried on Descript's own timings, so every word of every guide can
+  transcript carried on Descript's own timings, so every word of every guide can
   be found by search.
 - Reading a guide's transcript and timed captions from the TTW Drive in
   Descript, so nobody has to export and paste them by hand.
-- Small corrections by hand to a finished script, for what the edit pass
+- Small corrections by hand to an Edited Transcript, for what the edit pass
   missed. Each one is recorded like any other change (4.4).
+- Keeping the teachers' written scripts in a library of their own, as a
+  permanent reference for checking that what was corrected is accurate and
+  is what the teacher meant (4.9).
+- Checking every scripture reference against the Bible, and suggesting the
+  likelier ones when a reference looks wrong (4.10).
+- A sign-off for each guide: a person reviews the Edited Transcript and
+  approves it as the Final Transcript.
 
 ## 3. What it is not for
 
@@ -65,7 +93,7 @@ The page enforces this itself and does not rely on the edit pass behaving. A
 change the edit pass proposes is applied only if it alters punctuation,
 capitals, spacing, hyphens, or the way a number is written, or if it replaces
 words with words that sound the same. Anything else would change what the
-speaker said: it is listed as a suggestion, and the script is left as spoken.
+speaker said: it is listed as a suggestion, and the transcript is left as spoken.
 
 **4.2 A quoted verse is corrected only where it was misheard.**
 Inside a Bible quotation, the only permitted change is a word Descript got
@@ -92,30 +120,79 @@ Misheard words, verse fixes, and grammar changes are shown as before/after
 rows. A change the reviewer cannot see is a change they cannot catch.
 
 **4.5 The edit must be re-runnable and reversible.**
-Editing a script again must be safe. Previous work is never silently thrown
-away, and an interrupted run costs at most the scripts in flight.
+Editing a guide again must be safe. Previous work is never silently thrown
+away, and an interrupted run costs at most the guides in flight.
 
 **4.6 Nothing is paid for twice.**
-The only thing in this tool that spends usage is the edit call. One script is
+The only thing in this tool that spends usage is the edit call. One guide is
 one call. The page never asks Claude to do what it can do itself (stripping
 stage cues, capitalizing sentence starts, finding a verse in the text), never
 asks for text it already has (a verse is returned as two short anchors, not
-re-typed), and never makes a second call for a script except a single retry
-when the answer could not be read. A full-rewrite fallback is not allowed: it
-costs a whole script's worth of output and hides the edit table.
+re-typed), and never makes a second call for a guide except a single retry
+when the answer could not be read. A guide's written script, when it has one,
+travels in that same one call: only the written script matched to that guide
+is sent, never the library. A full-rewrite fallback is not allowed: it
+costs a whole transcript's worth of output and hides the edit table.
 
-**4.7 A caption file is the corrected script on Descript's timings, and
+**4.7 A caption file is the corrected transcript on Descript's timings, and
 nothing else.**
-Every word of the corrected script appears in the caption file once, in
+Every word of the corrected transcript appears in the caption file once, in
 order. Timings are Descript's and are never moved, stretched, or invented:
 code decides only which timed caption each word belongs to. Building captions
 and converting `.srt` to `.vtt` is done in code and costs nothing (4.6). If
-the timed captions do not match the script, the tool says so and builds
+the timed captions do not match the transcript, the tool says so and builds
 nothing rather than guessing.
 
 **4.8 Descript is read, never written.**
 The tool may list projects and read transcripts and captions from Descript.
 It never edits, imports into, publishes from, or deletes anything in Descript.
+
+**4.9 The written script is a witness, not the master.**
+A teacher's written script is kept as a reference for the guide it belongs
+to. The teacher did not read it out word for word, so the transcript is never
+made to match it.
+
+The written script may:
+
+- support a change that 4.1 already allows: a misheard word, a question mark
+  where a question was meant, a comma, where a sentence ends, quotation marks;
+- show that a verse was quoted as the teacher intended, or raise it for the
+  teacher when it was not (4.2);
+- give the reference the teacher wrote down (4.10).
+
+It may not put a word into the transcript, take one out, or change their
+order. Where the written script and the transcript differ in a way 4.1 does
+not allow, the transcript stays as spoken, and the difference is listed as a
+suggestion that names the written script as its source. Inside a quoted verse,
+4.2 stands unchanged.
+
+The tool never edits a written script. Written scripts are shared with the
+whole team and are not removed when a book is cleared or deleted. A guide is
+matched to its written script by title and wording; the page shows the match,
+and a person can change or remove it. A change the written script supported
+says so in its row (4.4).
+
+**4.10 A reference is checked, and never silently changed.**
+The edit pass works out each reference from memory, and it can be wrong: Luke
+24:1 has come back as Luke 1:1. The page checks every reference itself, at no
+cost (4.6):
+
+- that the chapter exists (and the verse, once the page carries a Bible);
+- that it agrees with the guide's own chapter and with the reference as
+  spoken;
+- against the reference written beside the same quotation in the written
+  script, when there is one.
+
+When a check disagrees, the reference is marked to check and the likelier
+references are listed beside it. A person chooses: the page does not replace
+a reference on its own, and a reference a person has set is not
+second-guessed.
+
+A fourth check is in scope and not yet built: finding the verses whose
+wording is closest to the quotation, in a public-domain translation carried
+in the page. The NIV and the ESV are under copyright and will not be carried,
+so that check will find where a quotation comes from. It will not confirm NIV
+or ESV wording.
 
 ## 5. The editing instructions
 
@@ -139,6 +216,9 @@ tool. The instructions cover, in this order of priority:
    at what is wrong.
 5. **For the teacher** — a quotation that seems to match neither the NIV nor
    the ESV. Reported, never corrected (4.2).
+6. **The written script** — when the guide has one, it is given as a
+   reference: evidence for a mishearing, for a question mark, and for where a
+   sentence or a quotation ends. Never a text to copy (4.9).
 
 The page does the mechanical work locally, before the text is sent, so the
 prompt never has to ask for it and the answer never has to carry it:
@@ -147,8 +227,9 @@ dashes are made regular; sentence starts, "I", God, the Lord, the Holy Spirit,
 names that are never ordinary words, Bible books before a chapter number, and
 the user's listed names are capitalized. After the answer comes back, joins
 are applied, sentence starts are re-checked, a paragraph that just stops gets
-its period, and each verse is located from the short anchors Claude returns.
-Every local change is a row in the change table.
+its period, each verse is located from the short anchors Claude returns, and
+each reference is checked (4.10). Every local change is a row in the change
+table.
 
 The line between local and model is judgment: anything with one right answer
 (a space, a capital on "Jesus") is code; anything that depends on meaning
@@ -157,7 +238,7 @@ where a verse starts) is the model. Code never guesses at structure.
 
 Changing this file changes what the tool produces. Treat it as the highest-risk
 change in the repository: make one adjustment at a time, run it against a
-script with a known-good result, and keep the old version reachable.
+transcript with a known-good result, and keep the old version reachable.
 
 ## 6. The output format
 
@@ -175,7 +256,7 @@ This is the published format, taken from the Luke 1 model:
   `verse 3` — never in number words or a mix such as `Isaiah thirty-five:1`.
   The words "chapter" and "verse" stay where they were spoken. This changes
   how a number is written, not what was said. Other numbers stay as spoken.
-- A script pulled from Descript is named from its project:
+- A guide pulled from Descript is named from its project:
   `ED_Isaiah_24_Jones_v1_DS` becomes `Isaiah – Chapter 24`. A project name
   that does not start with a Bible book is kept exactly as it is.
 
@@ -205,15 +286,20 @@ Things that are deliberately *not* in the tool, and why:
 | Writing to Descript | See 4.8. Reading is in scope; changing a project is not. |
 | Word-by-word timings | Descript's captions are timed per caption, not per word. The tool does not estimate timings it was not given (4.7). |
 | Metadata, summaries, plan ads | Those live in the per-book metadata Google Doc, not here. |
+| Making a transcript match the written script | See 4.9. The teacher did not read it out word for word. |
+| Editing or correcting a written script | It is the teacher's reference, kept as written (4.9). |
+| NIV or ESV text carried in the page | Both are under copyright. Only a public-domain translation may be carried (4.10). |
+| Replacing a reference automatically | See 4.10. The page suggests; a person chooses. |
 | A second "full rewrite" call when edits don't place | See 4.6. Unplaced edits are shown for a hand check instead; Redo is the user's call. |
-| Instructions for things the page does locally | Every character of the prompt is paid for on every script. |
+| Instructions for things the page does locally | Every character of the prompt is paid for on every guide. |
 
 ## 8. Before you change anything
 
 - [ ] Does this serve the purpose in section 1?
 - [ ] Does it break any rule in section 4?
 - [ ] Does it fall on the wrong side of section 7?
-- [ ] If it touches `09-prompts.js`, has it been run against a script whose
+- [ ] Does it let the written script change the speaker's words (4.9)?
+- [ ] If it touches `09-prompts.js`, has it been run against a transcript whose
       correct output is already known?
 - [ ] Does it add tokens to every call? If so, is each one earning its place
       (section 4.6)?
