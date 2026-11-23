@@ -35,7 +35,9 @@ Each audio guide moves through these stages, and each has one name.
 transcript" means the Edited or Final Transcript, whichever the guide has
 reached. Changing a Final Transcript, by hand or by running the edit pass
 again, makes it an Edited Transcript until it is approved again: the approval
-is of that text, not of the guide.
+is of that text, not of the guide. A reference is part of that text. And while
+a guide's 1st Draft has changed since it was edited, its transcript does not
+count as Final: what was approved is no longer what Descript has.
 
 ## 2. What it is for
 
@@ -46,8 +48,9 @@ is of that text, not of the guide.
   6,000–15,000 characters each.
 - Output that goes straight into YouVersion for an audience to read, with as
   little hand-editing afterward as possible.
-- Collecting a finished book into one Google Doc, one section per guide,
-  named to match.
+- Collecting a book's Final Transcripts into one Google Doc, one section per
+  guide, named to match. Only a Final Transcript goes in. Copying a transcript
+  out and building its caption files do not wait for approval.
 - Timed caption files (`.srt` and `.vtt`) for each audio guide: the corrected
   transcript carried on Descript's own timings, so every word of every guide can
   be found by search.
@@ -174,18 +177,22 @@ The edit pass works out each reference from memory, and it can be wrong: Luke
 24:1 has come back as Luke 1:1. The page checks every reference itself, at no
 cost (4.6):
 
-- that the chapter and verse exist;
+- that the chapter exists (and the verse, once the page carries a Bible);
 - that it agrees with the guide's own chapter and with the reference as
   spoken;
-- against the reference in the written script, when there is one;
-- by finding the verses whose wording is closest to the quotation, in a
-  public-domain translation the page carries.
+- against the reference written beside the same quotation in the written
+  script, when there is one.
 
 When a check disagrees, the reference is marked to check and the likelier
 references are listed beside it. A person chooses: the page does not replace
-a reference on its own. The NIV and the ESV are under copyright and are not
-carried in the page, so this check finds where a quotation comes from. It
-does not confirm NIV or ESV wording.
+a reference on its own, and a reference a person has set is not
+second-guessed.
+
+A fourth check is in scope and not yet built: finding the verses whose
+wording is closest to the quotation, in a public-domain translation carried
+in the page. The NIV and the ESV are under copyright and will not be carried,
+so that check will find where a quotation comes from. It will not confirm NIV
+or ESV wording.
 
 ## 5. The editing instructions
 
@@ -281,7 +288,7 @@ Things that are deliberately *not* in the tool, and why:
 | Metadata, summaries, plan ads | Those live in the per-book metadata Google Doc, not here. |
 | Making a transcript match the written script | See 4.9. The teacher did not read it out word for word. |
 | Editing or correcting a written script | It is the teacher's reference, kept as written (4.9). |
-| NIV or ESV text carried in the page | Both are under copyright. References are checked against a public-domain translation (4.10). |
+| NIV or ESV text carried in the page | Both are under copyright. Only a public-domain translation may be carried (4.10). |
 | Replacing a reference automatically | See 4.10. The page suggests; a person chooses. |
 | A second "full rewrite" call when edits don't place | See 4.6. Unplaced edits are shown for a hand check instead; Redo is the user's call. |
 | Instructions for things the page does locally | Every character of the prompt is paid for on every guide. |
