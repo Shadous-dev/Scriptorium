@@ -77,7 +77,12 @@ function google(opts) {
       if (opts.fail) { const err = opts.fail({ server, tool, input }); if (err) return Promise.reject(err); }
       if (tool === 'create_file') { made += 1; return Promise.resolve({ payload: { id: 'doc' + made, viewUrl: 'https://docs.google.com/document/d/doc' + made + '/edit' } }); }
       if (tool === 'update_doc') {
-        return Promise.resolve({ payload: { documentId: input.documentId, replies: (input.requests || []).map((r, i) => r.addDocumentTab ? { addDocumentTab: { tabProperties: { tabId: 't.new' + (i + 1), title: r.addDocumentTab.tabProperties.title } } } : {}) } });
+        // As Google's connector answered a real Doc on 2026-11-24: a label over 50 characters refuses the whole
+        // request, and the answers come back one level down, in replies[0].api_replies.
+        const long = (input.requests || []).filter((r) => r.addDocumentTab && r.addDocumentTab.tabProperties.title.length > 50)[0];
+        if (long) return Promise.reject({ code: 'tool_error', message: 'The tab title cannot be longer than 50 characters.' });
+        const answers = (input.requests || []).map((r, i) => r.addDocumentTab ? { addDocumentTab: { tabProperties: { index: i + 1, tabId: 't.new' + (i + 1), title: r.addDocumentTab.tabProperties.title } } } : {});
+        return Promise.resolve({ payload: opts.flatReplies ? { documentId: input.documentId, replies: answers } : { replies: [{ api_replies: answers, errors: [], warnings: [] }], writeControl: { requiredRevisionId: 'rev' } } });
       }
       if (tool === 'search_files') return Promise.resolve({ payload: opts.search ? opts.search(input) : {} });
       if (tool === 'read_file_content') return Promise.resolve(opts.read ? opts.read(input.fileId) : { content: [{ type: 'text', text: '' }] });
@@ -185,6 +190,42 @@ test('one Doc with tabs: an empty Doc from Drive, one call that adds the tabs, t
   assert.strictEqual(P.state.docResult.tabs, 3);
   assert.strictEqual(P.state.docResult.failed, 0);
   assert.strictEqual(P.state.lastDoc.url, 'https://docs.google.com/document/d/doc1/edit');
+});
+
+test('a long guide name: the tab label is cut to the 50 characters Google allows, and the heading keeps every word', async () => {
+  const P = makePage(), G = google();
+  const long = 'Luke – Chapter 2, which has a very long name on purpose so that the label must be cut';
+  finalGuide(P, 'Luke – Chapter 1', 'One.'); const s = finalGuide(P, long, 'Two.');
+  assert.ok(P.tabTitle(s, 1).length <= 50 && long.indexOf(P.tabTitle(s, 1)) === 0, 'the label is the start of the name');
+  P.setMcp(G); P.setDocMode('tabs'); P.conclude(); await settle();
+  assert.strictEqual(P.state.docResult.tabs, 2, 'both tabs were written: Google did not refuse the label');
+  assert.ok(!P.state.docResult.note, 'and it did not fall back to a page for each guide');
+  assert.strictEqual(G.calls.filter((c) => c.tool === 'create_file').length, 1, 'one Doc, not two');
+  assert.strictEqual(G.calls[2].input.requests[0].insertText.text.split('\n')[0], 'Luke – Chapter 1');
+  assert.strictEqual(G.calls[3].input.requests[0].insertText.text.split('\n')[0], long, 'the heading inside the tab is the whole name');
+});
+
+test('a label is never cut through the middle of a character', () => {
+  const P = makePage();
+  const s = finalGuide(P, 'x'.repeat(49) + '\uD83D\uDD4A' + ' tail', 'One.');
+  const label = P.tabTitle(s, 0);
+  assert.strictEqual(label, 'x'.repeat(49), 'the half character at the cut is dropped');
+});
+
+test('the new tabs\' ids are read from the connector\'s answer, and from Google\'s own shape too', async () => {
+  const P = makePage();
+  const tab = (id) => ({ addDocumentTab: { tabProperties: { index: 1, tabId: id, title: 'x' } } });
+  assert.deepStrictEqual(P.tabIdsOf({ payload: { replies: [{ api_replies: [tab('t.a'), tab('t.b')], errors: [], warnings: [] }] } }), ['t.a', 't.b'], 'as the connector answers');
+  assert.deepStrictEqual(P.tabIdsOf({ payload: { replies: [tab('t.a'), tab('t.b')] } }), ['t.a', 't.b'], 'as Google\'s API answers');
+  assert.deepStrictEqual(P.tabIdsOf({ payload: { replies: [{ api_replies: [{}, {}] }] } }), [], 'no tabs in the answer: none claimed');
+  assert.deepStrictEqual(P.tabIdsOf({ payload: { replies: 'nonsense' } }), []);
+  for (const flat of [false, true]) {
+    const Q = makePage(), G = google({ flatReplies: flat });
+    finalGuide(Q, 'Luke – Chapter 1', 'One.'); finalGuide(Q, 'Luke – Chapter 2', 'Two.');
+    Q.setMcp(G); Q.setDocMode('tabs'); Q.conclude(); await settle();
+    assert.strictEqual(Q.state.docResult.tabs, 2);
+    assert.strictEqual(G.calls[3].input.requests[0].insertText.location.tabId, 't.new1', 'the second guide is written into the tab Google made for it');
+  }
 });
 
 test('4.11: every write goes to the Doc that was just made, and nothing is read or searched', async () => {

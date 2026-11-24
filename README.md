@@ -190,9 +190,18 @@ Each audio guide moves through four stages, and each has one name:
   Word file (.docx) or a text file. For a PDF, Pages or an older .doc, open it
   and paste the text. Reading a Google Doc uses your own Google Drive
   connector in Claude.
-- **The Google Drive read has not been run against the live connector.** It
-  was built and tested against a stand-in. If a Doc link brings in nothing,
-  paste the text and report it.
+- **An emoji in a Google Doc costs the end of its text.** Google Drive hands
+  a Doc over with each emoji garbled and three characters missing from the
+  very end for each one. Accents, dashes and quotation marks are fine. A
+  written script is only a reference, so this matters little; if the last
+  word matters, paste the text instead.
+- **A tab's label is at most 50 characters**, which is Google's limit. A
+  longer guide name is cut for the label; the heading inside the tab keeps
+  it whole.
+- **The Google connectors were run from the repository, not from the page.**
+  On 2026-11-24 the page's own requests were sent to a real Doc and read
+  back, and a folder was listed and a Doc read. The page on claude.ai has
+  not yet made a tabbed Doc itself. If one comes out wrong, report it.
 - **The wording guard is strict on purpose.** It allows known homophones, the
   same sound spelled differently, and names you list under Words to Search
   For. A real mishearing outside those can land under "Suggested but not

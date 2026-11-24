@@ -6,7 +6,12 @@
 
 Needs two additions to the artifact's connector list when it is published: Google Drive `search_files`, and Google Docs `update_doc`.
 
-Not yet run against Google itself. The tests use a stand-in for the connectors. The first real Doc with tabs, and the first real folder brought in, are the check.
+Run against Google on 2026-11-24, before publishing: the requests the page builds for a three-guide book were sent through the Google Drive and Google Docs connectors to a new test Doc, and the Doc was read back. Three tabs, each named for its guide, each heading and each bold verse exactly where it was meant to be, with an emoji and accented letters in the text. A folder listing and a Doc read were run the same way. The page itself has not yet made a Doc from claude.ai; the first one made there is the last check.
+
+Found by that run (each has a test)
+- **Google's connector hands back the new tabs' ids one level further down than the page was reading.** Every book would have fallen back to a page for each guide and left an empty Doc behind. Both shapes are now read.
+- **Google refuses a tab label over 50 characters**, and one refusal stops every tab in the request. Labels were cut at 100. They are now cut at 50, and never through the middle of a character.
+- Reading a Google Doc that has an emoji in it garbles the emoji and drops three characters from the very end of the text for each one. This is in how Drive hands the text over, and is not fixed here; it is listed under Known limits.
 
 Found in review, before publishing (each has a test that fails on the code as it was)
 

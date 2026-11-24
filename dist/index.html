@@ -2331,9 +2331,10 @@ input:disabled, textarea:disabled { cursor: wait; }
      transcript is written into its own tab: the text in one insert, then its styling by position. Nothing here
      calls Claude, and nothing is written outside the Doc just made (4.6, 4.11). ---- */
 
-  var TAB_TITLE_MAX = 100;
+  // Google refuses a tab label longer than 50 characters, and one refusal stops every tab in the request.
+  var TAB_TITLE_MAX = 50;
   var VERSE_INDENT = { magnitude: 24, unit: 'PT' }, PARAGRAPH_GAP = { magnitude: 10, unit: 'PT' };
-  function tabTitle(s, i) { return String(s.name || '').replace(/[\u0000-\u001F\u007F\u2028\u2029\uE000-\uF8FF]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX).trim() || 'Guide ' + (i + 1); }
+  function tabTitle(s, i) { return String(s.name || '').replace(/[\u0000-\u001F\u007F\u2028\u2029\uE000-\uF8FF]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX).replace(/[\uD800-\uDBFF]$/, '').trim() || 'Guide ' + (i + 1); }
 
   // The requests that write one guide into an empty tab. Positions count UTF-16 units from 1, which is how a
   // JavaScript string counts its own length. With no tabId the requests land in the Doc's first tab.
@@ -2367,13 +2368,19 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (marks.length) requests.push({ updateParagraphStyle: { range: range(marks[0].start, 1 + text.length), paragraphStyle: { spaceBelow: PARAGRAPH_GAP }, fields: 'spaceBelow' } });
     return requests;
   }
-  // The ids Google gave the tabs it added, in the order they were asked for.
+  // The ids Google gave the tabs it added, in the order they were asked for. The connector hands the answers
+  // back one level down, as replies[0].api_replies; Google's own API gives them as replies. Both are read.
   function tabIdsOf(res) {
     var out = [];
-    (payloadOf(res).replies || []).forEach(function (r) {
-      var props = r && r.addDocumentTab && r.addDocumentTab.tabProperties;
-      if (props && props.tabId) out.push(String(props.tabId));
-    });
+    function take(list) {
+      (Array.isArray(list) ? list : []).forEach(function (r) {
+        if (!r || typeof r !== 'object') return;
+        var props = r.addDocumentTab && r.addDocumentTab.tabProperties;
+        if (props && props.tabId) out.push(String(props.tabId));
+        else if (Array.isArray(r.api_replies)) take(r.api_replies);
+      });
+    }
+    take(payloadOf(res).replies);
     return out;
   }
 
