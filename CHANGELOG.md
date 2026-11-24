@@ -4,7 +4,7 @@
 
 `SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.11 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6).
 
-Needs two additions to the artifact's connector list when it is published: Google Drive `search_files`, and Google Docs `update_doc`.
+Published 2026-11-24. The artifact's connector list gained two entries with it: Google Drive `search_files`, and Google Docs `update_doc`. Each person is asked once to allow them.
 
 Run against Google on 2026-11-24, before publishing: the requests the page builds for a three-guide book were sent through the Google Drive and Google Docs connectors to a new test Doc, and the Doc was read back. Three tabs, each named for its guide, each heading and each bold verse exactly where it was meant to be, with an emoji and accented letters in the text. A folder listing and a Doc read were run the same way. The page itself has not yet made a Doc from claude.ai; the first one made there is the last check.
 

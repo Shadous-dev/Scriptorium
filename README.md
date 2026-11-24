@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.3.0. Version 1.4.0 is in this repository and not yet published. It opens for members of the Through the Word organization on
+version 1.4.0, published 2026-11-24. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -312,8 +312,8 @@ them (with that feature switched off):
 | `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) and the written scripts (`written/<id>`, `writtenText/<id>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
 | `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. Added to the artifact's connector list in 1.3.0. |
-| `mcp` → Google Drive: `search_files` | listing the files in a folder for **Bring in many from Google Drive**. It only reads. Needed from 1.4.0. |
-| `mcp` → Google Docs: `update_doc` | adding a tab for each guide to the Doc the page has just made, and writing each transcript into its tab (4.11). Needed from 1.4.0. |
+| `mcp` → Google Drive: `search_files` | listing the files in a folder for **Bring in many from Google Drive**. It only reads. Added to the artifact's connector list in 1.4.0. |
+| `mcp` → Google Docs: `update_doc` | adding a tab for each guide to the Doc the page has just made, and writing each transcript into its tab (4.11). Added to the artifact's connector list in 1.4.0. |
 | `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
 
@@ -345,6 +345,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.4.0` | A tab for each guide in one Google Doc, caption files by kind, written scripts in bulk from Google Drive, and the fixes from a security, consistency and storage review. Published 2026-11-24. |
 | `v1.3.0` | Written scripts as a reference, checked references, a sign-off for each guide, and thirteen fixes from a QA pass. Published 2026-11-23. |
 | `v1.2.1` | Ten fixes from a review of 1.2.0, three of them in the wording guard. Published 2026-11-19. |
 | `v1.2.0` | The page enforces the speaker's words (wording guard), notes for the teacher, references in digits, names from Descript, hand corrections. Published 2026-11-19. |
