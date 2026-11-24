@@ -40,5 +40,10 @@
   function persistCollapsed() { if (bookId) prefSet('collapsed.' + bookId, Object.keys(collapsed)); }
   var concurrency = prefGet('concurrency', 2) === 1 ? 1 : 2;
   var repairParagraphs = prefGet('repairParagraphs', true) !== false;
-  var docMode = prefGet('docMode', 'perScript') === 'one' ? 'one' : 'perScript';
+  // How the Final Transcripts reach Google: one Doc with a tab per guide, one Doc with a page per guide, or a folder of Docs.
+  function docModeOf(v) { return v === 'one' || v === 'perScript' ? v : 'tabs'; }
+  var docMode = docModeOf(prefGet('docMode', 'tabs'));
+  // Which caption files a download holds: both kinds, or one.
+  function captionFormatOf(v) { return v === 'srt' || v === 'vtt' ? v : 'both'; }
+  var captionFormat = captionFormatOf(prefGet('captionFormat', 'both'));
 

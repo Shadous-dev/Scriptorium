@@ -323,3 +323,10 @@ input:disabled, textarea:disabled { cursor: wait; }
 .pane-head { flex-wrap: wrap; }
 .pane-actions { flex-wrap: wrap; }
 .copy-btn { white-space: nowrap; }
+
+/* The book's caption export, under the Google Doc controls. */
+.caption-export { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
+.bulk-report { display: flex; flex-direction: column; gap: 4px; }
+.bulk-report p { margin: 0; }
+.bulk-progress { flex: 1; min-width: 0; }
+.written-text-box.is-links { min-height: 66px; }

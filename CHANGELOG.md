@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.4.0 — a tab for each guide, caption files by kind, written scripts in bulk (2026-11-24)
+
+`SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.11 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6).
+
+Needs two additions to the artifact's connector list when it is published: Google Drive `search_files`, and Google Docs `update_doc`.
+
+Not yet run against Google itself. The tests use a stand-in for the connectors. The first real Doc with tabs, and the first real folder brought in, are the check.
+
+The Google Doc
+- **One Doc, a tab for each guide** is new, and is the choice a reader starts with. Drive makes an empty Doc; the Google Docs connector adds a tab named for each guide and writes each Final Transcript into its own, with the guide's name as a heading and each quoted verse bold and set in.
+- **One Doc, a page for each guide** is the old "one Doc for the whole book", with every guide after the first starting on a new page.
+- **One Doc per guide, in a folder** is unchanged.
+- If the Google Docs connector is not connected, or Google will not add tabs, the page makes the one Doc with a page per guide instead and says why. A tab that could not be written is counted and named.
+- The page writes only into the Doc it has just made. It never reads, edits, moves or deletes a file already in Drive (4.11).
+
+Caption files
+- **Download all caption files** already gave a whole book's `.srt` and `.vtt` files in one `.zip`, on Descript's timings. It now has a choice beside it: both kinds, `.srt` only, or `.vtt` only.
+- The section has its own heading at the bottom of the book, and says how many guides have caption files ready. The message after a download says how many guides were left out.
+
+Written scripts
+- **Bring in many from Google Drive**, on the Written Scripts page. Paste the link to a folder and every Doc, Sheet, Word file, PDF and text file directly inside it is listed. Tick the ones to bring in. Each is read once and kept as its own written script, named for its file.
+- A Doc that holds several written scripts is cut into one for each, at the headings that name a place in the Bible: "Luke 24", or "Chapter 3" in a file named for its book. Only when two or more headings name different places, and never inside a file whose own name already says which chapter it is. Every word of the file is kept. The report says which files were cut.
+- A written script now remembers the Drive file it came from. One already in the library is marked and left unticked; ticking it renews the kept text and keeps its place and its title.
+- A file that cannot be read is named with the reason and the rest still come in. If Drive is not connected or not allowed, the run stops at once with the fix.
+- Drive is only listed and read (4.11).
+
 ## 1.3.0 — written scripts, checked references, and a sign-off for each guide (2026-11-23)
 
 Published before the edit instructions were run against a transcript whose correct result is already known, which `SOURCE-OF-TRUTH.md` section 8 asks for when `09-prompts.js` changes. The first real edit pass on a guide that has a written script is that check: look at what it changed, and at what it listed under "Suggested but not applied".

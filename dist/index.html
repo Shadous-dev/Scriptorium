@@ -327,13 +327,20 @@ input:disabled, textarea:disabled { cursor: wait; }
 .pane-head { flex-wrap: wrap; }
 .pane-actions { flex-wrap: wrap; }
 .copy-btn { white-space: nowrap; }
+
+/* The book's caption export, under the Google Doc controls. */
+.caption-export { display: flex; flex-direction: column; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
+.bulk-report { display: flex; flex-direction: column; gap: 4px; }
+.bulk-report p { margin: 0; }
+.bulk-progress { flex: 1; min-width: 0; }
+.written-text-box.is-links { min-height: 66px; }
 </style>
 <div id="app-root"></div>
 <script type="application/json" id="seed-state">{"bookTitle":"","wordsToSearchFor":"","sections":[{"id":"s1","name":"","raw":"","corrected":"","editedFromRaw":null,"summary":"","changeCount":0,"misheard":[],"nonsensical":[],"status":"draft","error":null,"editedAt":null,"captions":""}],"nextId":2,"overview":"","lastEditAt":null,"approved":false,"docResult":null}</script>
 <script id="app-script">
 (function () {
   var root = document.getElementById('app-root');
-  var VERSION = '1.3.0';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.4.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -411,7 +418,12 @@ input:disabled, textarea:disabled { cursor: wait; }
   function persistCollapsed() { if (bookId) prefSet('collapsed.' + bookId, Object.keys(collapsed)); }
   var concurrency = prefGet('concurrency', 2) === 1 ? 1 : 2;
   var repairParagraphs = prefGet('repairParagraphs', true) !== false;
-  var docMode = prefGet('docMode', 'perScript') === 'one' ? 'one' : 'perScript';
+  // How the Final Transcripts reach Google: one Doc with a tab per guide, one Doc with a page per guide, or a folder of Docs.
+  function docModeOf(v) { return v === 'one' || v === 'perScript' ? v : 'tabs'; }
+  var docMode = docModeOf(prefGet('docMode', 'tabs'));
+  // Which caption files a download holds: both kinds, or one.
+  function captionFormatOf(v) { return v === 'srt' || v === 'vtt' ? v : 'both'; }
+  var captionFormat = captionFormatOf(prefGet('captionFormat', 'both'));
 
   /* ==================================================================
      Text matching — applying the editor's changes, and finding verses
@@ -813,16 +825,29 @@ input:disabled, textarea:disabled { cursor: wait; }
     return line;
   }
 
+  // Where the book's caption files stand, in one sentence, so the export button never surprises.
+  function captionsLine() {
+    var all = state.sections.length, n = captionsReadyCount();
+    if (!n) return 'No guide has caption files ready yet. A guide needs its timed captions from Descript and the edit pass run.';
+    return n + ' of ' + all + ' guide' + plural(all) + ' ' + (n === 1 ? 'has' : 'have') + ' caption files ready.';
+  }
+
   function renderDocResult() {
     if (state.docResult) {
       if (state.docResult.method === 'pending') return '<p class="doc-result" id="doc-progress">' + esc(state.docResult.progress || 'Building your Google Doc…') + '</p>';
       if (state.docResult.method === 'drive') {
+        var docNote = state.docResult.note ? ' ' + esc(state.docResult.note) : '';
+        if (state.docResult.tabs != null) {
+          var tabsFailed = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be written (' + esc((state.docResult.failedNames || []).join(', ')) + ') — create it again for those.' : '';
+          return '<p class="doc-result">Created one Doc in your Google Drive with ' + state.docResult.tabs + ' tab' + plural(state.docResult.tabs) + ', one for each guide' +
+            (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + tabsFailed + '</p>';
+        }
         if (state.docResult.count != null) {
           var failedNote = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be created — try again for those.' : '';
           return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + ' in a new folder in your Google Drive' +
             (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the folder</a>' : '') + '.' + esc(failedNote) + '</p>';
         }
-        return '<p class="doc-result">Created in your Google Drive' + (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.</p>';
+        return '<p class="doc-result">Created in your Google Drive' + (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + docNote + '</p>';
       }
       if (state.docResult.method === 'download') return '<p class="doc-result">Saved the Final Transcripts as a file — open it with Google Docs (File › Open, or drag it into Drive) to keep editing there.</p>';
       return '<p class="doc-result is-error">' + esc(state.docResult.message || 'Something went wrong.') + '</p>';
@@ -944,8 +969,8 @@ input:disabled, textarea:disabled { cursor: wait; }
       '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong>.</li>' +
       '<li>Check the scripture. Every reference is checked against the chapter the guide is on, what was said aloud, and the written script. Where one looks wrong, the likelier references are listed — click one to use it, or <strong>Change</strong> to type your own.</li>' +
       '<li>When you have reviewed a guide, click <strong>Approve as Final</strong>. That makes it the <strong>Final Transcript</strong>. Changing it afterwards takes it back to Edited until it is approved again.</li>' +
-      '<li>Click <strong>Create Google Docs</strong> — one Doc per guide in a folder, or one Doc for the book. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted.</li>' +
-      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a guide once it is edited. Both files carry the corrected words on Descript’s timings.</li>' +
+      '<li>Click <strong>Create Google Doc</strong> — one Doc with a tab for each guide, one Doc with a page for each guide, or one Doc per guide in a folder. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted.</li>' +
+      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a guide once it is edited, or <strong>Download all caption files</strong> at the bottom for the whole book, as .srt, .vtt or both. Every file carries the corrected words on Descript’s timings.</li>' +
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
@@ -979,12 +1004,16 @@ input:disabled, textarea:disabled { cursor: wait; }
         ' Only Final Transcripts go into the Google Doc.</p>' +
         '<div class="conclude-row">' +
         '<button type="button" class="btn btn-conclude" data-action="conclude"' + concludeDisabled + '>' + (docMode === 'perScript' ? 'Create Google Docs' : 'Create Google Doc') + '</button>' +
-        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per guide, in a folder</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc for the whole book</option></select></label>' +
+        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="tabs"' + (docMode === 'tabs' ? ' selected' : '') + '>One Doc, a tab for each guide</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc, a page for each guide</option><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per guide, in a folder</option></select></label>' +
         '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (finalCount ? '' : ' disabled') + '>Download a copy instead</button>' +
         '</div>' + renderDocResult() +
-        '<div class="conclude-row caption-row">' +
-        '<button type="button" class="btn btn-ghost" data-action="download-all-captions"' + (anyCaptions ? '' : ' disabled') + '>Download all caption files</button>' +
-        '<p class="hint">An .srt and a .vtt for every edited guide that has timed captions, in one .zip. These do not wait for approval.</p>' +
+        '<div class="caption-export">' +
+        '<p class="approve-prompt">Export every guide’s caption files</p>' +
+        '<p class="hint conclude-note">' + captionsLine() + ' Each file carries the corrected transcript on Descript’s own timings. These do not wait for approval.</p>' +
+        '<div class="conclude-row">' +
+        '<button type="button" class="btn btn-conclude" data-action="download-all-captions"' + (anyCaptions ? '' : ' disabled') + '>Download all caption files</button>' +
+        '<label class="speed-pick"><select data-action="set-captionformat" aria-label="Which caption files"><option value="both"' + (captionFormat === 'both' ? ' selected' : '') + '>Both .srt and .vtt</option><option value="srt"' + (captionFormat === 'srt' ? ' selected' : '') + '>.srt only</option><option value="vtt"' + (captionFormat === 'vtt' ? ' selected' : '') + '>.vtt only</option></select></label>' +
+        '</div>' +
         '</div>' +
         '</footer>') +
       versionLine() +
@@ -2125,11 +2154,12 @@ input:disabled, textarea:disabled { cursor: wait; }
   function docTitle() { return (state.bookTitle.trim() || 'Untitled') + ' — Audio Guide Transcripts'; }
   function finalSections() { return state.sections.filter(isFinal); }
 
-  function scriptBody(s, withHeading) {
-    return (withHeading ? '<h2>' + esc(s.name || 'Untitled guide') + '</h2>' : '') + blocksToHtml(layoutBlocks(s), true);
+  // In one Doc for the whole book, every guide after the first starts on a page of its own.
+  function scriptBody(s, withHeading, newPage) {
+    return (withHeading ? '<h2' + (newPage ? ' style="page-break-before:always"' : '') + '>' + esc(s.name || 'Untitled guide') + '</h2>' : '') + blocksToHtml(layoutBlocks(s), true);
   }
-  function docBody() {
-    return '<h1>' + esc(docTitle()) + '</h1>' + finalSections().map(function (s) { return scriptBody(s, true); }).join('');
+  function docBody(list) {
+    return '<h1>' + esc(docTitle()) + '</h1>' + (list || finalSections()).map(function (s, i) { return scriptBody(s, true, i > 0); }).join('');
   }
   var DOC_STYLE = '<style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.55;color:#222}p{margin:0}h1{font-size:26px}h2{font-size:19px;margin-top:36px}em{color:#777}blockquote{margin:0 0 0 24px;padding-left:12px;border-left:3px solid #c9b48a}</style>';
   // One wrapper for every document the tool emits: Drive gets a bare document, the download a styled one.
@@ -2160,12 +2190,16 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (old) old.outerHTML = html; else footer.insertAdjacentHTML('beforeend', html);
   }
 
-  function driveTool(mcp) {
+  // The two Google tools this page writes with: Drive makes a file, Docs writes into one this page has just made (4.11).
+  function googleTools(mcp) {
     return mcp.listTools().then(function (list) {
       var servers = (list && list.servers) || [];
-      var server = servers.filter(function (sv) { return sv.server === 'Google Drive'; })[0];
-      var tool = server && server.tools.filter(function (t) { return /create.*file/i.test(t.name); })[0];
-      return (server && tool) ? tool.name : null;
+      function tool(serverName, pattern) {
+        var server = servers.filter(function (sv) { return sv.server === serverName; })[0];
+        var found = server && (server.tools || []).filter(function (t) { return pattern.test(t.name); })[0];
+        return found ? found.name : null;
+      }
+      return { create: tool('Google Drive', /create.*file/i), update: tool('Google Docs', /update.*doc/i) };
     });
   }
   function payloadOf(res) {
@@ -2175,6 +2209,124 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function urlOf(p) { return safeLink(p && (p.viewUrl || p.webViewLink || p.url)); }
 
+  /* ---- One Doc, a tab for each guide ----
+     Drive makes an empty Doc. The Google Docs connector adds a tab for every guide after the first, and each
+     transcript is written into its own tab: the text in one insert, then its styling by position. Nothing here
+     calls Claude, and nothing is written outside the Doc just made (4.6, 4.11). ---- */
+
+  var TAB_TITLE_MAX = 100;
+  var VERSE_INDENT = { magnitude: 24, unit: 'PT' }, PARAGRAPH_GAP = { magnitude: 10, unit: 'PT' };
+  function tabTitle(s, i) { return String(s.name || '').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX) || 'Guide ' + (i + 1); }
+
+  // The requests that write one guide into an empty tab. Positions count UTF-16 units from 1, which is how a
+  // JavaScript string counts its own length. With no tabId the requests land in the Doc's first tab.
+  function tabRequests(s, tabId, i) {
+    var title = tabTitle(s, i || 0), lines = [title], marks = [], at = 1 + title.length + 1;
+    layoutBlocks(s).forEach(function (b) {
+      var line = String(b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text).replace(/\s*\n\s*/g, ' ').trim();
+      if (!line) return;
+      marks.push({ verse: b.type === 'verse', start: at, end: at + line.length });
+      lines.push(line); at += line.length + 1;
+    });
+    function range(start, end) { var r = { startIndex: start, endIndex: end }; if (tabId) r.tabId = tabId; return r; }
+    var text = lines.join('\n'), place = { index: 1 };
+    if (tabId) place.tabId = tabId;
+    var requests = [
+      { insertText: { location: place, text: text } },
+      { updateParagraphStyle: { range: range(1, 1 + title.length), paragraphStyle: { namedStyleType: 'HEADING_1' }, fields: 'namedStyleType' } }
+    ];
+    // A quoted verse is bold and set in from the margin, as it is everywhere else the transcript is shown (section 6).
+    marks.forEach(function (m) {
+      if (!m.verse) return;
+      requests.push({ updateTextStyle: { range: range(m.start, m.end), textStyle: { bold: true }, fields: 'bold' } });
+      requests.push({ updateParagraphStyle: { range: range(m.start, m.end), paragraphStyle: { indentStart: VERSE_INDENT, indentFirstLine: VERSE_INDENT }, fields: 'indentStart,indentFirstLine' } });
+    });
+    // Space between paragraphs is set last, and only on the transcript, so the heading keeps its own.
+    if (marks.length) requests.push({ updateParagraphStyle: { range: range(marks[0].start, 1 + text.length), paragraphStyle: { spaceBelow: PARAGRAPH_GAP }, fields: 'spaceBelow' } });
+    return requests;
+  }
+  // The ids Google gave the tabs it added, in the order they were asked for.
+  function tabIdsOf(res) {
+    var out = [];
+    (payloadOf(res).replies || []).forEach(function (r) {
+      var props = r && r.addDocumentTab && r.addDocumentTab.tabProperties;
+      if (props && props.tabId) out.push(String(props.tabId));
+    });
+    return out;
+  }
+
+  function docDone(url, extra) {
+    state.docResult = Object.assign({ method: 'drive', url: url, at: Date.now() }, extra || {});
+    if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }
+    return true;
+  }
+  function oneDoc(mcp, createTool, finals, note) {
+    return mcp.callTool('Google Drive', createTool, { title: docTitle(), textContent: wrapDoc(docBody(finals), false), contentMimeType: 'text/html' }).then(function (res) {
+      return docDone(urlOf(payloadOf(res)), note ? { note: note } : null);
+    });
+  }
+  function tabsDoc(mcp, tools, finals) {
+    if (!tools.update) return oneDoc(mcp, tools.create, finals, 'Tabs need the Google Docs connector, which isn’t connected for you, so each guide starts on its own page instead. To get tabs, add Google Docs in Claude under Settings → Connectors and create the Doc again.');
+    var docId = '', url = '';
+    function docs(requests) { return mcp.callTool('Google Docs', tools.update, { documentId: docId, requests: requests }); }
+    return mcp.callTool('Google Drive', tools.create, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.document' }).then(function (res) {
+      var made = payloadOf(res);
+      docId = String(made.id || ''); url = urlOf(made);
+      if (!docId) throw { code: 'no_doc' };
+      if (finals.length < 2) return [];
+      state.docResult = { method: 'pending', progress: 'Adding a tab for each of ' + finals.length + ' guides…' }; paintDocResult();
+      return docs(finals.slice(1).map(function (s, i) { return { addDocumentTab: { tabProperties: { title: tabTitle(s, i + 1) } } }; })).then(function (res2) {
+        var ids = tabIdsOf(res2);
+        if (ids.length !== finals.length - 1) throw { code: 'no_tabs' };
+        return ids;
+      }).catch(function (err) {
+        // The Doc exists but Google would not give it tabs. Nothing has been written to it, so the book goes
+        // into a Doc of its own, and the reader is told about the empty one.
+        console.warn('Scriptorium: tabs could not be added', err);
+        return oneDoc(mcp, tools.create, finals, 'Google would not add tabs, so each guide starts on its own page instead. An empty Doc with the same name was also left in your Drive; it can be deleted.').then(function () { return null; });
+      });
+    }).then(function (ids) {
+      if (!ids) return true;                                  // the page-per-guide Doc was made instead
+      var done = 0, failed = [], i = 0;
+      function next() {
+        if (i >= finals.length) return Promise.resolve();
+        var at = i, s = finals[at]; i += 1;
+        state.docResult = { method: 'pending', progress: 'Writing tab ' + (at + 1) + ' of ' + finals.length + ' — ' + tabTitle(s, at) + '…' }; paintDocResult();
+        return docs(tabRequests(s, at ? ids[at - 1] : '', at))
+          .then(function () { done += 1; }, function (err) { failed.push(tabTitle(s, at)); console.warn('Scriptorium: tab failed for ' + s.name, err); })
+          .then(next);
+      }
+      return next().then(function () {
+        // The first tab was there before anything was written, named "Tab 1". On a new Doc its id is t.0; if
+        // Google says otherwise the name is left as it is, and the guide's own heading still says which it is.
+        return docs([{ updateDocumentTabProperties: { tabProperties: { tabId: 't.0', title: tabTitle(finals[0], 0) }, fields: 'title' } }]).catch(function () {});
+      }).then(function () {
+        return docDone(url, { tabs: done, failed: failed.length, failedNames: failed });
+      });
+    });
+  }
+  function folderOfDocs(mcp, createTool, finals) {
+    return mcp.callTool('Google Drive', createTool, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.folder' }).then(function (res) {
+      var folder = payloadOf(res), folderId = folder && folder.id, folderUrl = urlOf(folder);
+      if (!folderId) throw { code: 'no_folder' };
+      var queue = finals.slice(), done = 0, failed = 0;
+      function next() {
+        var s = queue.shift();
+        if (!s) return Promise.resolve();
+        state.docResult = { method: 'pending', progress: 'Creating Doc ' + (done + failed + 1) + ' of ' + finals.length + ' — ' + (s.name || 'Untitled guide') + '…' };
+        paintDocResult();
+        return mcp.callTool('Google Drive', createTool, { title: s.name || 'Untitled guide', textContent: scriptDocHtml(s), contentMimeType: 'text/html', parentId: folderId })
+          .then(function () { done += 1; }, function (err) { failed += 1; console.warn('Scriptorium: doc failed for ' + s.name, err); })
+          .then(next);
+      }
+      return next().then(function () {
+        state.docResult = { method: 'drive', url: folderUrl, at: Date.now(), count: done, failed: failed };
+        if (folderUrl) { state.lastDoc = { url: folderUrl, at: Date.now(), kind: 'folder' }; saveMeta(); }
+        return true;
+      });
+    });
+  }
+
   function conclude() {
     syncFieldsFromDom();
     var finals = finalSections();                       // fixed now: a guide approved while the Docs are being made is not slipped in half-way
@@ -2183,36 +2335,11 @@ input:disabled, textarea:disabled { cursor: wait; }
     paint();
     useCap('mcp').then(function (mcp) {
       if (!mcp) return false;
-      return driveTool(mcp).then(function (toolName) {
-        if (!toolName) return false;
-        if (docMode !== 'perScript') {
-          return mcp.callTool('Google Drive', toolName, { title: docTitle(), textContent: wrapDoc(docBody(), false), contentMimeType: 'text/html' }).then(function (res) {
-            var url = urlOf(payloadOf(res));
-            state.docResult = { method: 'drive', url: url, at: Date.now() };
-            if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }
-            return true;
-          });
-        }
-        // One Doc per guide, inside a new folder named for the book.
-        return mcp.callTool('Google Drive', toolName, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.folder' }).then(function (res) {
-          var folder = payloadOf(res), folderId = folder && folder.id, folderUrl = urlOf(folder);
-          if (!folderId) throw { code: 'no_folder' };
-          var queue = finals.slice(), done = 0, failed = 0;
-          function next() {
-            var s = queue.shift();
-            if (!s) return Promise.resolve();
-            state.docResult = { method: 'pending', progress: 'Creating Doc ' + (done + failed + 1) + ' of ' + finals.length + ' — ' + (s.name || 'Untitled guide') + '…' };
-            paintDocResult();
-            return mcp.callTool('Google Drive', toolName, { title: s.name || 'Untitled guide', textContent: scriptDocHtml(s), contentMimeType: 'text/html', parentId: folderId })
-              .then(function () { done += 1; }, function (err) { failed += 1; console.warn('Scriptorium: doc failed for ' + s.name, err); })
-              .then(next);
-          }
-          return next().then(function () {
-            state.docResult = { method: 'drive', url: folderUrl, at: Date.now(), count: done, failed: failed };
-            if (folderUrl) { state.lastDoc = { url: folderUrl, at: Date.now(), kind: 'folder' }; saveMeta(); }
-            return true;
-          });
-        });
+      return googleTools(mcp).then(function (tools) {
+        if (!tools.create) return false;
+        if (docMode === 'tabs') return tabsDoc(mcp, tools, finals);
+        if (docMode === 'one') return oneDoc(mcp, tools.create, finals, '');
+        return folderOfDocs(mcp, tools.create, finals);           // one Doc per guide, inside a new folder named for the book
       }).catch(function (err) { console.warn('Scriptorium: Drive create failed', err); return false; });
     }).then(function (driveOk) { if (!driveOk) return saveDownload(true); })
       .then(function () { paint(); });
@@ -2474,28 +2601,34 @@ input:disabled, textarea:disabled { cursor: wait; }
   function fileSafe(name, fallback) {
     return String(name || '').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, ' ').replace(/\s+/g, ' ').replace(/^[ .]+|[ .]+$/g, '') || fallback;
   }
-  // The .srt and .vtt for each guide that has captions ready, with names that cannot collide.
-  function captionFiles(sections, nested) {
-    var files = [], used = {};
+  // The caption files for each guide that has captions ready, with names that cannot collide. `format` is 'srt',
+  // 'vtt' or 'both'. With both kinds in a book's download, each kind gets a folder of its own.
+  function captionFiles(sections, nested, format) {
+    format = captionFormatOf(format);
+    var files = [], used = {}, folders = nested && format === 'both';
     sections.forEach(function (s) {
       if (!captionsReady(s)) return;
       var base = fileSafe(s.name, 'Guide ' + (state.sections.indexOf(s) + 1)), name = base, n = 2;
       while (used[name.toLowerCase()]) { name = base + ' (' + n + ')'; n += 1; }
       used[name.toLowerCase()] = true;
       var cues = captionResult(s).cues;
-      files.push({ name: (nested ? 'srt/' : '') + name + '.srt', text: toSrt(cues) });
-      files.push({ name: (nested ? 'vtt/' : '') + name + '.vtt', text: toVtt(cues) });
+      if (format !== 'vtt') files.push({ name: (folders ? 'srt/' : '') + name + '.srt', text: toSrt(cues) });
+      if (format !== 'srt') files.push({ name: (folders ? 'vtt/' : '') + name + '.vtt', text: toVtt(cues) });
     });
     return files;
   }
-  function saveCaptionZip(sections, zipName, nested) {
+  function captionKinds(format) { return format === 'srt' ? 'an .srt each' : format === 'vtt' ? 'a .vtt each' : 'an .srt and a .vtt each'; }
+  function saveCaptionZip(sections, zipName, nested, format) {
     syncFieldsFromDom();
-    var files = captionFiles(sections, nested);
+    format = captionFormatOf(format);
+    var files = captionFiles(sections, nested, format), guides = files.length / (format === 'both' ? 2 : 1);
     if (!files.length) { showFlash('No caption files are ready yet. A guide needs its timed captions and the edit pass run.'); return Promise.resolve(); }
     return useCap('downloads').then(function (downloads) {
       if (!downloads) { showFlash('Downloads aren’t available in this view, so caption files can’t be saved from here.'); return; }
       return downloads.save({ filename: zipName, data: zipFiles(files) }).then(function () {
-        showFlash('Saved ' + (files.length / 2) + ' audio guide' + plural(files.length / 2) + ' as caption files — an .srt and a .vtt each, inside ' + zipName + '.');
+        var left = sections.length - guides;
+        showFlash('Saved ' + guides + ' audio guide' + plural(guides) + ' as caption files — ' + captionKinds(format) + ', inside ' + zipName + '.' +
+          (nested && left > 0 ? ' ' + left + ' guide' + plural(left) + ' had no caption files ready and ' + (left === 1 ? 'was' : 'were') + ' left out.' : ''));
       }, function (err) {
         var code = err && err.code;
         if (code === 'declined') return;
@@ -2508,7 +2641,11 @@ input:disabled, textarea:disabled { cursor: wait; }
     var s = findSection(id);
     if (s) saveCaptionZip([s], fileSafe(s.name, 'guide') + ' captions.zip', false);
   }
-  function downloadAllCaptions() { saveCaptionZip(state.sections, fileSafe(state.bookTitle, 'audio guide') + ' captions.zip', true); }
+  // The whole book in one download, in the kind of file the reader picked at the bottom of the page.
+  function captionsReadyCount() { return state.sections.filter(captionsReady).length; }
+  function downloadAllCaptions() {
+    saveCaptionZip(state.sections, fileSafe(state.bookTitle, 'audio guide') + ' captions' + (captionFormat === 'both' ? '' : ' (' + captionFormat + ')') + '.zip', true, captionFormat);
+  }
   /* ==================================================================
      Descript — read, never written (SOURCE-OF-TRUTH 4.8)
 
@@ -2867,12 +3004,15 @@ input:disabled, textarea:disabled { cursor: wait; }
   var SKETCH_SIZE = 96, SKETCH_RUN = 4;
   var SKETCH_BY_WORDING = 6;         // shared hashes that make a match with no help from the title. Every guide opens and
                                      // closes with the same few words ("Welcome back, my friends"), so one or two shared prove nothing.
-  var writtenIndex = [];             // [{ id, title, book, chapter, part, chars, at, source, sourceName, sketch }]
+  var BULK_FILE_MAX = 300;           // files one look into Google Drive will list
+  var BULK_PREAMBLE_MIN = 200;       // characters before a Doc's first chapter heading that make a written script of their own
+  var writtenIndex = [];             // [{ id, title, book, chapter, part, chars, at, source, sourceName, sourceId, sketch }]
   var writtenStamp = 0;              // goes up whenever the list changes, so remembered matches are worked out again
   var writtenMore = false;           // true when the store holds more than one read returns
   var writtenTexts = {};             // id → text, kept once read
   var writtenQuery = '';
-  var writtenForm = null;            // the Add form: { title, link, text, source, sourceName, busy, error }
+  var writtenForm = null;            // the Add form: { title, link, text, source, sourceName, sourceId, busy, error }
+  var writtenBulk = null;            // bringing in many from Google Drive: { step, links, files, other, more, error, progress, stop, report }
   var writtenOpen = null;            // the one being read: { id, text, loading, error }
   var writtenPick = {};              // guide id → true while its chooser is open
   var writtenDeleting = '';
@@ -2979,7 +3119,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     d = d || {};
     var place = placeOf(d.title);
     return { id: id, title: String(d.title || ''), book: place.book, chapter: place.chapter, part: place.part, chars: Number(d.chars) || 0, at: Number(d.at) || 0,
-             source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''),
+             source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''), sourceId: String(d.sourceId || ''),
              sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [] };
   }
   function loadWrittenIndex() {
@@ -3087,11 +3227,13 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</header>' +
       noticeHtml() +
       '<div class="action-bar">' +
-      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || writtenForm ? ' disabled' : '') + '>+ Add Written Script</button></div>' +
+      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || writtenForm || writtenBulk ? ' disabled' : '') + '>+ Add Written Script</button>' +
+      '<button type="button" class="btn" data-action="written-bulk"' + (loading || writtenForm || writtenBulk ? ' disabled' : '') + ' title="Every file in a Google Drive folder, or a Doc that holds several written scripts">Bring in many from Google Drive</button></div>' +
       '<p class="status-line">' + (loading ? 'Loading the written scripts…' : n + ' written script' + plural(n)) + '</p>' +
       '<div class="action-bar-end"><input class="written-search" data-wfield="query" type="search" placeholder="Search by title, book or chapter" aria-label="Search written scripts" value="' + escAttr(writtenQuery) + '"' + (loading ? ' disabled' : '') + '></div>' +
       '</div>' +
       (writtenForm ? renderWrittenForm() : '') +
+      (writtenBulk ? renderWrittenBulk() : '') +
       (writtenOpen ? renderWrittenOpen() : '') +
       (loading ? renderSkeleton() : '<div id="written-list">' + renderWrittenList() + '</div>') +
       versionLine() +
@@ -3103,7 +3245,7 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function startWrittenForm() {
     writtenOpen = null;
-    writtenForm = { title: '', link: '', text: '', source: 'paste', sourceName: '', busy: '', error: '' };
+    writtenForm = { title: '', link: '', text: '', source: 'paste', sourceName: '', sourceId: '', busy: '', error: '' };
     paint();
     var box = root.querySelector('[data-wfield="title"]');
     if (box) { try { box.focus(); } catch (e) {} }
@@ -3111,11 +3253,13 @@ input:disabled, textarea:disabled { cursor: wait; }
   function writtenFail(message) { if (writtenForm) { writtenForm.busy = ''; writtenForm.error = message; paint(); } }
   // A title to start from, when the reader has not typed one: the file or Doc's name without its ending.
   function titleFromName(name) { return String(name || '').replace(/\.(docx|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
-  function takeWrittenText(text, source, name) {
+  // A written script as it is kept: one kind of line ending, no trailing spaces, no run of blank lines.
+  function cleanWritten(text) { return String(text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(); }
+  function takeWrittenText(text, source, name, sourceId) {
     if (!writtenForm) return;
-    text = String(text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    text = cleanWritten(text);
     if (!text) { writtenFail('Nothing could be read from that. Open it and paste the text in instead.'); return; }
-    writtenForm.text = text; writtenForm.source = source; writtenForm.sourceName = String(name || ''); writtenForm.busy = ''; writtenForm.error = '';
+    writtenForm.text = text; writtenForm.source = source; writtenForm.sourceName = String(name || ''); writtenForm.sourceId = String(sourceId || ''); writtenForm.busy = ''; writtenForm.error = '';
     if (!writtenForm.title.trim() && name) writtenForm.title = titleFromName(name);
     paint();
   }
@@ -3150,28 +3294,272 @@ input:disabled, textarea:disabled { cursor: wait; }
     }
     return { text: String(text || ''), name: name };
   }
-  function fetchWrittenFromDrive() {
-    if (!writtenForm || writtenForm.busy) return;
-    var id = driveFileId(writtenForm.link);
-    if (!id) { writtenFail('That doesn’t look like a link to a Google Doc or Sheet. Open the file, copy the link from the address bar, and paste it here.'); return; }
-    writtenForm.busy = 'drive'; writtenForm.error = ''; paint();
-    useCap('mcp').then(function (mcp) {
+  // The Google Drive tools this page reads with. Both only read (4.11).
+  function driveReader() {
+    return useCap('mcp').then(function (mcp) {
       if (!mcp) throw { code: 'capability_disabled' };
       return mcp.listTools().then(function (list) {
         var server = ((list && list.servers) || []).filter(function (sv) { return sv.server === 'Google Drive'; })[0];
         if (!server) throw { code: 'server_not_connected' };
         if (server.authStatus === 'needs_reauth') throw { code: 'needs_reauth' };
-        var tool = (server.tools || []).filter(function (t) { return /read.*content/i.test(t.name); })[0];
-        if (!tool) throw { code: 'no_tool' };
-        return mcp.callTool('Google Drive', tool.name, { fileId: id }, { cache: false });
+        function tool(pattern) { var t = (server.tools || []).filter(function (x) { return pattern.test(x.name); })[0]; return t ? t.name : ''; }
+        return { mcp: mcp, read: tool(/read.*content/i), search: tool(/search.*files/i) };
       });
-    }).then(function (res) {
-      var got = driveFileText(res);
-      takeWrittenText(got.text, 'drive', got.name);
+    });
+  }
+  function driveRead(conn, fileId) {
+    if (!conn.read) return Promise.reject({ code: 'no_tool' });
+    return conn.mcp.callTool('Google Drive', conn.read, { fileId: fileId }, { cache: false }).then(driveFileText);
+  }
+  function fetchWrittenFromDrive() {
+    if (!writtenForm || writtenForm.busy) return;
+    var id = driveFileId(writtenForm.link);
+    if (!id) { writtenFail('That doesn’t look like a link to a Google Doc or Sheet. Open the file, copy the link from the address bar, and paste it here.'); return; }
+    writtenForm.busy = 'drive'; writtenForm.error = ''; paint();
+    driveReader().then(function (conn) { return driveRead(conn, id); }).then(function (got) {
+      takeWrittenText(got.text, 'drive', got.name, id);
     }).catch(function (err) {
       console.warn('Scriptorium: could not read from Google Drive', err);
       writtenFail(driveProblem(err));
     });
+  }
+
+  /* ---- Bringing in many from Google Drive ----
+     Every file in a folder, or one Doc that holds several written scripts, in one go. Each file is read once
+     and kept; the same file brought in again replaces the kept copy. Drive is only read (4.11), and none of
+     this calls Claude (4.6). ---- */
+
+  var DRIVE_READABLE = /^(application\/vnd\.google-apps\.(document|spreadsheet)$|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document$|application\/msword$|application\/pdf$|text\/)/;
+
+  // What one pasted line points at: a folder, or a file.
+  function driveTarget(line) {
+    line = String(line || '').trim();
+    var folder = /\/folders\/([A-Za-z0-9_-]{15,})/.exec(line);
+    if (folder) return { kind: 'folder', id: folder[1] };
+    var id = driveFileId(line);
+    return id ? { kind: 'file', id: id } : null;
+  }
+  // The files directly inside one folder that can be read as text. Sub-folders are counted, not opened.
+  function driveFolderFiles(conn, folderId, room) {
+    if (!conn.search) return Promise.reject({ code: 'no_tool' });
+    var files = [], seen = {}, other = 0;
+    function page(token, turn) {
+      var input = { query: "parentId = '" + folderId + "' and trashed = false", excludeContentSnippets: true, pageSize: 100 };
+      if (token) input.pageToken = token;
+      return conn.mcp.callTool('Google Drive', conn.search, input, { cache: false }).then(function (res) {
+        var data = payloadOf(res), list = Array.isArray(data.files) ? data.files : [];
+        list.forEach(function (f) {
+          var id = String((f && f.id) || '');
+          if (!id || seen[id]) return;                       // a page can repeat the last file of the one before
+          seen[id] = true;
+          if (DRIVE_READABLE.test(String(f.mimeType || ''))) files.push({ id: id, name: String(f.title || f.name || 'Untitled') });
+          else other += 1;
+        });
+        var next = String(data.nextPageToken || '');
+        if (next && list.length && files.length < room && turn < 20) return page(next, turn + 1);
+        return { files: files.slice(0, room), other: other, more: files.length > room || (!!next && list.length > 0) };
+      });
+    }
+    return page('', 0);
+  }
+
+  // One Drive file may hold a whole book's written scripts. It is cut only at a heading that names a place in
+  // the Bible ("Luke 24", "Chapter 3", "Introduction"), and only when two or more headings name different
+  // places. A file whose own name already says which chapter it is stays whole, and so does one with no such
+  // headings. Each piece is { key, title, text }: \`key\` says which piece of the file it is.
+  function splitWritten(text, name) {
+    text = cleanWritten(text);
+    var fileTitle = titleFromName(name), filePlace = placeOf(fileTitle);
+    var whole = [{ key: '', title: fileTitle || firstWords(text), text: text }];
+    if (filePlace.book && (filePlace.chapter || filePlace.part)) return whole;
+    var lines = text.split('\n'), cuts = [], seen = {};
+    lines.forEach(function (line, n) {
+      var m = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line);
+      if (!m) return;
+      var heading = m[1].replace(/\\([^A-Za-z0-9\s])/g, '$1').replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim();
+      var title = heading, place = placeOf(heading);
+      // "Chapter 3" under a file called "Luke" is Luke 3. Nothing else is read that way: "1. Opening" and
+      // "Introduction" are headings inside a script far more often than they are the start of one.
+      if (!place.book && filePlace.book && /^chapter\s+\d{1,3}\b/i.test(heading)) { title = displayBook(filePlace.book) + ' – ' + heading; place = placeOf(displayBook(filePlace.book) + ' ' + heading); }
+      if (!place.book || !(place.chapter || place.part)) return;
+      if (filePlace.book && place.book !== filePlace.book) return;      // a heading that quotes another book is not a new script
+      var key = (place.book + '-' + (place.part || place.chapter)).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (seen[key]) return;                                            // a second heading for the same place belongs to that script
+      seen[key] = true;
+      cuts.push({ line: n, key: key, title: title.slice(0, 120) });
+    });
+    if (cuts.length < 2) return whole;
+    var parts = [], opening = lines.slice(0, cuts[0].line).join('\n').trim();
+    // What stands before the first chapter is usually the book's introduction, and is kept as a script of its own.
+    if (opening.length >= BULK_PREAMBLE_MIN) {
+      var intro = filePlace.book && /\bintro(duction)?\b/i.test(opening.slice(0, 200));
+      parts.push({ key: 'opening', title: intro ? displayBook(filePlace.book) + ' – Introduction' : (fileTitle || 'Written scripts') + ' – before the first heading', text: opening });
+    }
+    // A shorter opening (a title, a line of notes) is not a script, and is not thrown away either: it stays
+    // at the head of the first one, so every word of the file is kept (4.9).
+    var lead = opening && opening.length < BULK_PREAMBLE_MIN ? opening + '\n\n' : '';
+    cuts.forEach(function (c, i) {
+      var body = lines.slice(c.line, i + 1 < cuts.length ? cuts[i + 1].line : lines.length).join('\n').trim();
+      if (body) { parts.push({ key: c.key, title: c.title, text: lead + body }); lead = ''; }
+    });
+    return parts;
+  }
+  function firstWords(text) { return String(text || '').replace(/^[#\s*_]+/, '').split('\n')[0].replace(/\s+/g, ' ').trim().slice(0, 80) || 'Written script'; }
+  function bulkSourceId(fileId, key) { return fileId + (key ? '#' + key : ''); }
+  function bulkHas(fileId) { return writtenIndex.some(function (w) { return w.sourceId === fileId || w.sourceId.indexOf(fileId + '#') === 0; }); }
+
+  function openWrittenBulk() {
+    writtenOpen = null; writtenForm = null;
+    writtenBulk = { step: 'ask', links: '', files: [], other: 0, more: false, error: '', progress: '', stop: false, report: null };
+    paint();
+    var box = root.querySelector('[data-wfield="bulkLinks"]');
+    if (box) { try { box.focus(); } catch (e) {} }
+  }
+  function bulkFail(message) { if (writtenBulk) { writtenBulk.step = writtenBulk.files.length ? 'pick' : 'ask'; writtenBulk.error = message; paint(); } }
+  // Step one: see what the links hold. Folders are listed; a link to a file is taken as it is.
+  function listWrittenBulk() {
+    var b = writtenBulk;
+    if (!b || b.step === 'listing' || b.step === 'reading') return;
+    var targets = [], seen = {};
+    String(b.links || '').split(/[\n,\s]+/).forEach(function (line) {
+      var t = driveTarget(line);
+      if (t && !seen[t.id]) { seen[t.id] = true; targets.push(t); }
+    });
+    if (!targets.length) { b.error = 'Paste a link to a Google Drive folder, or links to Docs, first. Open the folder or file in Google Drive and copy the link from the address bar.'; paint(); return; }
+    b.step = 'listing'; b.error = ''; b.files = []; b.other = 0; b.more = false; b.report = null; paint();
+    driveReader().then(function (conn) {
+      var files = [], have = {}, linked = 0, i = 0;
+      function add(f) { if (!have[f.id] && files.length < BULK_FILE_MAX) { have[f.id] = true; files.push(f); } else if (!have[f.id]) b.more = true; }
+      function next() {
+        if (i >= targets.length || writtenBulk !== b) return Promise.resolve();
+        var t = targets[i]; i += 1;
+        if (t.kind === 'file') { linked += 1; add({ id: t.id, name: '', label: 'Linked file ' + linked }); return next(); }
+        return driveFolderFiles(conn, t.id, BULK_FILE_MAX - files.length).then(function (got) {
+          got.files.forEach(add); b.other += got.other; if (got.more) b.more = true;
+        }).then(next);
+      }
+      return next().then(function () {
+        if (writtenBulk !== b) return;
+        files.sort(function (x, y) { return naturalCompare(x.name || x.label, y.name || y.label); });
+        files.forEach(function (f) { f.have = bulkHas(f.id); f.pick = !f.have; });
+        b.files = files; b.step = files.length ? 'pick' : 'ask';
+        if (!files.length) b.error = 'Nothing that can be read was found there' + (b.other ? ' (' + b.other + ' sub-folder' + plural(b.other) + ' or other file' + plural(b.other) + ' left alone)' : '') + '. Check the link, and that the folder holds Docs, Sheets, Word files, PDFs or text files.';
+        paint();
+      });
+    }).catch(function (err) {
+      console.warn('Scriptorium: could not list Google Drive', err);
+      if (writtenBulk === b) bulkFail(bulkProblem(err));
+    });
+  }
+  // The same sentences as the single form, without the pointer to a paste box this panel does not have.
+  function bulkProblem(err) { return driveProblem(err).replace(/ Or paste the text in below\.| Paste the text in below instead\.|, or paste the text in below/g, ''); }
+  function bulkPicked() { return writtenBulk ? writtenBulk.files.filter(function (f) { return f.pick; }) : []; }
+  function bulkPick(id, on) {
+    if (!writtenBulk) return;
+    writtenBulk.files.forEach(function (f) { if (f.id === id) f.pick = !!on; });
+    paint();
+  }
+  function bulkPickAll(on) { if (writtenBulk) { writtenBulk.files.forEach(function (f) { f.pick = !!on; }); paint(); } }
+  function bulkWait(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+  // Drive sometimes asks for a moment. One file is tried up to three times before it is counted as not read.
+  function bulkRead(conn, fileId, tries) {
+    return driveRead(conn, fileId).catch(function (err) {
+      var code = err && err.code;
+      if ((code === 'rate_limited' || code === 'server_unavailable') && tries < 2) return bulkWait(4000 * (tries + 1)).then(function () { return bulkRead(conn, fileId, tries + 1); });
+      throw err;
+    });
+  }
+  // Keeps the pieces of one file. A piece already in the library keeps its place and its title: only its text is renewed.
+  function bulkKeep(file, name, pieces, report) {
+    var i = 0;
+    function next() {
+      if (i >= pieces.length) return Promise.resolve();
+      var p = pieces[i]; i += 1;
+      if (!p.text) return next();
+      if (p.text.length > WRITTEN_MAX) { report.failed.push({ name: p.title, why: 'too long to keep in one piece' }); return next(); }
+      var sourceId = bulkSourceId(file.id, p.key), old = writtenIndex.filter(function (w) { return w.sourceId === sourceId; })[0];
+      var title = old ? old.title : String(p.title || name || 'Written script').replace(/\s+/g, ' ').trim();
+      return putWritten(old ? old.id : newWrittenId(), writtenDoc(title, p.text, 'drive', name, sourceId), p.text).then(function () {
+        if (old) report.replaced += 1; else report.saved += 1;
+      }, function (err) {
+        console.warn('Scriptorium: could not save a written script', err);
+        report.failed.push({ name: title, why: writtenSaveProblem(err) });
+        if (err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded')) report.halt = true;   // the next one would fail the same way
+      }).then(next);
+    }
+    return next();
+  }
+  // Step two: read each picked file, one at a time, and keep it.
+  function startWrittenBulk() {
+    var b = writtenBulk, picked = bulkPicked();
+    if (!b || (b.step !== 'pick' && b.step !== 'done') || !picked.length) return;
+    if (!dbRoot) { b.error = 'Saved work can’t be reached in this view.'; paint(); return; }
+    var report = { files: 0, saved: 0, replaced: 0, split: [], failed: [], stopped: false, halt: false };
+    b.step = 'reading'; b.error = ''; b.stop = false; b.report = report; b.progress = 'Reading 1 of ' + picked.length + '…'; paint();
+    function show(text) { b.progress = text; var p = root.querySelector('.bulk-progress'); if (p) p.textContent = text; }
+    driveReader().then(function (conn) {
+      var i = 0;
+      function next() {
+        if (i >= picked.length || writtenBulk !== b || b.stop || report.halt) { report.stopped = i < picked.length; return Promise.resolve(); }
+        var file = picked[i]; i += 1;
+        show('Reading ' + i + ' of ' + picked.length + ' — ' + (file.name || file.label) + '…');
+        return bulkRead(conn, file.id, 0).then(function (got) {
+          var name = file.name || got.name || '', pieces = splitWritten(got.text, name);
+          if (!pieces.length || !pieces[0].text) { report.failed.push({ name: name || file.label, why: 'nothing could be read from it' }); return; }
+          report.files += 1;
+          if (pieces.length > 1) report.split.push({ name: name || file.label, count: pieces.length });
+          return bulkKeep(file, name, pieces, report);
+        }, function (err) {
+          console.warn('Scriptorium: could not read a Drive file', err);
+          var code = err && err.code;
+          report.failed.push({ name: file.name || file.label, why: code === 'tool_error' ? 'Google Drive couldn’t open it' : code === 'rate_limited' || code === 'server_unavailable' ? 'Google Drive didn’t answer' : 'it couldn’t be read' });
+          if (code && /^(needs_reauth|server_not_connected|server_not_found|not_in_manifest|approval_required|consent_required|blocked_by_policy|not_granted|capability_disabled|capability_removed|no_tool)$/.test(code)) { report.halt = true; b.error = bulkProblem(err); }
+        }).then(next);
+      }
+      return next();
+    }).catch(function (err) {
+      console.warn('Scriptorium: could not reach Google Drive', err);
+      b.error = bulkProblem(err);
+    }).then(function () {
+      if (writtenBulk !== b) return;
+      b.files.forEach(function (f) { f.have = bulkHas(f.id); if (f.have) f.pick = false; });
+      b.step = 'done'; paint();
+    });
+  }
+  function bulkReportText(r) {
+    var made = r.saved + r.replaced, out = [];
+    out.push(made ? 'Kept ' + made + ' written script' + plural(made) + ' from ' + r.files + ' file' + plural(r.files) + (r.replaced ? ' (' + r.replaced + ' already here and renewed)' : '') + '.' : 'Nothing was kept.');
+    r.split.forEach(function (s) { out.push('“' + s.name + '” held ' + s.count + ' written scripts and was cut at its headings.'); });
+    if (r.failed.length) out.push(r.failed.length + ' not kept: ' + r.failed.map(function (f) { return '“' + f.name + '” (' + f.why + ')'; }).join('; ') + '.');
+    if (r.stopped) out.push('Stopped before the end. What was read is kept; the rest are still ticked below.');
+    return out;
+  }
+  function renderWrittenBulk() {
+    var b = writtenBulk, busy = b.step === 'listing' || b.step === 'reading', n = bulkPicked().length;
+    var list = '';
+    if (b.files.length && b.step !== 'listing') {
+      list = '<ul class="pull-list">' + b.files.map(function (f) {
+        return '<li><label class="pull-item"><input type="checkbox" data-action="written-bulk-pick" data-id="' + escAttr(f.id) + '"' + (f.pick ? ' checked' : '') + (busy ? ' disabled' : '') + '>' +
+          '<span class="pull-name">' + esc(f.name || f.label) + '</span>' +
+          (f.have ? '<span class="pull-tag">already in the library — bringing it in again renews its text</span>' : '') + '</label></li>';
+      }).join('') + '</ul>' +
+        (b.more ? '<p class="notice notice-warn">Only the first ' + b.files.length + ' files are listed. Bring these in, then look again for the rest, or point at a smaller folder.</p>' : '') +
+        (b.other ? '<p class="hint">' + b.other + ' sub-folder' + plural(b.other) + ' or other file' + plural(b.other) + ' in there ' + (b.other === 1 ? 'was' : 'were') + ' left alone. Paste a sub-folder’s own link to bring in what it holds.</p>' : '');
+    }
+    return '<section class="pull-panel written-form">' +
+      '<div class="pull-head"><h3>Bring in many from Google Drive</h3>' + (b.step === 'reading' ? '' : '<button type="button" class="link-btn" data-action="written-bulk-close">Close</button>') + '</div>' +
+      '<p class="hint">Paste the link to a Google Drive folder to bring in every file in it, or links to single Docs, one on each line. A Doc that holds several written scripts under headings such as “Luke 24” is cut into one written script for each. Every file is read once and kept here. Nothing in Google Drive is changed.</p>' +
+      '<label class="written-label" for="written-bulk-links">Links to folders or files</label>' +
+      '<textarea id="written-bulk-links" class="written-text-box is-links" data-wfield="bulkLinks" rows="3" placeholder="https://drive.google.com/drive/folders/…"' + (busy ? ' disabled' : '') + '>' + esc(b.links) + '</textarea>' +
+      '<div class="pull-foot"><button type="button" class="btn" data-action="written-bulk-list"' + (busy ? ' disabled' : '') + '>' + (b.step === 'listing' ? 'Looking…' : b.files.length ? 'Look again' : 'Look in Google Drive') + '</button></div>' +
+      (b.report && b.step === 'done' ? '<div class="notice bulk-report">' + bulkReportText(b.report).map(function (line) { return '<p>' + esc(line) + '</p>'; }).join('') + '</div>' : '') +
+      (b.error ? '<p class="notice notice-warn">' + esc(b.error) + '</p>' : '') +
+      list +
+      (b.step === 'reading' ? '<div class="pull-foot"><p class="hint bulk-progress">' + esc(b.progress) + '</p><button type="button" class="btn btn-ghost" data-action="written-bulk-stop"' + (b.stop ? ' disabled' : '') + '>Stop</button></div>' : '') +
+      (b.files.length && (b.step === 'pick' || b.step === 'done') ? '<div class="pull-foot">' +
+        '<label class="speed-pick"><input type="checkbox" data-action="written-bulk-all"' + (n === b.files.length ? ' checked' : '') + '> Select all ' + b.files.length + '</label>' +
+        '<button type="button" class="btn btn-edit" data-action="written-bulk-start"' + (n ? '' : ' disabled') + '>' + (n ? 'Bring in ' + n + ' file' + plural(n) : 'Bring in selected') + '</button></div>' : '') +
+      '</section>';
   }
 
   /* ---- Reading a file from the computer ---- */
@@ -3243,6 +3631,20 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full. Remove something that is no longer needed, then try again.';
     return 'This couldn’t be saved just now — try again.';
   }
+  // What the listing keeps for one written script. `sourceId` is the Drive file it came from, so the same file
+  // brought in again replaces the kept copy rather than adding a second one.
+  function writtenDoc(title, text, source, sourceName, sourceId) {
+    return { title: title, chars: text.length, at: Date.now(), source: source === 'drive' || source === 'file' ? source : 'paste',
+             sourceName: String(sourceName || '').slice(0, 200), sourceId: String(sourceId || '').slice(0, 200), sketch: textSketch(text) };
+  }
+  // The text first, the listing last: a script that is listed always has its text.
+  function putWritten(id, doc, text) {
+    return dbRoot.doc('writtenText/' + id).set({ text: text }).then(function () { return dbRoot.doc('written/' + id).set(doc); }).then(function () {
+      writtenTexts[id] = text;
+      writtenIndex = writtenIndex.filter(function (w) { return w.id !== id; });
+      writtenIndex.push(entryFromDoc(id, doc)); writtenStamp += 1;
+    });
+  }
   function saveWritten() {
     var f = writtenForm;
     if (!f || f.busy) return;
@@ -3253,11 +3655,8 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!dbRoot) { writtenFail('Saved work can’t be reached in this view.'); return; }
     f.busy = 'save'; f.error = ''; paint();
     var id = newWrittenId();
-    var doc = { title: title, chars: text.length, at: Date.now(), source: f.source === 'drive' || f.source === 'file' ? f.source : 'paste', sourceName: String(f.sourceName || '').slice(0, 200), sketch: textSketch(text) };
-    // The text first, the listing last: a script that is listed always has its text.
-    dbRoot.doc('writtenText/' + id).set({ text: text }).then(function () { return dbRoot.doc('written/' + id).set(doc); }).then(function () {
-      writtenTexts[id] = text;
-      writtenIndex.push(entryFromDoc(id, doc)); writtenStamp += 1;
+    var doc = writtenDoc(title, text, f.source, f.sourceName, f.source === 'drive' ? f.sourceId : '');
+    putWritten(id, doc, text).then(function () {
       writtenForm = null;
       var place = placeLabel(placeOf(title));
       flash = 'Saved “' + title + '”. ' + (place ? 'It will be matched to guides on ' + place + '.' : 'No book and chapter were found in its title, so it will be matched by its wording alone.');
@@ -3283,7 +3682,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!title) { o.error = 'A written script needs a title.'; paint(); return; }
     if (title === w.title) return;
     o.busy = true; o.error = ''; o.title = title; paint();
-    dbRoot.doc('written/' + w.id).set({ title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sketch: w.sketch }).then(function () {
+    dbRoot.doc('written/' + w.id).set({ title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sourceId: w.sourceId, sketch: w.sketch }).then(function () {
       var place = placeOf(title);
       w.title = title; w.book = place.book; w.chapter = place.chapter; w.part = place.part; writtenStamp += 1;
       o.busy = false; o.title = null; paint();
@@ -3708,6 +4107,12 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (action === 'written-close') { writtenOpen = null; paint(); return; }
     if (action === 'written-rename') { renameWritten(); return; }
     if (action === 'written-delete') { askDeleteWritten(id); return; }
+    if (action === 'written-bulk') { openWrittenBulk(); return; }
+    if (action === 'written-bulk-close') { writtenBulk = null; paint(); return; }
+    if (action === 'written-bulk-list') { listWrittenBulk(); return; }
+    if (action === 'written-bulk-start') { startWrittenBulk(); return; }
+    if (action === 'written-bulk-stop') { if (writtenBulk) { writtenBulk.stop = true; paint(); } return; }
+    if (action === 'written-bulk-pick' || action === 'written-bulk-all') return;   // checkboxes: handled on change
     if (action === 'written-pick') { writtenPick[id] = true; paintSection(id); return; }
     if (action === 'written-pick-close') { delete writtenPick[id]; paintSection(id); return; }
     if (action === 'set-written') return;                               // a list: handled on change
@@ -3747,11 +4152,14 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!t || !t.dataset) return;
     if (t.dataset.action === 'set-written') setWritten(t.dataset.id, t.value);
     if (t.dataset.action === 'written-file') readWrittenFile(t.files && t.files[0]);
+    if (t.dataset.action === 'written-bulk-pick') bulkPick(t.dataset.id, t.checked);
+    if (t.dataset.action === 'written-bulk-all') bulkPickAll(t.checked);
     if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
     if (t.dataset.action === 'pull-all') pullPickAll(t.checked);
     if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
     if (t.dataset.action === 'set-repair') { repairParagraphs = !!t.checked; prefSet('repairParagraphs', repairParagraphs); }
-    if (t.dataset.action === 'set-docmode') { docMode = t.value === 'one' ? 'one' : 'perScript'; prefSet('docMode', docMode); paint(); }
+    if (t.dataset.action === 'set-docmode') { docMode = docModeOf(t.value); prefSet('docMode', docMode); paint(); }
+    if (t.dataset.action === 'set-captionformat') { captionFormat = captionFormatOf(t.value); prefSet('captionFormat', captionFormat); }
   });
 
   function fieldTouched(el) {
@@ -3777,10 +4185,11 @@ input:disabled, textarea:disabled { cursor: wait; }
     var field = el.dataset.wfield;
     if (field === 'query') { writtenQuery = el.value; var list = document.getElementById('written-list'); if (list) list.innerHTML = renderWrittenList(); return; }
     if (field === 'rename') { if (writtenOpen) writtenOpen.title = el.value; return; }
+    if (field === 'bulkLinks') { if (writtenBulk) writtenBulk.links = el.value; return; }
     if (!writtenForm) return;
     writtenForm[field] = el.value;
     if (field === 'text') {
-      if (writtenForm.source !== 'paste') { writtenForm.source = 'paste'; writtenForm.sourceName = ''; }   // typed over: it is no longer the file as it came
+      if (writtenForm.source !== 'paste') { writtenForm.source = 'paste'; writtenForm.sourceName = ''; writtenForm.sourceId = ''; }   // typed over: it is no longer the file as it came
       var note = root.querySelector('.written-count'); if (note) note.textContent = writtenFormNote();
     }
   }

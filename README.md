@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.3.0. It opens for members of the Through the Word organization on
+version 1.3.0. Version 1.4.0 is in this repository and not yet published. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -54,6 +54,12 @@ Each audio guide moves through four stages, and each has one name:
    with its book and chapter ("Luke 24 — Jones") and bring in its text: paste
    it, give the link to a Google Doc or Sheet, or choose a Word (.docx) or
    text file. This can be done at any time, before or after the edit pass.
+   **Bring in many from Google Drive** takes the link to a Drive folder and
+   brings in every file in it, each as its own written script, named for its
+   file. It also takes the link to one Doc that holds a whole book: that Doc
+   is cut at the headings that name a chapter ("Luke 24", or "Chapter 3" in a
+   file named for its book). A file is read once and kept; bringing it in
+   again renews the kept copy and keeps its title.
 2. **Pull the audio guides from Descript.** Click **Pull from Descript**, open
    the book's folder in the TTW Drive, tick the audio guides you want, and
    pull them. Each gets a card with its 1st Draft Transcript and its timed
@@ -88,8 +94,12 @@ Each audio guide moves through four stages, and each has one name:
    Changing it afterwards, by hand or by running the edit pass again, takes
    it back to an Edited Transcript until it is approved again.
 8. **Copy or publish.** Copy a single transcript with its verses already bold
-   and block-quoted, or build the book's Final Transcripts into Google Docs.
-   Only Final Transcripts go into a Google Doc.
+   and block-quoted, or build the book's Final Transcripts into Google Docs:
+   one Doc with a tab for each guide, one Doc with each guide starting on its
+   own page, or a folder with one Doc per guide. Only Final Transcripts go
+   into a Google Doc. Tabs need the Google Docs connector as well as Google
+   Drive; without it the page makes the one Doc with a page per guide and
+   says so.
 9. **Download caption files.** A guide pulled from Descript already has its
    timed captions. For one pasted by hand, open **Timed captions for search**
    and paste in the `.srt` file Descript exports for that audio guide (in
@@ -97,7 +107,9 @@ Each audio guide moves through four stages, and each has one name:
    `.srt` and a `.vtt`. Both carry the *corrected* words on Descript's own
    timings, so a search for "Uz" finds it even though Descript heard "us".
    **Download all caption files** at the bottom gives the whole book in one
-   `.zip`. Caption files do not wait for approval.
+   `.zip`: both kinds, `.srt` only, or `.vtt` only. The line above the button
+   says how many guides have caption files ready. Caption files do not wait
+   for approval.
 
 ### What a caption file is, and is not
 
@@ -125,6 +137,14 @@ Each audio guide moves through four stages, and each has one name:
   it the first time.
 - **One composition per project.** If a Descript project holds more than one
   composition, the first is pulled.
+- **A written script is a kept copy.** It is read from Google Drive once. If
+  the teacher changes the Doc afterwards, bring it in again to renew it.
+- **A folder is listed one level deep**, up to 300 files at a time.
+  Sub-folders are counted and left alone; paste a sub-folder's own link to
+  bring in what it holds.
+- **A Doc is cut only at headings.** A Doc that holds a whole book is cut
+  where a heading (a Heading style in Google Docs) names a chapter. A Doc
+  with no such headings comes in as one written script.
 - **A book holds up to 1,000 guides**, a Descript folder lists up to 1,000
   projects, and the Written Scripts page lists up to 1,000 written scripts.
   Past that the page says so rather than showing part.
@@ -203,10 +223,10 @@ src/
     09-prompts.js     THE EDITING INSTRUCTIONS — see SOURCE-OF-TRUTH.md
     10-edit-pipeline.js  the edit run: cues, capitals, the wording guard, joins, concurrency
     11-clear.js       clearing the workbench for the next book
-    12-google-doc.js  building the Google Doc from Final Transcripts, with an HTML fallback
+    12-google-doc.js  building the Google Doc from Final Transcripts (tabs, pages, or a folder), with an HTML fallback (4.11)
     13-captions.js    timed captions: reading .srt/.vtt, building .srt, .vtt and .zip
     14-descript.js    pulling transcripts and captions from Descript (reading only)
-    15-written-scripts.js  the written scripts: their page, matching to guides, reading .docx and Google Docs (4.9)
+    15-written-scripts.js  the written scripts: their page, matching to guides, reading .docx and Google Docs, bringing in many from Drive (4.9, 4.11)
     16-references.js  checking each scripture reference, and changing one by hand (4.10)
     17-events.js      event delegation, shortcuts, start-up — last in the manifest
 test/
@@ -214,6 +234,7 @@ test/
   descript.test.js         checks the Descript pull against a stand-in connector (4.8)
   edit-rules.test.js       checks the wording guard, references in digits, verse layout, and hand corrections (4.1, 4.2, 4.4, 6)
   written-scripts.test.js  checks written scripts, matching, the sign-off, and what reaches the Google Doc (4.9)
+  google-export-import.test.js  checks the tabbed Google Doc, caption files by kind, and written scripts in bulk from Drive (4.11)
   references.test.js       checks the reference checks (4.10)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
@@ -241,6 +262,7 @@ node test/descript.test.js    # check the Descript pull, against a stand-in conn
 node test/edit-rules.test.js  # check the wording guard, references in digits, verse layout, and hand corrections
 node test/written-scripts.test.js  # check written scripts, matching, the sign-off, and the Google Doc
 node test/references.test.js  # check the reference checks
+node test/google-export-import.test.js  # check the tabbed Google Doc, caption files by kind, and the bulk import from Drive
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
@@ -260,6 +282,8 @@ them (with that feature switched off):
 | `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) and the written scripts (`written/<id>`, `writtenText/<id>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
 | `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. Added to the artifact's connector list in 1.3.0. |
+| `mcp` → Google Drive: `search_files` | listing the files in a folder for **Bring in many from Google Drive**. It only reads. Needed from 1.4.0. |
+| `mcp` → Google Docs: `update_doc` | adding a tab for each guide to the Doc the page has just made, and writing each transcript into its tab (4.11). Needed from 1.4.0. |
 | `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
 

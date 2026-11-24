@@ -26,3 +26,5 @@ jobs:
         run: node test/written-scripts.test.js
       - name: Reference checks hold
         run: node test/references.test.js
+      - name: Google export and import hold
+        run: node test/google-export-import.test.js
