@@ -147,12 +147,46 @@
              source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''), sourceId: String(d.sourceId || ''),
              sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [] };
   }
+  // One read returns at most 1,000 documents, and a whole Bible is more written scripts than that. Past the first
+  // thousand the listing is read a page at a time, oldest first by the time each was added. If the store will not
+  // page (or the paging fails), the first thousand are shown and the page says some are missing.
+  var WRITTEN_PAGE = 1000, WRITTEN_PAGES_MAX = 6;
+  function readWrittenListing() {
+    var col = dbRoot.collection('written');
+    return col.limit(WRITTEN_PAGE).get().then(function (first) {
+      var firstDocs = (first && first.docs) || [];
+      if (firstDocs.length < WRITTEN_PAGE) return { docs: firstDocs, more: false };
+      if (typeof col.orderBy !== 'function' || typeof col.where !== 'function') return { docs: firstDocs, more: true };
+      var all = [], seen = Object.create(null);
+      function page(after, turn) {
+        var q = after ? col.where('at', '>=', after).orderBy('at') : col.orderBy('at');
+        return q.limit(WRITTEN_PAGE).get().then(function (qs) {
+          var docs = (qs && qs.docs) || [], fresh = 0, last = 0;
+          docs.forEach(function (d) {
+            last = Number((d.data() || {}).at) || last;
+            if (!seen[d.id]) { seen[d.id] = true; all.push(d); fresh += 1; }
+          });
+          if (docs.length < WRITTEN_PAGE) return { docs: all, more: false };
+          if (!fresh || !last || turn >= WRITTEN_PAGES_MAX) return { docs: all, more: true };
+          return page(last, turn + 1);
+        });
+      }
+      return page(0, 1).then(function (out) {
+        // A script saved with no time on it sorts outside the pages; the first read has those, so none is dropped.
+        firstDocs.forEach(function (d) { if (!seen[d.id]) { seen[d.id] = true; out.docs.push(d); } });
+        return out;
+      }, function (err) {
+        console.warn('Scriptorium: could not read past the first 1,000 written scripts', err);
+        return { docs: firstDocs, more: true };
+      });
+    });
+  }
   function loadWrittenIndex() {
     if (!dbRoot) return Promise.resolve();
-    return readAll('written').then(function (qs) {
-      var docs = (qs && qs.docs) || [];
-      writtenIndex = docs.map(function (d) { return entryFromDoc(d.id, d.data()); }).filter(function (w) { return w.title; });
-      writtenMore = docs.length >= 1000; writtenStamp += 1;
+    return readWrittenListing().then(function (got) {
+      writtenIndex = got.docs.filter(function (d) { return d && typeof d.id === 'string' && !(d.id in Object.prototype); })
+        .map(function (d) { return entryFromDoc(d.id, d.data()); }).filter(function (w) { return w.title; });
+      writtenMore = got.more; writtenStamp += 1;
     }).catch(function (err) { console.warn('Scriptorium: could not read the written scripts', err); });
   }
   function readWrittenText(id) {
@@ -197,7 +231,7 @@
     if (!writtenIndex.length) return '<p class="library-empty">No written scripts yet. Add one with <strong>+ Add Written Script</strong> — everyone on the team will see it here, and it will be matched to its audio guide.</p>';
     if (!shown.length) return '<p class="library-empty">No written script has “' + esc(writtenQuery.trim()) + '” in its title.</p>';
     return '<div class="book-list">' + shown.map(renderWrittenRow).join('') + '</div>' +
-      (writtenMore ? '<p class="notice notice-warn">Only the first 1,000 written scripts are listed. Search by title to find one that is missing here.</p>' : '');
+      (writtenMore ? '<p class="notice notice-warn">There are more written scripts than this page could list: ' + writtenIndex.length.toLocaleString('en-US') + ' are shown. The rest are still saved, and are still matched to their guides only if they are listed here. Tell whoever looks after the Scriptorium.</p>' : '');
   }
   function writtenFormNote() {
     var f = writtenForm, n = String(f.text || '').length;
@@ -279,7 +313,7 @@
   // A title to start from, when the reader has not typed one: the file or Doc's name without its ending.
   function titleFromName(name) { return String(name || '').replace(/\.(docx|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
   // A written script as it is kept: one kind of line ending, no trailing spaces, no run of blank lines.
-  function cleanWritten(text) { return String(text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(); }
+  function cleanWritten(text) { return trimLineEnds(tameSpaces(text || '').replace(/\r\n?/g, '\n')).replace(/\n{3,}/g, '\n\n').trim(); }
   function takeWrittenText(text, source, name, sourceId) {
     if (!writtenForm) return;
     text = cleanWritten(text);
@@ -399,6 +433,7 @@
     if (filePlace.book && (filePlace.chapter || filePlace.part)) return whole;
     var lines = text.split('\n'), cuts = [], seen = {};
     lines.forEach(function (line, n) {
+      if (line.charCodeAt(0) !== 35 || line.length > 300) return;        // a heading starts with # and is a line, not a page
       var m = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line);
       if (!m) return;
       var heading = m[1].replace(/\\([^A-Za-z0-9\s])/g, '$1').replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim();
@@ -407,6 +442,7 @@
       // "Introduction" are headings inside a script far more often than they are the start of one.
       if (!place.book && filePlace.book && /^chapter\s+\d{1,3}\b/i.test(heading)) { title = displayBook(filePlace.book) + ' – ' + heading; place = placeOf(displayBook(filePlace.book) + ' ' + heading); }
       if (!place.book || !(place.chapter || place.part)) return;
+      if (/\d\s*[:.]\s*\d/.test(heading)) return;                         // "John 3:16" is a verse being quoted, not the start of a script
       if (filePlace.book && place.book !== filePlace.book) return;      // a heading that quotes another book is not a new script
       var key = (place.book + '-' + (place.part || place.chapter)).toLowerCase().replace(/[^a-z0-9]+/g, '-');
       if (seen[key]) return;                                            // a second heading for the same place belongs to that script
@@ -452,7 +488,8 @@
     });
     if (!targets.length) { b.error = 'Paste a link to a Google Drive folder, or links to Docs, first. Open the folder or file in Google Drive and copy the link from the address bar.'; paint(); return; }
     b.step = 'listing'; b.error = ''; b.files = []; b.other = 0; b.more = false; b.report = null; paint();
-    driveReader().then(function (conn) {
+    // The library is read again first: a teammate may have brought some of these in since this page was opened.
+    loadWrittenIndex().then(driveReader).then(function (conn) {
       var files = [], have = {}, linked = 0, i = 0;
       function add(f) { if (!have[f.id] && files.length < BULK_FILE_MAX) { have[f.id] = true; files.push(f); } else if (!have[f.id]) b.more = true; }
       function next() {
@@ -501,7 +538,7 @@
       if (i >= pieces.length) return Promise.resolve();
       var p = pieces[i]; i += 1;
       if (!p.text) return next();
-      if (p.text.length > WRITTEN_MAX) { report.failed.push({ name: p.title, why: 'too long to keep in one piece' }); return next(); }
+      if (p.text.length > WRITTEN_MAX || jsonBytes({ text: p.text }) > DOC_MAX_BYTES) { report.failed.push({ name: p.title, why: 'too long to keep in one piece' }); return next(); }
       var sourceId = bulkSourceId(file.id, p.key), old = writtenIndex.filter(function (w) { return w.sourceId === sourceId; })[0];
       var title = old ? old.title : String(p.title || name || 'Written script').replace(/\s+/g, ' ').trim();
       return putWritten(old ? old.id : newWrittenId(), writtenDoc(title, p.text, 'drive', name, sourceId), p.text).then(function () {
@@ -522,7 +559,7 @@
     var report = { files: 0, saved: 0, replaced: 0, split: [], failed: [], stopped: false, halt: false };
     b.step = 'reading'; b.error = ''; b.stop = false; b.report = report; b.progress = 'Reading 1 of ' + picked.length + '…'; paint();
     function show(text) { b.progress = text; var p = root.querySelector('.bulk-progress'); if (p) p.textContent = text; }
-    driveReader().then(function (conn) {
+    loadWrittenIndex().then(driveReader).then(function (conn) {
       var i = 0;
       function next() {
         if (i >= picked.length || writtenBulk !== b || b.stop || report.halt) { report.stopped = i < picked.length; return Promise.resolve(); }
@@ -652,6 +689,7 @@
 
   function writtenSaveProblem(err) {
     var code = err && err.code;
+    if (code === 'too_large') return 'This is too long to keep in one piece: ' + kb(err.bytes) + ', and one written script can hold about ' + kb(DOC_MAX_BYTES) + '. Save it as two written scripts.';
     if (code === 'invalid_argument') return 'This couldn’t be saved. Either the script is too long to keep in one piece, or your access to this artifact is view-only — ask its owner to make you a Contributor.';
     if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full. Remove something that is no longer needed, then try again.';
     return 'This couldn’t be saved just now — try again.';
@@ -664,7 +702,15 @@
   }
   // The text first, the listing last: a script that is listed always has its text.
   function putWritten(id, doc, text) {
-    return dbRoot.doc('writtenText/' + id).set({ text: text }).then(function () { return dbRoot.doc('written/' + id).set(doc); }).then(function () {
+    var body = { text: text }, bytes = jsonBytes(body), isNew = !writtenIndex.some(function (w) { return w.id === id; });
+    if (bytes > DOC_MAX_BYTES) return Promise.reject({ code: 'too_large', bytes: bytes });
+    return dbRoot.doc('writtenText/' + id).set(body).then(function () {
+      return dbRoot.doc('written/' + id).set(doc).catch(function (err) {
+        // The text was kept but its listing was not. A text nothing lists would sit in storage for good, so it is taken back out.
+        if (isNew) return dbRoot.doc('writtenText/' + id).delete().catch(function () {}).then(function () { throw err; });
+        throw err;
+      });
+    }).then(function () {
       writtenTexts[id] = text;
       writtenIndex = writtenIndex.filter(function (w) { return w.id !== id; });
       writtenIndex.push(entryFromDoc(id, doc)); writtenStamp += 1;

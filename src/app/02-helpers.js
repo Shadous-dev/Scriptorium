@@ -4,7 +4,43 @@
      ================================================================== */
 
   function esc(str) { return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-  function escAttr(str) { return esc(str).replace(/"/g, '&quot;'); }
+  function escAttr(str) { return esc(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  // One stored document may be 256 KiB (262,144 bytes) as JSON. The page's own limits are counted in characters,
+  // and a character can take up to four bytes, so anything about to be saved is measured in bytes too — with
+  // room to spare — and refused here with a plain reason, rather than by the store with a vague one.
+  var DOC_MAX_BYTES = 250000;
+  function jsonBytes(value) {
+    var text = JSON.stringify(value) || '';
+    if (typeof TextEncoder === 'function') return new TextEncoder().encode(text).length;
+    return unescape(encodeURIComponent(text)).length;
+  }
+  function kb(bytes) { return Math.round(bytes / 1024).toLocaleString('en-US') + ' KB'; }
+
+  // A run of tens of thousands of spaces (a file padded out by whatever made it) makes several of the page's text
+  // patterns crawl for minutes. Any run of more than 40 spaces or tabs is taken down to one space here, in a
+  // single pass, before those patterns see it. Words and line breaks are untouched.
+  function tameSpaces(text) {
+    text = String(text == null ? '' : text);
+    if (text.length < 200 || !/[ \t\u00a0]{41}/.test(text)) return text;
+    var out = '', run = 0, from = 0, i, c;
+    for (i = 0; i < text.length; i++) {
+      c = text.charCodeAt(i);
+      if (c === 32 || c === 9 || c === 160) { run += 1; continue; }
+      if (run > 40) { out += text.slice(from, i - run) + ' '; from = i; }
+      run = 0;
+    }
+    if (run > 40) { out += text.slice(from, text.length - run) + ' '; from = text.length; }
+    return out + text.slice(from);
+  }
+  // Spaces and tabs at the end of each line, removed without a pattern that slows on long runs.
+  function trimLineEnds(text) {
+    return String(text == null ? '' : text).split('\n').map(function (line) {
+      var end = line.length, c;
+      while (end > 0 && ((c = line.charCodeAt(end - 1)) === 32 || c === 9)) end -= 1;
+      return end === line.length ? line : line.slice(0, end);
+    }).join('\n');
+  }
   function plural(n) { return n === 1 ? '' : 's'; }
   function relTime(ts) {
     if (!ts) return '';

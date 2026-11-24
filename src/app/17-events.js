@@ -154,8 +154,8 @@
     }
   });
 
-  window.addEventListener('pagehide', flushSaves);
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(); });
+  window.addEventListener('pagehide', function () { flushSaves(true); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(true); });
 
   paint();
   initStore();

@@ -122,6 +122,26 @@ Each audio guide moves through four stages, and each has one name:
 - If the captions pasted in belong to a different guide, the tool says so and
   builds nothing.
 
+### How much it can hold
+
+- **One saved item holds about 250 KB.** Each guide is one item, its timed
+  captions another, each written script's text another. A guide keeps three
+  copies of its transcript (the 1st Draft, the Edited Transcript, and the 1st
+  Draft the edit was made from), so one guide can hold about 75,000
+  characters of transcript. A typical guide is 6,000–15,000. The page
+  measures in bytes before it saves, and says which item is too large and by
+  how much, rather than leaving it to the store to refuse.
+- **The whole store holds at most 25,000 items.** A chapter uses four (the
+  guide, its captions, its written script and that script's listing), so the
+  whole Bible, 1,321 guides with introductions and conclusions, is about
+  5,350.
+- **By size, the whole Bible is about 120 MB**, at roughly 93 KB a chapter.
+  The store also has a limit on total size. Its figure is not published, so
+  it is not known whether 120 MB fits. When the store is full the page says
+  so, keeps the work on screen, and saves again once something is deleted.
+- **Written scripts are listed past the first thousand**, a thousand at a
+  read, up to 6,000.
+
 ### Known limits
 
 - **Books are shared, not live.** Everyone sees the same books, but a book is
@@ -145,9 +165,8 @@ Each audio guide moves through four stages, and each has one name:
 - **A Doc is cut only at headings.** A Doc that holds a whole book is cut
   where a heading (a Heading style in Google Docs) names a chapter. A Doc
   with no such headings comes in as one written script.
-- **A book holds up to 1,000 guides**, a Descript folder lists up to 1,000
-  projects, and the Written Scripts page lists up to 1,000 written scripts.
-  Past that the page says so rather than showing part.
+- **A book holds up to 1,000 guides** and a Descript folder lists up to 1,000
+  projects. Past that the page says so rather than showing part.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
 - **A reference is checked, not looked up.** The edit pass works out each
@@ -235,6 +254,7 @@ test/
   edit-rules.test.js       checks the wording guard, references in digits, verse layout, and hand corrections (4.1, 4.2, 4.4, 6)
   written-scripts.test.js  checks written scripts, matching, the sign-off, and what reaches the Google Doc (4.9)
   google-export-import.test.js  checks the tabbed Google Doc, caption files by kind, and written scripts in bulk from Drive (4.11)
+  store-safety.test.js     loads the whole page against a stand-in store: stored data is shown as text and never run, saves go one at a time and in order, sizes are measured in bytes
   references.test.js       checks the reference checks (4.10)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
@@ -263,6 +283,7 @@ node test/edit-rules.test.js  # check the wording guard, references in digits, v
 node test/written-scripts.test.js  # check written scripts, matching, the sign-off, and the Google Doc
 node test/references.test.js  # check the reference checks
 node test/google-export-import.test.js  # check the tabbed Google Doc, caption files by kind, and the bulk import from Drive
+node test/store-safety.test.js  # check security, save order and storage limits, with the whole page loaded
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.

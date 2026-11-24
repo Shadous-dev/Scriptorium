@@ -382,7 +382,43 @@ input:disabled, textarea:disabled { cursor: wait; }
      ================================================================== */
 
   function esc(str) { return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-  function escAttr(str) { return esc(str).replace(/"/g, '&quot;'); }
+  function escAttr(str) { return esc(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  // One stored document may be 256 KiB (262,144 bytes) as JSON. The page's own limits are counted in characters,
+  // and a character can take up to four bytes, so anything about to be saved is measured in bytes too — with
+  // room to spare — and refused here with a plain reason, rather than by the store with a vague one.
+  var DOC_MAX_BYTES = 250000;
+  function jsonBytes(value) {
+    var text = JSON.stringify(value) || '';
+    if (typeof TextEncoder === 'function') return new TextEncoder().encode(text).length;
+    return unescape(encodeURIComponent(text)).length;
+  }
+  function kb(bytes) { return Math.round(bytes / 1024).toLocaleString('en-US') + ' KB'; }
+
+  // A run of tens of thousands of spaces (a file padded out by whatever made it) makes several of the page's text
+  // patterns crawl for minutes. Any run of more than 40 spaces or tabs is taken down to one space here, in a
+  // single pass, before those patterns see it. Words and line breaks are untouched.
+  function tameSpaces(text) {
+    text = String(text == null ? '' : text);
+    if (text.length < 200 || !/[ \t\u00a0]{41}/.test(text)) return text;
+    var out = '', run = 0, from = 0, i, c;
+    for (i = 0; i < text.length; i++) {
+      c = text.charCodeAt(i);
+      if (c === 32 || c === 9 || c === 160) { run += 1; continue; }
+      if (run > 40) { out += text.slice(from, i - run) + ' '; from = i; }
+      run = 0;
+    }
+    if (run > 40) { out += text.slice(from, text.length - run) + ' '; from = text.length; }
+    return out + text.slice(from);
+  }
+  // Spaces and tabs at the end of each line, removed without a pattern that slows on long runs.
+  function trimLineEnds(text) {
+    return String(text == null ? '' : text).split('\n').map(function (line) {
+      var end = line.length, c;
+      while (end > 0 && ((c = line.charCodeAt(end - 1)) === 32 || c === 9)) end -= 1;
+      return end === line.length ? line : line.slice(0, end);
+    }).join('\n');
+  }
   function plural(n) { return n === 1 ? '' : 's'; }
   function relTime(ts) {
     if (!ts) return '';
@@ -543,7 +579,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
 
   function layoutBlocks(s) {
-    var text = String(s.corrected || '');
+    var text = tameSpaces(s.corrected || '');
     var hits = [], cursor = 0;
     (s.verses || []).forEach(function (v, vi) {
       // Verses are listed in order, so each is looked for after the one before it: two that open with the
@@ -646,7 +682,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (s.status === 'error') return 'Needs attention';
     return s.raw.trim() ? '1st Draft — not yet edited' : 'No transcript yet';
   }
-  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : 'chip-' + s.status; }
+  // The class is chosen from a fixed list, never built from the stored word: what is saved for a guide's status
+  // comes from the shared store, and anything from there is text to show, not markup to trust.
+  var CHIP_CLASSES = { draft: 'chip-draft', editing: 'chip-editing', edited: 'chip-edited', error: 'chip-error' };
+  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : (CHIP_CLASSES.hasOwnProperty(s.status) ? CHIP_CLASSES[s.status] : 'chip-draft'); }
   // A chip that tells the time ("Edited 3 minutes ago") says which moment it counts from, so it can be kept truthful without a repaint.
   function chipClock(s) {
     if (s.status !== 'edited' || isStale(s)) return null;
@@ -735,6 +774,15 @@ input:disabled, textarea:disabled { cursor: wait; }
     return bits.join(' · ');
   }
 
+  // One guide whose saved data cannot be drawn must not take the whole book off the screen with it.
+  function renderSectionSafe(s) {
+    try { return renderSection(s); }
+    catch (err) {
+      console.warn('Scriptorium: a guide could not be shown', err);
+      return '<article class="section-card" data-section="' + escAttr(s && s.id) + '"><p class="section-error">“' + esc((s && s.name) || 'This guide') +
+        '” holds something the page can’t show. Its saved data may have been changed from outside the Scriptorium. Nothing has been deleted; tell whoever looks after the Scriptorium.</p></article>';
+    }
+  }
   function renderSection(s) {
     var isCollapsed = !!collapsed[s.id], clock = chipClock(s), id = escAttr(s.id);
     var head =
@@ -838,7 +886,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       if (state.docResult.method === 'drive') {
         var docNote = state.docResult.note ? ' ' + esc(state.docResult.note) : '';
         if (state.docResult.tabs != null) {
-          var tabsFailed = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be written (' + esc((state.docResult.failedNames || []).join(', ')) + ') — create it again for those.' : '';
+          var tabsFailed = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be written (' + esc((state.docResult.failedNames || []).join(', ')) + '). Their tabs are there but empty: create the Doc again to get them all.' : '';
           return '<p class="doc-result">Created one Doc in your Google Drive with ' + state.docResult.tabs + ' tab' + plural(state.docResult.tabs) + ', one for each guide' +
             (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + tabsFailed + '</p>';
         }
@@ -995,7 +1043,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       (loading ? renderSkeleton() :
         renderPull() +
         renderOverview() +
-        '<div class="sections">' + state.sections.map(renderSection).join('') + '</div>' +
+        '<div class="sections">' + state.sections.map(renderSectionSafe).join('') + '</div>' +
         '<footer class="conclude-bar">' +
         '<p class="approve-prompt">Turn the Final Transcripts into a Google Doc</p>' +
         '<p class="hint conclude-note">' + (finalCount
@@ -1042,7 +1090,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   function paintSection(id) {
     var s = findSection(id), el = root.querySelector('[data-section="' + id + '"]');
     if (!s || !el) { paint(); return; }
-    var f = captureFocus(); el.outerHTML = renderSection(s); restoreFocus(f);
+    var f = captureFocus(); el.outerHTML = renderSectionSafe(s); restoreFocus(f);
   }
   function paintStatus() {
     var el = root.querySelector('.status-line'); if (el) el.textContent = statusSummary();
@@ -1149,16 +1197,29 @@ input:disabled, textarea:disabled { cursor: wait; }
              approvedAt: Number(s.approvedAt) || 0, writtenId: s.writtenId || '',
              writtenUsed: s.writtenUsed ? { id: String(s.writtenUsed.id || ''), title: String(s.writtenUsed.title || '') } : null };
   }
+  // What comes back from the store was written by this page, an older version of it, or anyone with access using
+  // another tool. So it is read as data of a known shape: a status the page knows, and lists of flat rows.
+  var STATUSES = { draft: 1, editing: 1, edited: 1, error: 1 };
+  function flatRows(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (row) { return row && typeof row === 'object' && !Array.isArray(row); }).map(function (row) {
+      var out = {};
+      Object.keys(row).forEach(function (k) { var v = row[k]; if (v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[k] = v; });
+      return out;
+    });
+  }
   function docToSection(id, d, captions) {
-    d = d || {};
+    d = (d && typeof d === 'object') ? d : {};
+    // `editedSame` says the edit was made from the 1st Draft exactly as it still stands, without keeping a second
+    // copy of it. Nothing writes it yet; this version reads it so that a later one safely can.
     return { id: id, captions: String(captions || ''), name: String(d.name || ''), raw: String(d.raw || ''), corrected: String(d.corrected || ''),
-             editedFromRaw: d.hasEditedFrom ? String(d.editedFromRaw || '') : null,
+             editedFromRaw: d.editedSame === true ? String(d.raw || '') : d.hasEditedFrom ? String(d.editedFromRaw || '') : null,
              summary: String(d.summary || ''), changeCount: Number(d.changeCount) || 0,
-             misheard: Array.isArray(d.misheard) ? d.misheard : [], nonsensical: Array.isArray(d.nonsensical) ? d.nonsensical : [],
-             edits: Array.isArray(d.edits) ? d.edits : [], unapplied: Array.isArray(d.unapplied) ? d.unapplied : [],
-             verses: Array.isArray(d.verses) ? d.verses : [], method: String(d.method || ''),
-             status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
-             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [],
+             misheard: flatRows(d.misheard), nonsensical: flatRows(d.nonsensical),
+             edits: flatRows(d.edits), unapplied: flatRows(d.unapplied),
+             verses: flatRows(d.verses), method: String(d.method || ''),
+             status: STATUSES.hasOwnProperty(d.status) ? d.status : 'draft', error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
+             suggested: flatRows(d.suggested), misquotes: flatRows(d.misquotes),
              approvedAt: Number(d.approvedAt) || 0, writtenId: String(d.writtenId || ''),
              writtenUsed: (d.writtenUsed && d.writtenUsed.id) ? { id: String(d.writtenUsed.id), title: String(d.writtenUsed.title || '') } : null };
   }
@@ -1174,6 +1235,45 @@ input:disabled, textarea:disabled { cursor: wait; }
              lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
   }
 
+  /* ---- One write at a time per document ----
+     The store asks for it, and it matters: two saves of the same guide sent close together can arrive in either
+     order, and the older one arriving last would quietly put back what the reader had just changed. So a save
+     asked for while another to the same document is still on its way waits for it, and if several are waiting only
+     the newest is sent. What is sent is the document as it stood when the save was asked for, so leaving the book
+     in the meantime loses nothing. When the page itself is closing there is no later: the save goes at once. ---- */
+  var writeSlots = {};
+  var sendNow = false;         // true only while the page is being hidden or closed
+  function runWrite(slot, key, write) {
+    slot.running = true;
+    var p;
+    try { p = Promise.resolve(write()); } catch (e) { p = Promise.reject(e); }
+    function next() {
+      var w = slot.waiting;
+      slot.waiting = null; slot.running = false;
+      if (w) runWrite(slot, key, w.write).then(w.resolve, w.reject); else delete writeSlots[key];
+    }
+    return p.then(function (v) { next(); return v; }, function (e) { next(); throw e; });
+  }
+  function inOrder(key, write) {
+    var slot = writeSlots[key];
+    if (sendNow) {
+      if (slot && slot.waiting) slot.waiting.write = write;      // whatever was waiting must not later put back something older
+      try { return Promise.resolve(write()); } catch (e) { return Promise.reject(e); }
+    }
+    if (!slot) slot = writeSlots[key] = { running: false, waiting: null };
+    if (!slot.running) return runWrite(slot, key, write);
+    if (!slot.waiting) {
+      slot.waiting = { write: write };
+      slot.waiting.promise = new Promise(function (resolve, reject) { slot.waiting.resolve = resolve; slot.waiting.reject = reject; });
+    } else slot.waiting.write = write;
+    return slot.waiting.promise;
+  }
+  // A document over the store's size limit is refused here, by name, before it is sent.
+  function tooLarge(doc, what) {
+    var bytes = jsonBytes(doc);
+    return bytes > DOC_MAX_BYTES ? { code: 'too_large', what: what, bytes: bytes } : null;
+  }
+
   var retryCounts = {};
   function trackSave(key, promise, retry) {
     savesInFlight += 1; paintStatus();
@@ -1184,7 +1284,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       saveError = dbErrorMessage(err); paint();
       // Try again on our own a few times, with a growing pause, so a blip never loses an edit.
       var n = (retryCounts[key] || 0) + 1; retryCounts[key] = n;
-      if (retry && n <= 4 && !(err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded' || err.code === 'revoked'))) {
+      if (retry && n <= 4 && !(err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded' || err.code === 'revoked' || err.code === 'too_large'))) {
         setTimeout(retry, 2500 * n);
       }
     }).then(function () { savesInFlight -= 1; paintStatus(); });
@@ -1194,20 +1294,25 @@ input:disabled, textarea:disabled { cursor: wait; }
   function saveMeta(book) {
     book = book || bookId;
     if (!dbApi || !book || book !== bookId) return Promise.resolve();
-    return trackSave('meta', bookRef(book).set(metaToDoc()), function () { saveMeta(book); });
+    var doc = metaToDoc();
+    return trackSave('meta', inOrder('meta:' + book, function () { return bookRef(book).set(doc); }), function () { saveMeta(book); });
   }
   function saveSection(id, book) {
     book = book || bookId;
     var s = findSection(id);
     if (!dbApi || !s || !book || book !== bookId) return Promise.resolve();
-    return trackSave('s:' + id, scriptRef(book, id).set(sectionToDoc(s)), function () { saveSection(id, book); });
+    var doc = sectionToDoc(s), big = tooLarge(doc, '“' + (s.name || 'A guide') + '”');
+    if (big) return trackSave('s:' + id, Promise.reject(big));
+    return trackSave('s:' + id, inOrder('s:' + book + ':' + id, function () { return scriptRef(book, id).set(doc); }), function () { saveSection(id, book); });
   }
   // Timed captions are kept beside the script, not inside it, so a script's own document stays well under the size cap.
   function saveCaptions(id, book) {
     book = book || bookId;
     var s = findSection(id);
     if (!dbApi || !s || !book || book !== bookId || String(s.captions || '').length > CAPTION_MAX) return Promise.resolve();
-    return trackSave('c:' + id, captionRef(book, id).set({ srt: String(s.captions || '') }), function () { saveCaptions(id, book); });
+    var doc = { srt: String(s.captions || '') }, big = tooLarge(doc, 'The timed captions for “' + (s.name || 'a guide') + '”');
+    if (big) return trackSave('c:' + id, Promise.reject(big));
+    return trackSave('c:' + id, inOrder('c:' + book + ':' + id, function () { return captionRef(book, id).set(doc); }), function () { saveCaptions(id, book); });
   }
   function saveCaptionsSoon(id) {
     if (!dbApi) return;
@@ -1227,14 +1332,19 @@ input:disabled, textarea:disabled { cursor: wait; }
     metaTimer = setTimeout(function () { metaTimer = null; saveMeta(); }, 1200);
     paintStatus();
   }
-  function flushSaves() {
-    Object.keys(pendingSaves).forEach(function (id) { clearTimeout(pendingSaves[id]); delete pendingSaves[id]; saveSection(id); });
-    Object.keys(pendingCaptionSaves).forEach(function (id) { clearTimeout(pendingCaptionSaves[id]); delete pendingCaptionSaves[id]; saveCaptions(id); });
-    if (metaTimer) { clearTimeout(metaTimer); metaTimer = null; saveMeta(); }
+  // `closing` is passed when the page is being hidden or closed: nothing may wait its turn then.
+  function flushSaves(closing) {
+    sendNow = closing === true;
+    try {
+      Object.keys(pendingSaves).forEach(function (id) { clearTimeout(pendingSaves[id]); delete pendingSaves[id]; saveSection(id); });
+      Object.keys(pendingCaptionSaves).forEach(function (id) { clearTimeout(pendingCaptionSaves[id]); delete pendingCaptionSaves[id]; saveCaptions(id); });
+      if (metaTimer) { clearTimeout(metaTimer); metaTimer = null; saveMeta(); }
+    } finally { sendNow = false; }
   }
   function dbErrorMessage(err) {
     var code = err && err.code;
-    if (code === 'quota_exceeded') return 'The workbench is full — remove some guides before adding more.';
+    if (code === 'too_large') return err.what + ' is too large to save: ' + kb(err.bytes) + ', and one saved item can hold about ' + kb(DOC_MAX_BYTES) + '. It is still on screen. Split it into two guides, then it will save.';
+    if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full, so this was not saved. It is still on screen. Delete a book or written scripts that are no longer needed, then change something here to save again.';
     if (code === 'resource_exhausted') return 'Saving is being throttled — it will catch up in a moment.';
     if (code === 'invalid_argument') return 'This couldn’t be saved. Either one guide is too large — try splitting it in two — or your access to this artifact is view-only.';
     if (code === 'revoked') return 'Saving access was withdrawn — reload the page.';
@@ -1255,10 +1365,11 @@ input:disabled, textarea:disabled { cursor: wait; }
     var order = Array.isArray(meta.order) ? meta.order : [];
     var rebuilt = [];
     order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id], captionsById[id])); });
-    // A script saved but missing from the order list is kept only if it holds a real transcript —
-    // that is how a script a teammate added at the same moment is picked up — and an empty stray is dropped.
+    // A guide saved but missing from the order list is kept if it holds anything: a name, a transcript, an edit.
+    // That is how a guide a teammate added at the same moment is picked up. Only a wholly empty stray is dropped.
     Object.keys(byId).forEach(function (id) {
-      if (order.indexOf(id) === -1 && byId[id] && String(byId[id].raw || '').trim()) rebuilt.push(docToSection(id, byId[id], captionsById[id]));
+      var stray = byId[id] || {};
+      if (order.indexOf(id) === -1 && byId[id] && (String(stray.raw || '').trim() || String(stray.name || '').trim() || String(stray.corrected || '').trim())) rebuilt.push(docToSection(id, byId[id], captionsById[id]));
     });
     if (!rebuilt.length) rebuilt.push(newSection());
     state.sections = rebuilt;
@@ -1273,9 +1384,14 @@ input:disabled, textarea:disabled { cursor: wait; }
     state.sections.forEach(function (s) { if (s.status === 'editing') { s.status = 'draft'; s.error = null; } });
   }
 
+  // Keyed by document id, on an object with nothing inherited: a document somebody named "constructor" or
+  // "__proto__" must not be mistaken for, or turned into, part of the page's own machinery.
   function docsById(qs, pick) {
-    var out = {};
-    ((qs && qs.docs) || []).forEach(function (d) { out[d.id] = pick ? pick(d.data() || {}) : d.data(); });
+    var out = Object.create(null);
+    ((qs && qs.docs) || []).forEach(function (d) {
+      if (!d || typeof d.id !== 'string' || d.id in Object.prototype) return;
+      out[d.id] = pick ? pick(d.data() || {}) : d.data();
+    });
     return out;
   }
   function noDocs() { return { docs: [] }; }
@@ -1361,6 +1477,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function leaveBook() {
     if (pull && pull.step === 'pulling') { showFlash('Still pulling from Descript. Let it finish, or stop it, before leaving this book.'); return; }
+    if (clearing) { showFlash('Still clearing this book. Give it a moment to finish before leaving.'); return; }
     syncFieldsFromDom();
     var unsaved = state.sections.filter(function (s) { return s.handDraft != null && s.handDraft !== s.corrected; })[0];
     if (unsaved) { showFlash('“' + (unsaved.name || 'A guide') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }
@@ -1535,7 +1652,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     syncFieldsFromDom();
     var s = findSection(id);
     if (!s || s.handDraft == null) return;
-    var text = String(s.handDraft).replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    var text = trimLineEnds(tameSpaces(s.handDraft).replace(/\r\n?/g, '\n')).replace(/\n{3,}/g, '\n\n').trim();
     if (!text) { showFlash('The transcript can’t be left empty. Cancel to keep it as it was.'); return; }
     if (text !== s.corrected) {
       s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));
@@ -1707,7 +1824,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   // Cues and pause marks out; spacing, quote marks, ellipses and sentence ends made regular.
   function mechanics(text, intoEdits) {
     var cues = [];
-    text = String(text || '').replace(CUE_RE, function (m) { cues.push(m.trim()); return ' '; }).replace(PAUSE_RE, function (m, lead) { cues.push('_'); return lead; });
+    text = tameSpaces(text || '').replace(CUE_RE, function (m) { cues.push(m.trim()); return ' '; }).replace(PAUSE_RE, function (m, lead) { cues.push('_'); return lead; });
     if (cues.length) intoEdits.push({ find: cues.slice(0, 12).join(' ') + (cues.length > 12 ? ' …' : ''), replace: '', kind: 'cue', note: 'removed ' + cues.length + ' stage cue' + plural(cues.length) + ' / pause mark' + plural(cues.length) });
     text = text.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
     var n = 0;
@@ -2216,14 +2333,19 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   var TAB_TITLE_MAX = 100;
   var VERSE_INDENT = { magnitude: 24, unit: 'PT' }, PARAGRAPH_GAP = { magnitude: 10, unit: 'PT' };
-  function tabTitle(s, i) { return String(s.name || '').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX) || 'Guide ' + (i + 1); }
+  function tabTitle(s, i) { return String(s.name || '').replace(/[\u0000-\u001F\u007F\u2028\u2029\uE000-\uF8FF]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX).trim() || 'Guide ' + (i + 1); }
 
   // The requests that write one guide into an empty tab. Positions count UTF-16 units from 1, which is how a
   // JavaScript string counts its own length. With no tabId the requests land in the Doc's first tab.
+  // Google drops some characters from text it is given (control characters, the private-use range) and treats a
+  // few as breaks. Every position after one would then be off by one, and the bold would land on the wrong words.
+  // They are taken out here first, so what is counted is what Google keeps. None of them is part of a word.
+  function docLine(text) { return String(text == null ? '' : text).replace(/[\u0000-\u001F\u007F\u2028\u2029\uE000-\uF8FF]+/g, ' ').replace(/ {2,}/g, ' ').trim(); }
   function tabRequests(s, tabId, i) {
-    var title = tabTitle(s, i || 0), lines = [title], marks = [], at = 1 + title.length + 1;
+    // The heading is the guide's whole name. Only the tab's own label is cut to fit.
+    var title = docLine(s.name) || tabTitle(s, i || 0), lines = [title], marks = [], at = 1 + title.length + 1;
     layoutBlocks(s).forEach(function (b) {
-      var line = String(b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text).replace(/\s*\n\s*/g, ' ').trim();
+      var line = docLine(b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text);
       if (!line) return;
       marks.push({ verse: b.type === 'verse', start: at, end: at + line.length });
       lines.push(line); at += line.length + 1;
@@ -2821,8 +2943,8 @@ input:disabled, textarea:disabled { cursor: wait; }
       s.name = name; s.descriptId = project.id;
     }
     s.descriptName = project.name;
-    s.raw = String(text).replace(/\s+$/, '');
-    s.captions = String(srt || '').replace(/\s+$/, '');
+    s.raw = String(text).trimEnd();
+    s.captions = String(srt || '').trimEnd();
     touchBook();
     return saveSection(s.id).then(function () { return saveCaptions(s.id); }).then(function () { return saveMeta(); }).then(function () { return isNew; });
   }
@@ -3122,12 +3244,46 @@ input:disabled, textarea:disabled { cursor: wait; }
              source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''), sourceId: String(d.sourceId || ''),
              sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [] };
   }
+  // One read returns at most 1,000 documents, and a whole Bible is more written scripts than that. Past the first
+  // thousand the listing is read a page at a time, oldest first by the time each was added. If the store will not
+  // page (or the paging fails), the first thousand are shown and the page says some are missing.
+  var WRITTEN_PAGE = 1000, WRITTEN_PAGES_MAX = 6;
+  function readWrittenListing() {
+    var col = dbRoot.collection('written');
+    return col.limit(WRITTEN_PAGE).get().then(function (first) {
+      var firstDocs = (first && first.docs) || [];
+      if (firstDocs.length < WRITTEN_PAGE) return { docs: firstDocs, more: false };
+      if (typeof col.orderBy !== 'function' || typeof col.where !== 'function') return { docs: firstDocs, more: true };
+      var all = [], seen = Object.create(null);
+      function page(after, turn) {
+        var q = after ? col.where('at', '>=', after).orderBy('at') : col.orderBy('at');
+        return q.limit(WRITTEN_PAGE).get().then(function (qs) {
+          var docs = (qs && qs.docs) || [], fresh = 0, last = 0;
+          docs.forEach(function (d) {
+            last = Number((d.data() || {}).at) || last;
+            if (!seen[d.id]) { seen[d.id] = true; all.push(d); fresh += 1; }
+          });
+          if (docs.length < WRITTEN_PAGE) return { docs: all, more: false };
+          if (!fresh || !last || turn >= WRITTEN_PAGES_MAX) return { docs: all, more: true };
+          return page(last, turn + 1);
+        });
+      }
+      return page(0, 1).then(function (out) {
+        // A script saved with no time on it sorts outside the pages; the first read has those, so none is dropped.
+        firstDocs.forEach(function (d) { if (!seen[d.id]) { seen[d.id] = true; out.docs.push(d); } });
+        return out;
+      }, function (err) {
+        console.warn('Scriptorium: could not read past the first 1,000 written scripts', err);
+        return { docs: firstDocs, more: true };
+      });
+    });
+  }
   function loadWrittenIndex() {
     if (!dbRoot) return Promise.resolve();
-    return readAll('written').then(function (qs) {
-      var docs = (qs && qs.docs) || [];
-      writtenIndex = docs.map(function (d) { return entryFromDoc(d.id, d.data()); }).filter(function (w) { return w.title; });
-      writtenMore = docs.length >= 1000; writtenStamp += 1;
+    return readWrittenListing().then(function (got) {
+      writtenIndex = got.docs.filter(function (d) { return d && typeof d.id === 'string' && !(d.id in Object.prototype); })
+        .map(function (d) { return entryFromDoc(d.id, d.data()); }).filter(function (w) { return w.title; });
+      writtenMore = got.more; writtenStamp += 1;
     }).catch(function (err) { console.warn('Scriptorium: could not read the written scripts', err); });
   }
   function readWrittenText(id) {
@@ -3172,7 +3328,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!writtenIndex.length) return '<p class="library-empty">No written scripts yet. Add one with <strong>+ Add Written Script</strong> — everyone on the team will see it here, and it will be matched to its audio guide.</p>';
     if (!shown.length) return '<p class="library-empty">No written script has “' + esc(writtenQuery.trim()) + '” in its title.</p>';
     return '<div class="book-list">' + shown.map(renderWrittenRow).join('') + '</div>' +
-      (writtenMore ? '<p class="notice notice-warn">Only the first 1,000 written scripts are listed. Search by title to find one that is missing here.</p>' : '');
+      (writtenMore ? '<p class="notice notice-warn">There are more written scripts than this page could list: ' + writtenIndex.length.toLocaleString('en-US') + ' are shown. The rest are still saved, and are still matched to their guides only if they are listed here. Tell whoever looks after the Scriptorium.</p>' : '');
   }
   function writtenFormNote() {
     var f = writtenForm, n = String(f.text || '').length;
@@ -3254,7 +3410,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   // A title to start from, when the reader has not typed one: the file or Doc's name without its ending.
   function titleFromName(name) { return String(name || '').replace(/\.(docx|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
   // A written script as it is kept: one kind of line ending, no trailing spaces, no run of blank lines.
-  function cleanWritten(text) { return String(text || '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim(); }
+  function cleanWritten(text) { return trimLineEnds(tameSpaces(text || '').replace(/\r\n?/g, '\n')).replace(/\n{3,}/g, '\n\n').trim(); }
   function takeWrittenText(text, source, name, sourceId) {
     if (!writtenForm) return;
     text = cleanWritten(text);
@@ -3374,6 +3530,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (filePlace.book && (filePlace.chapter || filePlace.part)) return whole;
     var lines = text.split('\n'), cuts = [], seen = {};
     lines.forEach(function (line, n) {
+      if (line.charCodeAt(0) !== 35 || line.length > 300) return;        // a heading starts with # and is a line, not a page
       var m = /^#{1,6}\s+(.+?)\s*#*\s*$/.exec(line);
       if (!m) return;
       var heading = m[1].replace(/\\([^A-Za-z0-9\s])/g, '$1').replace(/[*_`]+/g, '').replace(/\s+/g, ' ').trim();
@@ -3382,6 +3539,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       // "Introduction" are headings inside a script far more often than they are the start of one.
       if (!place.book && filePlace.book && /^chapter\s+\d{1,3}\b/i.test(heading)) { title = displayBook(filePlace.book) + ' – ' + heading; place = placeOf(displayBook(filePlace.book) + ' ' + heading); }
       if (!place.book || !(place.chapter || place.part)) return;
+      if (/\d\s*[:.]\s*\d/.test(heading)) return;                         // "John 3:16" is a verse being quoted, not the start of a script
       if (filePlace.book && place.book !== filePlace.book) return;      // a heading that quotes another book is not a new script
       var key = (place.book + '-' + (place.part || place.chapter)).toLowerCase().replace(/[^a-z0-9]+/g, '-');
       if (seen[key]) return;                                            // a second heading for the same place belongs to that script
@@ -3427,7 +3585,8 @@ input:disabled, textarea:disabled { cursor: wait; }
     });
     if (!targets.length) { b.error = 'Paste a link to a Google Drive folder, or links to Docs, first. Open the folder or file in Google Drive and copy the link from the address bar.'; paint(); return; }
     b.step = 'listing'; b.error = ''; b.files = []; b.other = 0; b.more = false; b.report = null; paint();
-    driveReader().then(function (conn) {
+    // The library is read again first: a teammate may have brought some of these in since this page was opened.
+    loadWrittenIndex().then(driveReader).then(function (conn) {
       var files = [], have = {}, linked = 0, i = 0;
       function add(f) { if (!have[f.id] && files.length < BULK_FILE_MAX) { have[f.id] = true; files.push(f); } else if (!have[f.id]) b.more = true; }
       function next() {
@@ -3476,7 +3635,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       if (i >= pieces.length) return Promise.resolve();
       var p = pieces[i]; i += 1;
       if (!p.text) return next();
-      if (p.text.length > WRITTEN_MAX) { report.failed.push({ name: p.title, why: 'too long to keep in one piece' }); return next(); }
+      if (p.text.length > WRITTEN_MAX || jsonBytes({ text: p.text }) > DOC_MAX_BYTES) { report.failed.push({ name: p.title, why: 'too long to keep in one piece' }); return next(); }
       var sourceId = bulkSourceId(file.id, p.key), old = writtenIndex.filter(function (w) { return w.sourceId === sourceId; })[0];
       var title = old ? old.title : String(p.title || name || 'Written script').replace(/\s+/g, ' ').trim();
       return putWritten(old ? old.id : newWrittenId(), writtenDoc(title, p.text, 'drive', name, sourceId), p.text).then(function () {
@@ -3497,7 +3656,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     var report = { files: 0, saved: 0, replaced: 0, split: [], failed: [], stopped: false, halt: false };
     b.step = 'reading'; b.error = ''; b.stop = false; b.report = report; b.progress = 'Reading 1 of ' + picked.length + '…'; paint();
     function show(text) { b.progress = text; var p = root.querySelector('.bulk-progress'); if (p) p.textContent = text; }
-    driveReader().then(function (conn) {
+    loadWrittenIndex().then(driveReader).then(function (conn) {
       var i = 0;
       function next() {
         if (i >= picked.length || writtenBulk !== b || b.stop || report.halt) { report.stopped = i < picked.length; return Promise.resolve(); }
@@ -3627,6 +3786,7 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   function writtenSaveProblem(err) {
     var code = err && err.code;
+    if (code === 'too_large') return 'This is too long to keep in one piece: ' + kb(err.bytes) + ', and one written script can hold about ' + kb(DOC_MAX_BYTES) + '. Save it as two written scripts.';
     if (code === 'invalid_argument') return 'This couldn’t be saved. Either the script is too long to keep in one piece, or your access to this artifact is view-only — ask its owner to make you a Contributor.';
     if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full. Remove something that is no longer needed, then try again.';
     return 'This couldn’t be saved just now — try again.';
@@ -3639,7 +3799,15 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   // The text first, the listing last: a script that is listed always has its text.
   function putWritten(id, doc, text) {
-    return dbRoot.doc('writtenText/' + id).set({ text: text }).then(function () { return dbRoot.doc('written/' + id).set(doc); }).then(function () {
+    var body = { text: text }, bytes = jsonBytes(body), isNew = !writtenIndex.some(function (w) { return w.id === id; });
+    if (bytes > DOC_MAX_BYTES) return Promise.reject({ code: 'too_large', bytes: bytes });
+    return dbRoot.doc('writtenText/' + id).set(body).then(function () {
+      return dbRoot.doc('written/' + id).set(doc).catch(function (err) {
+        // The text was kept but its listing was not. A text nothing lists would sit in storage for good, so it is taken back out.
+        if (isNew) return dbRoot.doc('writtenText/' + id).delete().catch(function () {}).then(function () { throw err; });
+        throw err;
+      });
+    }).then(function () {
       writtenTexts[id] = text;
       writtenIndex = writtenIndex.filter(function (w) { return w.id !== id; });
       writtenIndex.push(entryFromDoc(id, doc)); writtenStamp += 1;
@@ -4235,8 +4403,8 @@ input:disabled, textarea:disabled { cursor: wait; }
     }
   });
 
-  window.addEventListener('pagehide', flushSaves);
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(); });
+  window.addEventListener('pagehide', function () { flushSaves(true); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(true); });
 
   paint();
   initStore();

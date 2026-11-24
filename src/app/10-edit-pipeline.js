@@ -48,7 +48,7 @@
   // Cues and pause marks out; spacing, quote marks, ellipses and sentence ends made regular.
   function mechanics(text, intoEdits) {
     var cues = [];
-    text = String(text || '').replace(CUE_RE, function (m) { cues.push(m.trim()); return ' '; }).replace(PAUSE_RE, function (m, lead) { cues.push('_'); return lead; });
+    text = tameSpaces(text || '').replace(CUE_RE, function (m) { cues.push(m.trim()); return ' '; }).replace(PAUSE_RE, function (m, lead) { cues.push('_'); return lead; });
     if (cues.length) intoEdits.push({ find: cues.slice(0, 12).join(' ') + (cues.length > 12 ? ' …' : ''), replace: '', kind: 'cue', note: 'removed ' + cues.length + ' stage cue' + plural(cues.length) + ' / pause mark' + plural(cues.length) });
     text = text.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
     var n = 0;

@@ -28,7 +28,10 @@ function makePage() {
         get: function () { return Promise.resolve(store.has(path) ? { exists: true, data: function () { return store.get(path); } } : { exists: false }); },
         set: function (d) { if (failWrites) return Promise.reject(failWrites); log.push('set:' + path); store.set(path, JSON.parse(JSON.stringify(d))); return Promise.resolve(); },
         delete: function () { log.push('delete:' + path); store.delete(path); return Promise.resolve(); } }; },
-      collection: function (path) { return { limit: function () { return { get: function () { return Promise.resolve({ docs: [] }); } }; } }; }
+      collection: function (path) { return { limit: function () { return { get: function () {
+        var depth = path.split('/').length + 1;
+        return Promise.resolve({ docs: Array.from(store.keys()).filter(function (k) { return k.indexOf(path + '/') === 0 && k.split('/').length === depth; }).map(function (k) { return { id: k.split('/').pop(), data: function () { return store.get(k); } }; }) });
+      } }; } }; }
     };
     function readAll(path) { return dbRoot.collection(path).limit(1000).get(); }
     function findSection(id) { return state.sections.filter(function (x) { return x.id === id; })[0]; }
@@ -354,6 +357,22 @@ test('the same file brought in again renews the kept copy: same place in the lib
   assert.strictEqual(P.index[0].title, 'Luke 1 — Jones (final)');
   assert.ok(/A line the teacher added\.$/.test(P.store.get('writtenText/' + id).text));
   assert.strictEqual(P.bulk.report.replaced, 1);
+});
+
+test('the library is read again before judging what is already here: a teammate\'s import since the page was opened is not doubled', async () => {
+  const P = makePage();
+  const G = google({ search: folderOf([{ id: 'fileAAAAAAAAAAAAAAAAAAAA', title: 'Luke 1 — Jones', mimeType: DOC }]), read: () => asText(script(1) + ' Revised.') });
+  P.setMcp(G); P.openWrittenBulk();
+  assert.strictEqual(P.index.length, 0, 'nothing here when this page was opened');
+  // A teammate brings the same file in from their own computer.
+  P.store.set('writtenText/wTeammate', { text: script(1) });
+  P.store.set('written/wTeammate', { title: 'Luke 1 — Jones', chars: script(1).length, at: 5, source: 'drive', sourceName: 'Luke 1 — Jones', sourceId: 'fileAAAAAAAAAAAAAAAAAAAA', sketch: [] });
+  P.bulk.links = 'https://drive.google.com/drive/folders/' + FOLDER; P.listWrittenBulk(); await settle();
+  assert.strictEqual(P.bulk.files[0].have, true, 'it is marked as already in the library');
+  assert.strictEqual(P.bulk.files[0].pick, false);
+  P.bulkPick('fileAAAAAAAAAAAAAAAAAAAA', true); P.startWrittenBulk(); await settle();
+  assert.deepStrictEqual(Array.from(P.store.keys()).filter((k) => /^written\//.test(k)), ['written/wTeammate'], 'renewed in place, not added a second time');
+  assert.ok(/Revised\.$/.test(P.store.get('writtenText/wTeammate').text));
 });
 
 test('a single written script brought in by its link remembers its file too', async () => {

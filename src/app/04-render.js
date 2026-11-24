@@ -12,7 +12,10 @@
     if (s.status === 'error') return 'Needs attention';
     return s.raw.trim() ? '1st Draft — not yet edited' : 'No transcript yet';
   }
-  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : 'chip-' + s.status; }
+  // The class is chosen from a fixed list, never built from the stored word: what is saved for a guide's status
+  // comes from the shared store, and anything from there is text to show, not markup to trust.
+  var CHIP_CLASSES = { draft: 'chip-draft', editing: 'chip-editing', edited: 'chip-edited', error: 'chip-error' };
+  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : (CHIP_CLASSES.hasOwnProperty(s.status) ? CHIP_CLASSES[s.status] : 'chip-draft'); }
   // A chip that tells the time ("Edited 3 minutes ago") says which moment it counts from, so it can be kept truthful without a repaint.
   function chipClock(s) {
     if (s.status !== 'edited' || isStale(s)) return null;
@@ -101,6 +104,15 @@
     return bits.join(' · ');
   }
 
+  // One guide whose saved data cannot be drawn must not take the whole book off the screen with it.
+  function renderSectionSafe(s) {
+    try { return renderSection(s); }
+    catch (err) {
+      console.warn('Scriptorium: a guide could not be shown', err);
+      return '<article class="section-card" data-section="' + escAttr(s && s.id) + '"><p class="section-error">“' + esc((s && s.name) || 'This guide') +
+        '” holds something the page can’t show. Its saved data may have been changed from outside the Scriptorium. Nothing has been deleted; tell whoever looks after the Scriptorium.</p></article>';
+    }
+  }
   function renderSection(s) {
     var isCollapsed = !!collapsed[s.id], clock = chipClock(s), id = escAttr(s.id);
     var head =
@@ -204,7 +216,7 @@
       if (state.docResult.method === 'drive') {
         var docNote = state.docResult.note ? ' ' + esc(state.docResult.note) : '';
         if (state.docResult.tabs != null) {
-          var tabsFailed = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be written (' + esc((state.docResult.failedNames || []).join(', ')) + ') — create it again for those.' : '';
+          var tabsFailed = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be written (' + esc((state.docResult.failedNames || []).join(', ')) + '). Their tabs are there but empty: create the Doc again to get them all.' : '';
           return '<p class="doc-result">Created one Doc in your Google Drive with ' + state.docResult.tabs + ' tab' + plural(state.docResult.tabs) + ', one for each guide' +
             (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + tabsFailed + '</p>';
         }
@@ -361,7 +373,7 @@
       (loading ? renderSkeleton() :
         renderPull() +
         renderOverview() +
-        '<div class="sections">' + state.sections.map(renderSection).join('') + '</div>' +
+        '<div class="sections">' + state.sections.map(renderSectionSafe).join('') + '</div>' +
         '<footer class="conclude-bar">' +
         '<p class="approve-prompt">Turn the Final Transcripts into a Google Doc</p>' +
         '<p class="hint conclude-note">' + (finalCount
@@ -408,7 +420,7 @@
   function paintSection(id) {
     var s = findSection(id), el = root.querySelector('[data-section="' + id + '"]');
     if (!s || !el) { paint(); return; }
-    var f = captureFocus(); el.outerHTML = renderSection(s); restoreFocus(f);
+    var f = captureFocus(); el.outerHTML = renderSectionSafe(s); restoreFocus(f);
   }
   function paintStatus() {
     var el = root.querySelector('.status-line'); if (el) el.textContent = statusSummary();

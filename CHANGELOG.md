@@ -8,6 +8,31 @@ Needs two additions to the artifact's connector list when it is published: Googl
 
 Not yet run against Google itself. The tests use a stand-in for the connectors. The first real Doc with tabs, and the first real folder brought in, are the check.
 
+Found in review, before publishing (each has a test that fails on the code as it was)
+
+Security
+- **A stored value could be run as markup.** A guide's status was written straight into the page. Anyone able to save to the Scriptorium could have stored a status that ran script in a teammate's page, with that teammate's access to Google Drive and Descript. This was in 1.3.0 as published. The status is now read against a fixed list and the page never builds a class from it.
+- Everything else that comes from the store, a connector or the model was checked and is shown as text. An attribute now also escapes the single quote.
+- A stored list holding the wrong kind of thing could stop a book opening for everyone. Lists are now read as flat rows, a document named like part of the page's own machinery ("constructor") is ignored, and one guide that cannot be drawn shows a notice in its place.
+- Text padded with tens of thousands of spaces froze the page for a minute or more (bringing in a written script, saving a hand correction, laying out a transcript). Fixed.
+
+Consistency
+- **Two saves of one guide could arrive out of order**, leaving the store with the older words while the page showed the newer. Saves to one document now go one at a time, and of those waiting only the newest is sent. Closing the page still sends at once.
+- A guide a teammate added is kept if it has anything in it. Before, one with a name but no transcript yet could drop out of the book.
+- A book cannot be left while it is being cleared.
+- Bringing in many from Drive re-reads the library first, so a teammate's import made since the page was opened is renewed, not doubled.
+
+Storage
+- Sizes are measured in bytes before saving. The limits were counted in characters, and a character can be up to four bytes. The message names the item and its size.
+- More than 1,000 written scripts are now listed. A whole Bible is more than a thousand.
+- A written script whose listing fails to save no longer leaves its text behind in storage.
+- The store-is-full message says the work is still on screen and what to do.
+
+Google Doc and written scripts
+- Characters Google drops from text (control characters, the private-use range) are taken out before positions are counted. One of them would have put the bold on the wrong words.
+- A very long guide name is cut for the tab's label only. The heading inside keeps it whole.
+- A heading that quotes a verse ("John 3:16") no longer cuts a written script in two.
+
 The Google Doc
 - **One Doc, a tab for each guide** is new, and is the choice a reader starts with. Drive makes an empty Doc; the Google Docs connector adds a tab named for each guide and writes each Final Transcript into its own, with the guide's name as a heading and each quoted verse bold and set in.
 - **One Doc, a page for each guide** is the old "one Doc for the whole book", with every guide after the first starting on a new page.

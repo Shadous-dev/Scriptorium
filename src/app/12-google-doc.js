@@ -68,14 +68,19 @@
 
   var TAB_TITLE_MAX = 100;
   var VERSE_INDENT = { magnitude: 24, unit: 'PT' }, PARAGRAPH_GAP = { magnitude: 10, unit: 'PT' };
-  function tabTitle(s, i) { return String(s.name || '').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX) || 'Guide ' + (i + 1); }
+  function tabTitle(s, i) { return String(s.name || '').replace(/[\u0000-\u001F\u007F\u2028\u2029\uE000-\uF8FF]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, TAB_TITLE_MAX).trim() || 'Guide ' + (i + 1); }
 
   // The requests that write one guide into an empty tab. Positions count UTF-16 units from 1, which is how a
   // JavaScript string counts its own length. With no tabId the requests land in the Doc's first tab.
+  // Google drops some characters from text it is given (control characters, the private-use range) and treats a
+  // few as breaks. Every position after one would then be off by one, and the bold would land on the wrong words.
+  // They are taken out here first, so what is counted is what Google keeps. None of them is part of a word.
+  function docLine(text) { return String(text == null ? '' : text).replace(/[\u0000-\u001F\u007F\u2028\u2029\uE000-\uF8FF]+/g, ' ').replace(/ {2,}/g, ' ').trim(); }
   function tabRequests(s, tabId, i) {
-    var title = tabTitle(s, i || 0), lines = [title], marks = [], at = 1 + title.length + 1;
+    // The heading is the guide's whole name. Only the tab's own label is cut to fit.
+    var title = docLine(s.name) || tabTitle(s, i || 0), lines = [title], marks = [], at = 1 + title.length + 1;
     layoutBlocks(s).forEach(function (b) {
-      var line = String(b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text).replace(/\s*\n\s*/g, ' ').trim();
+      var line = docLine(b.type === 'verse' ? b.text + (b.ref ? ' (' + b.ref + ')' : '') : b.text);
       if (!line) return;
       marks.push({ verse: b.type === 'verse', start: at, end: at + line.length });
       lines.push(line); at += line.length + 1;
