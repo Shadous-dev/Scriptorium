@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.4.0 — a tab for each guide, caption files by kind, written scripts in bulk (2026-11-24)
+
+`SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.11 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6).
+
+Published 2026-11-24. The artifact's connector list gained two entries with it: Google Drive `search_files`, and Google Docs `update_doc`. Each person is asked once to allow them.
+
+Run against Google on 2026-11-24, before publishing: the requests the page builds for a three-guide book were sent through the Google Drive and Google Docs connectors to a new test Doc, and the Doc was read back. Three tabs, each named for its guide, each heading and each bold verse exactly where it was meant to be, with an emoji and accented letters in the text. A folder listing and a Doc read were run the same way. The page itself has not yet made a Doc from claude.ai; the first one made there is the last check.
+
+Found by that run (each has a test)
+- **Google's connector hands back the new tabs' ids one level further down than the page was reading.** Every book would have fallen back to a page for each guide and left an empty Doc behind. Both shapes are now read.
+- **Google refuses a tab label over 50 characters**, and one refusal stops every tab in the request. Labels were cut at 100. They are now cut at 50, and never through the middle of a character.
+- Reading a Google Doc that has an emoji in it garbles the emoji and drops three characters from the very end of the text for each one. This is in how Drive hands the text over, and is not fixed here; it is listed under Known limits.
+
+Found in review, before publishing (each has a test that fails on the code as it was)
+
+Security
+- **A stored value could be run as markup.** A guide's status was written straight into the page. Anyone able to save to the Scriptorium could have stored a status that ran script in a teammate's page, with that teammate's access to Google Drive and Descript. This was in 1.3.0 as published. The status is now read against a fixed list and the page never builds a class from it.
+- Everything else that comes from the store, a connector or the model was checked and is shown as text. An attribute now also escapes the single quote.
+- A stored list holding the wrong kind of thing could stop a book opening for everyone. Lists are now read as flat rows, a document named like part of the page's own machinery ("constructor") is ignored, and one guide that cannot be drawn shows a notice in its place.
+- Text padded with tens of thousands of spaces froze the page for a minute or more (bringing in a written script, saving a hand correction, laying out a transcript). Fixed.
+
+Consistency
+- **Two saves of one guide could arrive out of order**, leaving the store with the older words while the page showed the newer. Saves to one document now go one at a time, and of those waiting only the newest is sent. Closing the page still sends at once.
+- A guide a teammate added is kept if it has anything in it. Before, one with a name but no transcript yet could drop out of the book.
+- A book cannot be left while it is being cleared.
+- Bringing in many from Drive re-reads the library first, so a teammate's import made since the page was opened is renewed, not doubled.
+
+Storage
+- Sizes are measured in bytes before saving. The limits were counted in characters, and a character can be up to four bytes. The message names the item and its size.
+- More than 1,000 written scripts are now listed. A whole Bible is more than a thousand.
+- A written script whose listing fails to save no longer leaves its text behind in storage.
+- The store-is-full message says the work is still on screen and what to do.
+
+Google Doc and written scripts
+- Characters Google drops from text (control characters, the private-use range) are taken out before positions are counted. One of them would have put the bold on the wrong words.
+- A very long guide name is cut for the tab's label only. The heading inside keeps it whole.
+- A heading that quotes a verse ("John 3:16") no longer cuts a written script in two.
+
+The Google Doc
+- **One Doc, a tab for each guide** is new, and is the choice a reader starts with. Drive makes an empty Doc; the Google Docs connector adds a tab named for each guide and writes each Final Transcript into its own, with the guide's name as a heading and each quoted verse bold and set in.
+- **One Doc, a page for each guide** is the old "one Doc for the whole book", with every guide after the first starting on a new page.
+- **One Doc per guide, in a folder** is unchanged.
+- If the Google Docs connector is not connected, or Google will not add tabs, the page makes the one Doc with a page per guide instead and says why. A tab that could not be written is counted and named.
+- The page writes only into the Doc it has just made. It never reads, edits, moves or deletes a file already in Drive (4.11).
+
+Caption files
+- **Download all caption files** already gave a whole book's `.srt` and `.vtt` files in one `.zip`, on Descript's timings. It now has a choice beside it: both kinds, `.srt` only, or `.vtt` only.
+- The section has its own heading at the bottom of the book, and says how many guides have caption files ready. The message after a download says how many guides were left out.
+
+Written scripts
+- **Bring in many from Google Drive**, on the Written Scripts page. Paste the link to a folder and every Doc, Sheet, Word file, PDF and text file directly inside it is listed. Tick the ones to bring in. Each is read once and kept as its own written script, named for its file.
+- A Doc that holds several written scripts is cut into one for each, at the headings that name a place in the Bible: "Luke 24", or "Chapter 3" in a file named for its book. Only when two or more headings name different places, and never inside a file whose own name already says which chapter it is. Every word of the file is kept. The report says which files were cut.
+- A written script now remembers the Drive file it came from. One already in the library is marked and left unticked; ticking it renews the kept text and keeps its place and its title.
+- A file that cannot be read is named with the reason and the rest still come in. If Drive is not connected or not allowed, the run stops at once with the fix.
+- Drive is only listed and read (4.11).
+
 ## 1.3.0 — written scripts, checked references, and a sign-off for each guide (2026-11-23)
 
 Published before the edit instructions were run against a transcript whose correct result is already known, which `SOURCE-OF-TRUTH.md` section 8 asks for when `09-prompts.js` changes. The first real edit pass on a guide that has a written script is that check: look at what it changed, and at what it listed under "Suggested but not applied".

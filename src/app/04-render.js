@@ -12,7 +12,10 @@
     if (s.status === 'error') return 'Needs attention';
     return s.raw.trim() ? '1st Draft — not yet edited' : 'No transcript yet';
   }
-  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : 'chip-' + s.status; }
+  // The class is chosen from a fixed list, never built from the stored word: what is saved for a guide's status
+  // comes from the shared store, and anything from there is text to show, not markup to trust.
+  var CHIP_CLASSES = { draft: 'chip-draft', editing: 'chip-editing', edited: 'chip-edited', error: 'chip-error' };
+  function chipClass(s) { return (s.status === 'edited' && isStale(s)) ? 'chip-stale' : isFinal(s) ? 'chip-final' : (CHIP_CLASSES.hasOwnProperty(s.status) ? CHIP_CLASSES[s.status] : 'chip-draft'); }
   // A chip that tells the time ("Edited 3 minutes ago") says which moment it counts from, so it can be kept truthful without a repaint.
   function chipClock(s) {
     if (s.status !== 'edited' || isStale(s)) return null;
@@ -101,6 +104,15 @@
     return bits.join(' · ');
   }
 
+  // One guide whose saved data cannot be drawn must not take the whole book off the screen with it.
+  function renderSectionSafe(s) {
+    try { return renderSection(s); }
+    catch (err) {
+      console.warn('Scriptorium: a guide could not be shown', err);
+      return '<article class="section-card" data-section="' + escAttr(s && s.id) + '"><p class="section-error">“' + esc((s && s.name) || 'This guide') +
+        '” holds something the page can’t show. Its saved data may have been changed from outside the Scriptorium. Nothing has been deleted; tell whoever looks after the Scriptorium.</p></article>';
+    }
+  }
   function renderSection(s) {
     var isCollapsed = !!collapsed[s.id], clock = chipClock(s), id = escAttr(s.id);
     var head =
@@ -191,16 +203,29 @@
     return line;
   }
 
+  // Where the book's caption files stand, in one sentence, so the export button never surprises.
+  function captionsLine() {
+    var all = state.sections.length, n = captionsReadyCount();
+    if (!n) return 'No guide has caption files ready yet. A guide needs its timed captions from Descript and the edit pass run.';
+    return n + ' of ' + all + ' guide' + plural(all) + ' ' + (n === 1 ? 'has' : 'have') + ' caption files ready.';
+  }
+
   function renderDocResult() {
     if (state.docResult) {
       if (state.docResult.method === 'pending') return '<p class="doc-result" id="doc-progress">' + esc(state.docResult.progress || 'Building your Google Doc…') + '</p>';
       if (state.docResult.method === 'drive') {
+        var docNote = state.docResult.note ? ' ' + esc(state.docResult.note) : '';
+        if (state.docResult.tabs != null) {
+          var tabsFailed = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be written (' + esc((state.docResult.failedNames || []).join(', ')) + '). Their tabs are there but empty: create the Doc again to get them all.' : '';
+          return '<p class="doc-result">Created one Doc in your Google Drive with ' + state.docResult.tabs + ' tab' + plural(state.docResult.tabs) + ', one for each guide' +
+            (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + tabsFailed + '</p>';
+        }
         if (state.docResult.count != null) {
           var failedNote = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be created — try again for those.' : '';
           return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + ' in a new folder in your Google Drive' +
             (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the folder</a>' : '') + '.' + esc(failedNote) + '</p>';
         }
-        return '<p class="doc-result">Created in your Google Drive' + (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.</p>';
+        return '<p class="doc-result">Created in your Google Drive' + (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + docNote + '</p>';
       }
       if (state.docResult.method === 'download') return '<p class="doc-result">Saved the Final Transcripts as a file — open it with Google Docs (File › Open, or drag it into Drive) to keep editing there.</p>';
       return '<p class="doc-result is-error">' + esc(state.docResult.message || 'Something went wrong.') + '</p>';
@@ -322,8 +347,8 @@
       '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong>.</li>' +
       '<li>Check the scripture. Every reference is checked against the chapter the guide is on, what was said aloud, and the written script. Where one looks wrong, the likelier references are listed — click one to use it, or <strong>Change</strong> to type your own.</li>' +
       '<li>When you have reviewed a guide, click <strong>Approve as Final</strong>. That makes it the <strong>Final Transcript</strong>. Changing it afterwards takes it back to Edited until it is approved again.</li>' +
-      '<li>Click <strong>Create Google Docs</strong> — one Doc per guide in a folder, or one Doc for the book. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted.</li>' +
-      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a guide once it is edited. Both files carry the corrected words on Descript’s timings.</li>' +
+      '<li>Click <strong>Create Google Doc</strong> — one Doc with a tab for each guide, one Doc with a page for each guide, or one Doc per guide in a folder. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted.</li>' +
+      '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a guide once it is edited, or <strong>Download all caption files</strong> at the bottom for the whole book, as .srt, .vtt or both. Every file carries the corrected words on Descript’s timings.</li>' +
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
@@ -348,7 +373,7 @@
       (loading ? renderSkeleton() :
         renderPull() +
         renderOverview() +
-        '<div class="sections">' + state.sections.map(renderSection).join('') + '</div>' +
+        '<div class="sections">' + state.sections.map(renderSectionSafe).join('') + '</div>' +
         '<footer class="conclude-bar">' +
         '<p class="approve-prompt">Turn the Final Transcripts into a Google Doc</p>' +
         '<p class="hint conclude-note">' + (finalCount
@@ -357,12 +382,16 @@
         ' Only Final Transcripts go into the Google Doc.</p>' +
         '<div class="conclude-row">' +
         '<button type="button" class="btn btn-conclude" data-action="conclude"' + concludeDisabled + '>' + (docMode === 'perScript' ? 'Create Google Docs' : 'Create Google Doc') + '</button>' +
-        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per guide, in a folder</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc for the whole book</option></select></label>' +
+        '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="tabs"' + (docMode === 'tabs' ? ' selected' : '') + '>One Doc, a tab for each guide</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc, a page for each guide</option><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per guide, in a folder</option></select></label>' +
         '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (finalCount ? '' : ' disabled') + '>Download a copy instead</button>' +
         '</div>' + renderDocResult() +
-        '<div class="conclude-row caption-row">' +
-        '<button type="button" class="btn btn-ghost" data-action="download-all-captions"' + (anyCaptions ? '' : ' disabled') + '>Download all caption files</button>' +
-        '<p class="hint">An .srt and a .vtt for every edited guide that has timed captions, in one .zip. These do not wait for approval.</p>' +
+        '<div class="caption-export">' +
+        '<p class="approve-prompt">Export every guide’s caption files</p>' +
+        '<p class="hint conclude-note">' + captionsLine() + ' Each file carries the corrected transcript on Descript’s own timings. These do not wait for approval.</p>' +
+        '<div class="conclude-row">' +
+        '<button type="button" class="btn btn-conclude" data-action="download-all-captions"' + (anyCaptions ? '' : ' disabled') + '>Download all caption files</button>' +
+        '<label class="speed-pick"><select data-action="set-captionformat" aria-label="Which caption files"><option value="both"' + (captionFormat === 'both' ? ' selected' : '') + '>Both .srt and .vtt</option><option value="srt"' + (captionFormat === 'srt' ? ' selected' : '') + '>.srt only</option><option value="vtt"' + (captionFormat === 'vtt' ? ' selected' : '') + '>.vtt only</option></select></label>' +
+        '</div>' +
         '</div>' +
         '</footer>') +
       versionLine() +
@@ -391,7 +420,7 @@
   function paintSection(id) {
     var s = findSection(id), el = root.querySelector('[data-section="' + id + '"]');
     if (!s || !el) { paint(); return; }
-    var f = captureFocus(); el.outerHTML = renderSection(s); restoreFocus(f);
+    var f = captureFocus(); el.outerHTML = renderSectionSafe(s); restoreFocus(f);
   }
   function paintStatus() {
     var el = root.querySelector('.status-line'); if (el) el.textContent = statusSummary();

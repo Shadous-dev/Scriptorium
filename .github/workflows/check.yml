@@ -26,3 +26,7 @@ jobs:
         run: node test/written-scripts.test.js
       - name: Reference checks hold
         run: node test/references.test.js
+      - name: Google export and import hold
+        run: node test/google-export-import.test.js
+      - name: Stored data is safe, saves are in order, sizes are checked
+        run: node test/store-safety.test.js

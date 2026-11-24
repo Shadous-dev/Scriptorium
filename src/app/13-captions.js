@@ -255,28 +255,34 @@
   function fileSafe(name, fallback) {
     return String(name || '').replace(/[\\/:*?"<>|\u0000-\u001F]+/g, ' ').replace(/\s+/g, ' ').replace(/^[ .]+|[ .]+$/g, '') || fallback;
   }
-  // The .srt and .vtt for each guide that has captions ready, with names that cannot collide.
-  function captionFiles(sections, nested) {
-    var files = [], used = {};
+  // The caption files for each guide that has captions ready, with names that cannot collide. `format` is 'srt',
+  // 'vtt' or 'both'. With both kinds in a book's download, each kind gets a folder of its own.
+  function captionFiles(sections, nested, format) {
+    format = captionFormatOf(format);
+    var files = [], used = {}, folders = nested && format === 'both';
     sections.forEach(function (s) {
       if (!captionsReady(s)) return;
       var base = fileSafe(s.name, 'Guide ' + (state.sections.indexOf(s) + 1)), name = base, n = 2;
       while (used[name.toLowerCase()]) { name = base + ' (' + n + ')'; n += 1; }
       used[name.toLowerCase()] = true;
       var cues = captionResult(s).cues;
-      files.push({ name: (nested ? 'srt/' : '') + name + '.srt', text: toSrt(cues) });
-      files.push({ name: (nested ? 'vtt/' : '') + name + '.vtt', text: toVtt(cues) });
+      if (format !== 'vtt') files.push({ name: (folders ? 'srt/' : '') + name + '.srt', text: toSrt(cues) });
+      if (format !== 'srt') files.push({ name: (folders ? 'vtt/' : '') + name + '.vtt', text: toVtt(cues) });
     });
     return files;
   }
-  function saveCaptionZip(sections, zipName, nested) {
+  function captionKinds(format) { return format === 'srt' ? 'an .srt each' : format === 'vtt' ? 'a .vtt each' : 'an .srt and a .vtt each'; }
+  function saveCaptionZip(sections, zipName, nested, format) {
     syncFieldsFromDom();
-    var files = captionFiles(sections, nested);
+    format = captionFormatOf(format);
+    var files = captionFiles(sections, nested, format), guides = files.length / (format === 'both' ? 2 : 1);
     if (!files.length) { showFlash('No caption files are ready yet. A guide needs its timed captions and the edit pass run.'); return Promise.resolve(); }
     return useCap('downloads').then(function (downloads) {
       if (!downloads) { showFlash('Downloads aren’t available in this view, so caption files can’t be saved from here.'); return; }
       return downloads.save({ filename: zipName, data: zipFiles(files) }).then(function () {
-        showFlash('Saved ' + (files.length / 2) + ' audio guide' + plural(files.length / 2) + ' as caption files — an .srt and a .vtt each, inside ' + zipName + '.');
+        var left = sections.length - guides;
+        showFlash('Saved ' + guides + ' audio guide' + plural(guides) + ' as caption files — ' + captionKinds(format) + ', inside ' + zipName + '.' +
+          (nested && left > 0 ? ' ' + left + ' guide' + plural(left) + ' had no caption files ready and ' + (left === 1 ? 'was' : 'were') + ' left out.' : ''));
       }, function (err) {
         var code = err && err.code;
         if (code === 'declined') return;
@@ -289,4 +295,8 @@
     var s = findSection(id);
     if (s) saveCaptionZip([s], fileSafe(s.name, 'guide') + ' captions.zip', false);
   }
-  function downloadAllCaptions() { saveCaptionZip(state.sections, fileSafe(state.bookTitle, 'audio guide') + ' captions.zip', true); }
+  // The whole book in one download, in the kind of file the reader picked at the bottom of the page.
+  function captionsReadyCount() { return state.sections.filter(captionsReady).length; }
+  function downloadAllCaptions() {
+    saveCaptionZip(state.sections, fileSafe(state.bookTitle, 'audio guide') + ' captions' + (captionFormat === 'both' ? '' : ' (' + captionFormat + ')') + '.zip', true, captionFormat);
+  }

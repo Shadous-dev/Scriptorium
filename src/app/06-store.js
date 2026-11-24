@@ -56,16 +56,29 @@
              approvedAt: Number(s.approvedAt) || 0, writtenId: s.writtenId || '',
              writtenUsed: s.writtenUsed ? { id: String(s.writtenUsed.id || ''), title: String(s.writtenUsed.title || '') } : null };
   }
+  // What comes back from the store was written by this page, an older version of it, or anyone with access using
+  // another tool. So it is read as data of a known shape: a status the page knows, and lists of flat rows.
+  var STATUSES = { draft: 1, editing: 1, edited: 1, error: 1 };
+  function flatRows(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (row) { return row && typeof row === 'object' && !Array.isArray(row); }).map(function (row) {
+      var out = {};
+      Object.keys(row).forEach(function (k) { var v = row[k]; if (v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') out[k] = v; });
+      return out;
+    });
+  }
   function docToSection(id, d, captions) {
-    d = d || {};
+    d = (d && typeof d === 'object') ? d : {};
+    // `editedSame` says the edit was made from the 1st Draft exactly as it still stands, without keeping a second
+    // copy of it. Nothing writes it yet; this version reads it so that a later one safely can.
     return { id: id, captions: String(captions || ''), name: String(d.name || ''), raw: String(d.raw || ''), corrected: String(d.corrected || ''),
-             editedFromRaw: d.hasEditedFrom ? String(d.editedFromRaw || '') : null,
+             editedFromRaw: d.editedSame === true ? String(d.raw || '') : d.hasEditedFrom ? String(d.editedFromRaw || '') : null,
              summary: String(d.summary || ''), changeCount: Number(d.changeCount) || 0,
-             misheard: Array.isArray(d.misheard) ? d.misheard : [], nonsensical: Array.isArray(d.nonsensical) ? d.nonsensical : [],
-             edits: Array.isArray(d.edits) ? d.edits : [], unapplied: Array.isArray(d.unapplied) ? d.unapplied : [],
-             verses: Array.isArray(d.verses) ? d.verses : [], method: String(d.method || ''),
-             status: String(d.status || 'draft'), error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
-             suggested: Array.isArray(d.suggested) ? d.suggested : [], misquotes: Array.isArray(d.misquotes) ? d.misquotes : [],
+             misheard: flatRows(d.misheard), nonsensical: flatRows(d.nonsensical),
+             edits: flatRows(d.edits), unapplied: flatRows(d.unapplied),
+             verses: flatRows(d.verses), method: String(d.method || ''),
+             status: STATUSES.hasOwnProperty(d.status) ? d.status : 'draft', error: d.error ? String(d.error) : null, editedAt: Number(d.editedAt) || null, descriptId: String(d.descriptId || ''), descriptName: String(d.descriptName || ''),
+             suggested: flatRows(d.suggested), misquotes: flatRows(d.misquotes),
              approvedAt: Number(d.approvedAt) || 0, writtenId: String(d.writtenId || ''),
              writtenUsed: (d.writtenUsed && d.writtenUsed.id) ? { id: String(d.writtenUsed.id), title: String(d.writtenUsed.title || '') } : null };
   }
@@ -81,6 +94,45 @@
              lastDoc: state.lastDoc ? { url: String(state.lastDoc.url || ''), at: Number(state.lastDoc.at) || 0, kind: String(state.lastDoc.kind || 'doc') } : null };
   }
 
+  /* ---- One write at a time per document ----
+     The store asks for it, and it matters: two saves of the same guide sent close together can arrive in either
+     order, and the older one arriving last would quietly put back what the reader had just changed. So a save
+     asked for while another to the same document is still on its way waits for it, and if several are waiting only
+     the newest is sent. What is sent is the document as it stood when the save was asked for, so leaving the book
+     in the meantime loses nothing. When the page itself is closing there is no later: the save goes at once. ---- */
+  var writeSlots = {};
+  var sendNow = false;         // true only while the page is being hidden or closed
+  function runWrite(slot, key, write) {
+    slot.running = true;
+    var p;
+    try { p = Promise.resolve(write()); } catch (e) { p = Promise.reject(e); }
+    function next() {
+      var w = slot.waiting;
+      slot.waiting = null; slot.running = false;
+      if (w) runWrite(slot, key, w.write).then(w.resolve, w.reject); else delete writeSlots[key];
+    }
+    return p.then(function (v) { next(); return v; }, function (e) { next(); throw e; });
+  }
+  function inOrder(key, write) {
+    var slot = writeSlots[key];
+    if (sendNow) {
+      if (slot && slot.waiting) slot.waiting.write = write;      // whatever was waiting must not later put back something older
+      try { return Promise.resolve(write()); } catch (e) { return Promise.reject(e); }
+    }
+    if (!slot) slot = writeSlots[key] = { running: false, waiting: null };
+    if (!slot.running) return runWrite(slot, key, write);
+    if (!slot.waiting) {
+      slot.waiting = { write: write };
+      slot.waiting.promise = new Promise(function (resolve, reject) { slot.waiting.resolve = resolve; slot.waiting.reject = reject; });
+    } else slot.waiting.write = write;
+    return slot.waiting.promise;
+  }
+  // A document over the store's size limit is refused here, by name, before it is sent.
+  function tooLarge(doc, what) {
+    var bytes = jsonBytes(doc);
+    return bytes > DOC_MAX_BYTES ? { code: 'too_large', what: what, bytes: bytes } : null;
+  }
+
   var retryCounts = {};
   function trackSave(key, promise, retry) {
     savesInFlight += 1; paintStatus();
@@ -91,7 +143,7 @@
       saveError = dbErrorMessage(err); paint();
       // Try again on our own a few times, with a growing pause, so a blip never loses an edit.
       var n = (retryCounts[key] || 0) + 1; retryCounts[key] = n;
-      if (retry && n <= 4 && !(err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded' || err.code === 'revoked'))) {
+      if (retry && n <= 4 && !(err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded' || err.code === 'revoked' || err.code === 'too_large'))) {
         setTimeout(retry, 2500 * n);
       }
     }).then(function () { savesInFlight -= 1; paintStatus(); });
@@ -101,20 +153,25 @@
   function saveMeta(book) {
     book = book || bookId;
     if (!dbApi || !book || book !== bookId) return Promise.resolve();
-    return trackSave('meta', bookRef(book).set(metaToDoc()), function () { saveMeta(book); });
+    var doc = metaToDoc();
+    return trackSave('meta', inOrder('meta:' + book, function () { return bookRef(book).set(doc); }), function () { saveMeta(book); });
   }
   function saveSection(id, book) {
     book = book || bookId;
     var s = findSection(id);
     if (!dbApi || !s || !book || book !== bookId) return Promise.resolve();
-    return trackSave('s:' + id, scriptRef(book, id).set(sectionToDoc(s)), function () { saveSection(id, book); });
+    var doc = sectionToDoc(s), big = tooLarge(doc, '“' + (s.name || 'A guide') + '”');
+    if (big) return trackSave('s:' + id, Promise.reject(big));
+    return trackSave('s:' + id, inOrder('s:' + book + ':' + id, function () { return scriptRef(book, id).set(doc); }), function () { saveSection(id, book); });
   }
   // Timed captions are kept beside the script, not inside it, so a script's own document stays well under the size cap.
   function saveCaptions(id, book) {
     book = book || bookId;
     var s = findSection(id);
     if (!dbApi || !s || !book || book !== bookId || String(s.captions || '').length > CAPTION_MAX) return Promise.resolve();
-    return trackSave('c:' + id, captionRef(book, id).set({ srt: String(s.captions || '') }), function () { saveCaptions(id, book); });
+    var doc = { srt: String(s.captions || '') }, big = tooLarge(doc, 'The timed captions for “' + (s.name || 'a guide') + '”');
+    if (big) return trackSave('c:' + id, Promise.reject(big));
+    return trackSave('c:' + id, inOrder('c:' + book + ':' + id, function () { return captionRef(book, id).set(doc); }), function () { saveCaptions(id, book); });
   }
   function saveCaptionsSoon(id) {
     if (!dbApi) return;
@@ -134,14 +191,19 @@
     metaTimer = setTimeout(function () { metaTimer = null; saveMeta(); }, 1200);
     paintStatus();
   }
-  function flushSaves() {
-    Object.keys(pendingSaves).forEach(function (id) { clearTimeout(pendingSaves[id]); delete pendingSaves[id]; saveSection(id); });
-    Object.keys(pendingCaptionSaves).forEach(function (id) { clearTimeout(pendingCaptionSaves[id]); delete pendingCaptionSaves[id]; saveCaptions(id); });
-    if (metaTimer) { clearTimeout(metaTimer); metaTimer = null; saveMeta(); }
+  // `closing` is passed when the page is being hidden or closed: nothing may wait its turn then.
+  function flushSaves(closing) {
+    sendNow = closing === true;
+    try {
+      Object.keys(pendingSaves).forEach(function (id) { clearTimeout(pendingSaves[id]); delete pendingSaves[id]; saveSection(id); });
+      Object.keys(pendingCaptionSaves).forEach(function (id) { clearTimeout(pendingCaptionSaves[id]); delete pendingCaptionSaves[id]; saveCaptions(id); });
+      if (metaTimer) { clearTimeout(metaTimer); metaTimer = null; saveMeta(); }
+    } finally { sendNow = false; }
   }
   function dbErrorMessage(err) {
     var code = err && err.code;
-    if (code === 'quota_exceeded') return 'The workbench is full — remove some guides before adding more.';
+    if (code === 'too_large') return err.what + ' is too large to save: ' + kb(err.bytes) + ', and one saved item can hold about ' + kb(DOC_MAX_BYTES) + '. It is still on screen. Split it into two guides, then it will save.';
+    if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full, so this was not saved. It is still on screen. Delete a book or written scripts that are no longer needed, then change something here to save again.';
     if (code === 'resource_exhausted') return 'Saving is being throttled — it will catch up in a moment.';
     if (code === 'invalid_argument') return 'This couldn’t be saved. Either one guide is too large — try splitting it in two — or your access to this artifact is view-only.';
     if (code === 'revoked') return 'Saving access was withdrawn — reload the page.';
@@ -162,10 +224,11 @@
     var order = Array.isArray(meta.order) ? meta.order : [];
     var rebuilt = [];
     order.forEach(function (id) { if (byId[id]) rebuilt.push(docToSection(id, byId[id], captionsById[id])); });
-    // A script saved but missing from the order list is kept only if it holds a real transcript —
-    // that is how a script a teammate added at the same moment is picked up — and an empty stray is dropped.
+    // A guide saved but missing from the order list is kept if it holds anything: a name, a transcript, an edit.
+    // That is how a guide a teammate added at the same moment is picked up. Only a wholly empty stray is dropped.
     Object.keys(byId).forEach(function (id) {
-      if (order.indexOf(id) === -1 && byId[id] && String(byId[id].raw || '').trim()) rebuilt.push(docToSection(id, byId[id], captionsById[id]));
+      var stray = byId[id] || {};
+      if (order.indexOf(id) === -1 && byId[id] && (String(stray.raw || '').trim() || String(stray.name || '').trim() || String(stray.corrected || '').trim())) rebuilt.push(docToSection(id, byId[id], captionsById[id]));
     });
     if (!rebuilt.length) rebuilt.push(newSection());
     state.sections = rebuilt;
@@ -180,9 +243,14 @@
     state.sections.forEach(function (s) { if (s.status === 'editing') { s.status = 'draft'; s.error = null; } });
   }
 
+  // Keyed by document id, on an object with nothing inherited: a document somebody named "constructor" or
+  // "__proto__" must not be mistaken for, or turned into, part of the page's own machinery.
   function docsById(qs, pick) {
-    var out = {};
-    ((qs && qs.docs) || []).forEach(function (d) { out[d.id] = pick ? pick(d.data() || {}) : d.data(); });
+    var out = Object.create(null);
+    ((qs && qs.docs) || []).forEach(function (d) {
+      if (!d || typeof d.id !== 'string' || d.id in Object.prototype) return;
+      out[d.id] = pick ? pick(d.data() || {}) : d.data();
+    });
     return out;
   }
   function noDocs() { return { docs: [] }; }
@@ -268,6 +336,7 @@
   }
   function leaveBook() {
     if (pull && pull.step === 'pulling') { showFlash('Still pulling from Descript. Let it finish, or stop it, before leaving this book.'); return; }
+    if (clearing) { showFlash('Still clearing this book. Give it a moment to finish before leaving.'); return; }
     syncFieldsFromDom();
     var unsaved = state.sections.filter(function (s) { return s.handDraft != null && s.handDraft !== s.corrected; })[0];
     if (unsaved) { showFlash('“' + (unsaved.name || 'A guide') + '” has hand corrections that aren’t saved yet. Save or cancel them before leaving this book.'); return; }

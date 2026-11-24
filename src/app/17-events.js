@@ -26,6 +26,12 @@
     if (action === 'written-close') { writtenOpen = null; paint(); return; }
     if (action === 'written-rename') { renameWritten(); return; }
     if (action === 'written-delete') { askDeleteWritten(id); return; }
+    if (action === 'written-bulk') { openWrittenBulk(); return; }
+    if (action === 'written-bulk-close') { writtenBulk = null; paint(); return; }
+    if (action === 'written-bulk-list') { listWrittenBulk(); return; }
+    if (action === 'written-bulk-start') { startWrittenBulk(); return; }
+    if (action === 'written-bulk-stop') { if (writtenBulk) { writtenBulk.stop = true; paint(); } return; }
+    if (action === 'written-bulk-pick' || action === 'written-bulk-all') return;   // checkboxes: handled on change
     if (action === 'written-pick') { writtenPick[id] = true; paintSection(id); return; }
     if (action === 'written-pick-close') { delete writtenPick[id]; paintSection(id); return; }
     if (action === 'set-written') return;                               // a list: handled on change
@@ -65,11 +71,14 @@
     if (!t || !t.dataset) return;
     if (t.dataset.action === 'set-written') setWritten(t.dataset.id, t.value);
     if (t.dataset.action === 'written-file') readWrittenFile(t.files && t.files[0]);
+    if (t.dataset.action === 'written-bulk-pick') bulkPick(t.dataset.id, t.checked);
+    if (t.dataset.action === 'written-bulk-all') bulkPickAll(t.checked);
     if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
     if (t.dataset.action === 'pull-all') pullPickAll(t.checked);
     if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
     if (t.dataset.action === 'set-repair') { repairParagraphs = !!t.checked; prefSet('repairParagraphs', repairParagraphs); }
-    if (t.dataset.action === 'set-docmode') { docMode = t.value === 'one' ? 'one' : 'perScript'; prefSet('docMode', docMode); paint(); }
+    if (t.dataset.action === 'set-docmode') { docMode = docModeOf(t.value); prefSet('docMode', docMode); paint(); }
+    if (t.dataset.action === 'set-captionformat') { captionFormat = captionFormatOf(t.value); prefSet('captionFormat', captionFormat); }
   });
 
   function fieldTouched(el) {
@@ -95,10 +104,11 @@
     var field = el.dataset.wfield;
     if (field === 'query') { writtenQuery = el.value; var list = document.getElementById('written-list'); if (list) list.innerHTML = renderWrittenList(); return; }
     if (field === 'rename') { if (writtenOpen) writtenOpen.title = el.value; return; }
+    if (field === 'bulkLinks') { if (writtenBulk) writtenBulk.links = el.value; return; }
     if (!writtenForm) return;
     writtenForm[field] = el.value;
     if (field === 'text') {
-      if (writtenForm.source !== 'paste') { writtenForm.source = 'paste'; writtenForm.sourceName = ''; }   // typed over: it is no longer the file as it came
+      if (writtenForm.source !== 'paste') { writtenForm.source = 'paste'; writtenForm.sourceName = ''; writtenForm.sourceId = ''; }   // typed over: it is no longer the file as it came
       var note = root.querySelector('.written-count'); if (note) note.textContent = writtenFormNote();
     }
   }
@@ -144,8 +154,8 @@
     }
   });
 
-  window.addEventListener('pagehide', flushSaves);
-  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(); });
+  window.addEventListener('pagehide', function () { flushSaves(true); });
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushSaves(true); });
 
   paint();
   initStore();

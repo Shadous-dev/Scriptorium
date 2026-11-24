@@ -78,7 +78,7 @@
     syncFieldsFromDom();
     var s = findSection(id);
     if (!s || s.handDraft == null) return;
-    var text = String(s.handDraft).replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    var text = trimLineEnds(tameSpaces(s.handDraft).replace(/\r\n?/g, '\n')).replace(/\n{3,}/g, '\n\n').trim();
     if (!text) { showFlash('The transcript can’t be left empty. Cancel to keep it as it was.'); return; }
     if (text !== s.corrected) {
       s.edits = (s.edits || []).concat(handEditRows(s.corrected, text));

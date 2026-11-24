@@ -117,7 +117,7 @@
   }
 
   function layoutBlocks(s) {
-    var text = String(s.corrected || '');
+    var text = tameSpaces(s.corrected || '');
     var hits = [], cursor = 0;
     (s.verses || []).forEach(function (v, vi) {
       // Verses are listed in order, so each is looked for after the one before it: two that open with the

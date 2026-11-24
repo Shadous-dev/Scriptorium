@@ -174,8 +174,8 @@
       s.name = name; s.descriptId = project.id;
     }
     s.descriptName = project.name;
-    s.raw = String(text).replace(/\s+$/, '');
-    s.captions = String(srt || '').replace(/\s+$/, '');
+    s.raw = String(text).trimEnd();
+    s.captions = String(srt || '').trimEnd();
     touchBook();
     return saveSection(s.id).then(function () { return saveCaptions(s.id); }).then(function () { return saveMeta(); }).then(function () { return isNew; });
   }

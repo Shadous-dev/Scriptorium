@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.3.0. It opens for members of the Through the Word organization on
+version 1.4.0, published 2026-11-24. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -54,6 +54,12 @@ Each audio guide moves through four stages, and each has one name:
    with its book and chapter ("Luke 24 — Jones") and bring in its text: paste
    it, give the link to a Google Doc or Sheet, or choose a Word (.docx) or
    text file. This can be done at any time, before or after the edit pass.
+   **Bring in many from Google Drive** takes the link to a Drive folder and
+   brings in every file in it, each as its own written script, named for its
+   file. It also takes the link to one Doc that holds a whole book: that Doc
+   is cut at the headings that name a chapter ("Luke 24", or "Chapter 3" in a
+   file named for its book). A file is read once and kept; bringing it in
+   again renews the kept copy and keeps its title.
 2. **Pull the audio guides from Descript.** Click **Pull from Descript**, open
    the book's folder in the TTW Drive, tick the audio guides you want, and
    pull them. Each gets a card with its 1st Draft Transcript and its timed
@@ -88,8 +94,12 @@ Each audio guide moves through four stages, and each has one name:
    Changing it afterwards, by hand or by running the edit pass again, takes
    it back to an Edited Transcript until it is approved again.
 8. **Copy or publish.** Copy a single transcript with its verses already bold
-   and block-quoted, or build the book's Final Transcripts into Google Docs.
-   Only Final Transcripts go into a Google Doc.
+   and block-quoted, or build the book's Final Transcripts into Google Docs:
+   one Doc with a tab for each guide, one Doc with each guide starting on its
+   own page, or a folder with one Doc per guide. Only Final Transcripts go
+   into a Google Doc. Tabs need the Google Docs connector as well as Google
+   Drive; without it the page makes the one Doc with a page per guide and
+   says so.
 9. **Download caption files.** A guide pulled from Descript already has its
    timed captions. For one pasted by hand, open **Timed captions for search**
    and paste in the `.srt` file Descript exports for that audio guide (in
@@ -97,7 +107,9 @@ Each audio guide moves through four stages, and each has one name:
    `.srt` and a `.vtt`. Both carry the *corrected* words on Descript's own
    timings, so a search for "Uz" finds it even though Descript heard "us".
    **Download all caption files** at the bottom gives the whole book in one
-   `.zip`. Caption files do not wait for approval.
+   `.zip`: both kinds, `.srt` only, or `.vtt` only. The line above the button
+   says how many guides have caption files ready. Caption files do not wait
+   for approval.
 
 ### What a caption file is, and is not
 
@@ -109,6 +121,26 @@ Each audio guide moves through four stages, and each has one name:
   Descript exports. A search lands on the caption a word is in.
 - If the captions pasted in belong to a different guide, the tool says so and
   builds nothing.
+
+### How much it can hold
+
+- **One saved item holds about 250 KB.** Each guide is one item, its timed
+  captions another, each written script's text another. A guide keeps three
+  copies of its transcript (the 1st Draft, the Edited Transcript, and the 1st
+  Draft the edit was made from), so one guide can hold about 75,000
+  characters of transcript. A typical guide is 6,000–15,000. The page
+  measures in bytes before it saves, and says which item is too large and by
+  how much, rather than leaving it to the store to refuse.
+- **The whole store holds at most 25,000 items.** A chapter uses four (the
+  guide, its captions, its written script and that script's listing), so the
+  whole Bible, 1,321 guides with introductions and conclusions, is about
+  5,350.
+- **By size, the whole Bible is about 120 MB**, at roughly 93 KB a chapter.
+  The store also has a limit on total size. Its figure is not published, so
+  it is not known whether 120 MB fits. When the store is full the page says
+  so, keeps the work on screen, and saves again once something is deleted.
+- **Written scripts are listed past the first thousand**, a thousand at a
+  read, up to 6,000.
 
 ### Known limits
 
@@ -125,9 +157,16 @@ Each audio guide moves through four stages, and each has one name:
   it the first time.
 - **One composition per project.** If a Descript project holds more than one
   composition, the first is pulled.
-- **A book holds up to 1,000 guides**, a Descript folder lists up to 1,000
-  projects, and the Written Scripts page lists up to 1,000 written scripts.
-  Past that the page says so rather than showing part.
+- **A written script is a kept copy.** It is read from Google Drive once. If
+  the teacher changes the Doc afterwards, bring it in again to renew it.
+- **A folder is listed one level deep**, up to 300 files at a time.
+  Sub-folders are counted and left alone; paste a sub-folder's own link to
+  bring in what it holds.
+- **A Doc is cut only at headings.** A Doc that holds a whole book is cut
+  where a heading (a Heading style in Google Docs) names a chapter. A Doc
+  with no such headings comes in as one written script.
+- **A book holds up to 1,000 guides** and a Descript folder lists up to 1,000
+  projects. Past that the page says so rather than showing part.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
 - **A reference is checked, not looked up.** The edit pass works out each
@@ -151,9 +190,18 @@ Each audio guide moves through four stages, and each has one name:
   Word file (.docx) or a text file. For a PDF, Pages or an older .doc, open it
   and paste the text. Reading a Google Doc uses your own Google Drive
   connector in Claude.
-- **The Google Drive read has not been run against the live connector.** It
-  was built and tested against a stand-in. If a Doc link brings in nothing,
-  paste the text and report it.
+- **An emoji in a Google Doc costs the end of its text.** Google Drive hands
+  a Doc over with each emoji garbled and three characters missing from the
+  very end for each one. Accents, dashes and quotation marks are fine. A
+  written script is only a reference, so this matters little; if the last
+  word matters, paste the text instead.
+- **A tab's label is at most 50 characters**, which is Google's limit. A
+  longer guide name is cut for the label; the heading inside the tab keeps
+  it whole.
+- **The Google connectors were run from the repository, not from the page.**
+  On 2026-11-24 the page's own requests were sent to a real Doc and read
+  back, and a folder was listed and a Doc read. The page on claude.ai has
+  not yet made a tabbed Doc itself. If one comes out wrong, report it.
 - **The wording guard is strict on purpose.** It allows known homophones, the
   same sound spelled differently, and names you list under Words to Search
   For. A real mishearing outside those can land under "Suggested but not
@@ -203,10 +251,10 @@ src/
     09-prompts.js     THE EDITING INSTRUCTIONS — see SOURCE-OF-TRUTH.md
     10-edit-pipeline.js  the edit run: cues, capitals, the wording guard, joins, concurrency
     11-clear.js       clearing the workbench for the next book
-    12-google-doc.js  building the Google Doc from Final Transcripts, with an HTML fallback
+    12-google-doc.js  building the Google Doc from Final Transcripts (tabs, pages, or a folder), with an HTML fallback (4.11)
     13-captions.js    timed captions: reading .srt/.vtt, building .srt, .vtt and .zip
     14-descript.js    pulling transcripts and captions from Descript (reading only)
-    15-written-scripts.js  the written scripts: their page, matching to guides, reading .docx and Google Docs (4.9)
+    15-written-scripts.js  the written scripts: their page, matching to guides, reading .docx and Google Docs, bringing in many from Drive (4.9, 4.11)
     16-references.js  checking each scripture reference, and changing one by hand (4.10)
     17-events.js      event delegation, shortcuts, start-up — last in the manifest
 test/
@@ -214,6 +262,8 @@ test/
   descript.test.js         checks the Descript pull against a stand-in connector (4.8)
   edit-rules.test.js       checks the wording guard, references in digits, verse layout, and hand corrections (4.1, 4.2, 4.4, 6)
   written-scripts.test.js  checks written scripts, matching, the sign-off, and what reaches the Google Doc (4.9)
+  google-export-import.test.js  checks the tabbed Google Doc, caption files by kind, and written scripts in bulk from Drive (4.11)
+  store-safety.test.js     loads the whole page against a stand-in store: stored data is shown as text and never run, saves go one at a time and in order, sizes are measured in bytes
   references.test.js       checks the reference checks (4.10)
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
@@ -241,6 +291,8 @@ node test/descript.test.js    # check the Descript pull, against a stand-in conn
 node test/edit-rules.test.js  # check the wording guard, references in digits, verse layout, and hand corrections
 node test/written-scripts.test.js  # check written scripts, matching, the sign-off, and the Google Doc
 node test/references.test.js  # check the reference checks
+node test/google-export-import.test.js  # check the tabbed Google Doc, caption files by kind, and the bulk import from Drive
+node test/store-safety.test.js  # check security, save order and storage limits, with the whole page loaded
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
@@ -260,6 +312,8 @@ them (with that feature switched off):
 | `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) and the written scripts (`written/<id>`, `writtenText/<id>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
 | `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. Added to the artifact's connector list in 1.3.0. |
+| `mcp` → Google Drive: `search_files` | listing the files in a folder for **Bring in many from Google Drive**. It only reads. Added to the artifact's connector list in 1.4.0. |
+| `mcp` → Google Docs: `update_doc` | adding a tab for each guide to the Doc the page has just made, and writing each transcript into its tab (4.11). Added to the artifact's connector list in 1.4.0. |
 | `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
 | `downloads` | the HTML copy of the book, and the caption `.zip` |
 
@@ -291,6 +345,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.4.0` | A tab for each guide in one Google Doc, caption files by kind, written scripts in bulk from Google Drive, and the fixes from a security, consistency and storage review. Published 2026-11-24. |
 | `v1.3.0` | Written scripts as a reference, checked references, a sign-off for each guide, and thirteen fixes from a QA pass. Published 2026-11-23. |
 | `v1.2.1` | Ten fixes from a review of 1.2.0, three of them in the wording guard. Published 2026-11-19. |
 | `v1.2.0` | The page enforces the speaker's words (wording guard), notes for the teacher, references in digits, names from Descript, hand corrections. Published 2026-11-19. |
