@@ -48,19 +48,24 @@ count as Final: what was approved is no longer what Descript has.
   6,000–15,000 characters each.
 - Output that goes straight into YouVersion for an audience to read, with as
   little hand-editing afterward as possible.
-- Collecting a book's Final Transcripts into one Google Doc, one section per
-  guide, named to match. Only a Final Transcript goes in. Copying a transcript
-  out and building its caption files do not wait for approval.
+- Collecting a book's Final Transcripts into Google Docs, each guide named to
+  match: one Doc with a tab for each guide, one Doc with each guide starting
+  on its own page, or a folder with one Doc per guide. Only a Final Transcript
+  goes in. Copying a transcript out and building its caption files do not
+  wait for approval.
 - Timed caption files (`.srt` and `.vtt`) for each audio guide: the corrected
   transcript carried on Descript's own timings, so every word of every guide can
-  be found by search.
+  be found by search. A whole book's caption files come down in one download,
+  as `.srt`, as `.vtt`, or as both.
 - Reading a guide's transcript and timed captions from the TTW Drive in
   Descript, so nobody has to export and paste them by hand.
 - Small corrections by hand to an Edited Transcript, for what the edit pass
   missed. Each one is recorded like any other change (4.4).
 - Keeping the teachers' written scripts in a library of their own, as a
   permanent reference for checking that what was corrected is accurate and
-  is what the teacher meant (4.9).
+  is what the teacher meant (4.9). Many can be brought in at once from Google
+  Drive: every file in a folder, or one Doc that holds several written
+  scripts, each becoming a written script of its own.
 - Checking every scripture reference against the Bible, and suggesting the
   likelier ones when a reference looks wrong (4.10).
 - A sign-off for each guide: a person reviews the Edited Transcript and
@@ -194,6 +199,15 @@ in the page. The NIV and the ESV are under copyright and will not be carried,
 so that check will find where a quotation comes from. It will not confirm NIV
 or ESV wording.
 
+**4.11 Google Drive is read for written scripts, and written only to make new
+Docs.**
+The tool may list a folder and read a file in Google Drive to bring in a
+written script. It may create a new Doc or folder, and write into a Doc it
+has created in that same run. It never edits, moves, renames, shares or
+deletes a file it did not just create. A written script is read once and
+kept in the library; bringing the same file in again replaces the kept copy.
+None of this calls Claude, so none of it costs anything (4.6).
+
 ## 5. The editing instructions
 
 The editing behaviour lives in `src/app/09-prompts.js`. It is the heart of the
@@ -284,6 +298,7 @@ Things that are deliberately *not* in the tool, and why:
 | Rewriting or improving prose | See 4.1 — that is a different tool. |
 | Audio processing, transcription, or re-timing | Descript does the listening and the timing. The tool works on Descript's text and Descript's timings (4.7). |
 | Writing to Descript | See 4.8. Reading is in scope; changing a project is not. |
+| Changing a file already in Google Drive | See 4.11. The tool reads what it is pointed at and writes only into a Doc it has just made. |
 | Word-by-word timings | Descript's captions are timed per caption, not per word. The tool does not estimate timings it was not given (4.7). |
 | Metadata, summaries, plan ads | Those live in the per-book metadata Google Doc, not here. |
 | Making a transcript match the written script | See 4.9. The teacher did not read it out word for word. |
