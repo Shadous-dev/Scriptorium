@@ -31,6 +31,10 @@ Each audio guide moves through these stages, and each has one name.
 | **Edited Transcript** | The 1st Draft after the edit pass and any corrections by hand. Not yet signed off. |
 | **Final Transcript** | An Edited Transcript that a person has reviewed and approved. |
 
+The **glossary** is the team's shared list of Bible names and terms, each with
+the ways Descript has misheard it. It holds only what a person has approved
+(4.12).
+
 "Script" on its own always means the written script. "The corrected
 transcript" means the Edited or Final Transcript, whichever the guide has
 reached. Changing a Final Transcript, by hand or by running the edit pass
@@ -65,7 +69,15 @@ count as Final: what was approved is no longer what Descript has.
   permanent reference for checking that what was corrected is accurate and
   is what the teacher meant (4.9). Many can be brought in at once from Google
   Drive: every file in a folder, or one Doc that holds several written
-  scripts, each becoming a written script of its own.
+  scripts, each becoming a written script of its own. Many can be brought in
+  at once from the computer too: any number of Word, PDF, OpenDocument,
+  rich-text and plain-text files, each read in the page and kept under its
+  own title.
+- Learning from its own use, so the same problem is not fixed twice. When a
+  guide is approved as a Final Transcript, the misheard words that were put
+  right in it are written down. So are the names in each written script. A
+  person approves what is worth keeping, and the approved terms become the
+  glossary every later guide is edited with (4.12).
 - Checking every scripture reference against the Bible, and suggesting the
   likelier ones when a reference looks wrong (4.10).
 - A sign-off for each guide: a person reviews the Edited Transcript and
@@ -208,6 +220,33 @@ deletes a file it did not just create. A written script is read once and
 kept in the library; bringing the same file in again replaces the kept copy.
 None of this calls Claude, so none of it costs anything (4.6).
 
+**4.12 The glossary holds only what a person approved, and never changes a
+transcript by itself.**
+The tool writes down what it could learn from: a misheard word put right in a
+guide that a person then approved, a word a person corrected by hand, and the
+names in a written script. That record is evidence, not the glossary. Nothing
+in it has any effect until a person approves it on the Glossary page, and a
+term a person turns down is not proposed again.
+
+An approved term does two things and no more:
+
+- it is one of the names the edit pass is told may have been misheard, sent
+  only with a guide it bears on (4.6);
+- it counts as a listed name for 4.1, and an approved pair (what was heard,
+  and the term it stood for) counts as words that sound the same. This is the
+  one place the test in 4.1 is widened, and only by a person's ruling.
+
+The page never replaces a word because the glossary lists it. "Us" is nearly
+always "us". Whether a word in this sentence is the misheard one is a matter
+of meaning, so it stays with the edit pass (section 5), and every such change
+is a row that says the glossary supported it (4.4). Inside a quoted verse 4.2
+stands unchanged.
+
+A fix a person undid is written down against the pair, not for it. The
+glossary is shared with the whole team and is not removed when a book is
+cleared or deleted. Writing down, adding up and approving are all done by the
+page: none of it calls Claude (4.6).
+
 ## 5. The editing instructions
 
 The editing behaviour lives in `src/app/09-prompts.js`. It is the heart of the
@@ -222,7 +261,10 @@ tool. The instructions cover, in this order of priority:
    `[HOOK]`, stray pause marks, and standalone section labels removed.
 2. **Misheard names and terms** — matched against the list of names the
    speaker actually uses, plus anything where the sentence only makes sense
-   with a different word.
+   with a different word. The list is the book's own Words to Search For and
+   the approved glossary terms that bear on this guide: those from the same
+   book of the Bible, and any whose known mishearing appears in this
+   transcript (4.12).
 3. **Scripture** — each quotation identified, the spoken reference captured as
    spoken, the canonical reference worked out and confidence-rated, and only
    misheard words corrected inside the quote.
@@ -305,6 +347,9 @@ Things that are deliberately *not* in the tool, and why:
 | Editing or correcting a written script | It is the teacher's reference, kept as written (4.9). |
 | NIV or ESV text carried in the page | Both are under copyright. Only a public-domain translation may be carried (4.10). |
 | Replacing a reference automatically | See 4.10. The page suggests; a person chooses. |
+| Replacing a word because the glossary lists it | See 4.12. The glossary informs the edit pass and the wording check. It is never a find-and-replace. |
+| A glossary that fills itself | See 4.12. What the tool notices is only proposed. A person approves each term. |
+| Reading a scanned PDF, or an old `.doc` or Pages file | A picture of a page has no text to read without a model call (4.6), and the other two cannot be read reliably in the page. The file is named and the reader is told what to do. |
 | A second "full rewrite" call when edits don't place | See 4.6. Unplaced edits are shown for a hand check instead; Redo is the user's call. |
 | Instructions for things the page does locally | Every character of the prompt is paid for on every guide. |
 
@@ -314,6 +359,8 @@ Things that are deliberately *not* in the tool, and why:
 - [ ] Does it break any rule in section 4?
 - [ ] Does it fall on the wrong side of section 7?
 - [ ] Does it let the written script change the speaker's words (4.9)?
+- [ ] Does it let the glossary change a word without the edit pass, or let
+      anything into the glossary that a person did not approve (4.12)?
 - [ ] If it touches `09-prompts.js`, has it been run against a transcript whose
       correct output is already known?
 - [ ] Does it add tokens to every call? If so, is each one earning its place
