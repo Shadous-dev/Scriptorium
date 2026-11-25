@@ -34,3 +34,7 @@ jobs:
         run: node test/glossary.test.js
       - name: Every kind of file is read, many at once
         run: node test/many-files.test.js
+      - name: The Final Transcripts download as a PDF or a web page
+        run: node test/export.test.js
+      - name: Every guide says whether a written script was used
+        run: node test/script-status.test.js

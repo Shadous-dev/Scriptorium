@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.5.0, published 2026-11-24. It opens for members of the Through the Word organization on
+version 1.6.0, published 2026-11-25. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -73,6 +73,12 @@ Each audio guide moves through four stages, and each has one name:
    uses that Descript is likely to mangle.
 3. **Check the match.** Each card says which written script it is matched to,
    and how: by title, by wording, or both. **Change** picks another, or none.
+   A badge beside each guide's stage says the same at a glance, even when the
+   card is folded: **Script used** (the edit pass compared the transcript with
+   that written script), **Script not used yet** (one is matched, but the edit
+   pass ran without it: **Redo this one** uses it), **Script ready** (matched,
+   not edited yet), or **No script**. Rest the pointer on a badge for the
+   detail. A line above the guides counts how many stand in each.
 4. **Run the edit pass.** Each transcript is corrected for punctuation,
    capitalization, run-on sentences, and misheard names — *without* changing
    the speaker's wording, meaning, tone, or intent. Stage cues and pause marks
@@ -105,6 +111,11 @@ Each audio guide moves through four stages, and each has one name:
    into a Google Doc. Tabs need the Google Docs connector as well as Google
    Drive; without it the page makes the one Doc with a page per guide and
    says so.
+   **Download**, under it, saves the same Final Transcripts to your
+   computer as a PDF or as a web page (`.html`), as one file for the whole
+   book or one file for each guide in a `.zip`. The PDF is for reading,
+   printing and sending. The web page opens in any browser, and in Word or
+   Google Docs to keep editing. Neither needs Google Drive.
 9. **Download caption files.** A guide pulled from Descript already has its
    timed captions. For one pasted by hand, open **Timed captions for search**
    and paste in the `.srt` file Descript exports for that audio guide (in
@@ -202,6 +213,17 @@ handed to the edit pass with each later guide. None of it calls Claude.
   projects. Past that the page says so rather than showing part.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
+- **A PDF is drawn in Helvetica, on US Letter pages.** The page writes the
+  PDF itself, with the fonts every PDF reader carries. Those cover English
+  and Western European letters, curly quotes and dashes. A letter they lack
+  (Hebrew, Greek, a letter with a macron) is drawn as its plain letter, or
+  as "?" when it has none, and the message after the download says how many
+  were. The web page keeps every character as written, so use it for a
+  guide like that.
+- **The PDF is plain on purpose.** The guide's name, its paragraphs, each
+  quoted verse bold and set in with its reference, and a page number. No
+  logo, no table of contents page. A PDF of a whole book carries an outline,
+  so a reader can jump to a guide from the sidebar of a PDF viewer.
 - **A reference is checked, not looked up.** The edit pass works out each
   reference from what the model knows, and judges from memory whether a
   quotation matches the NIV or ESV. The page then checks the reference
@@ -314,6 +336,7 @@ src/
     15-written-scripts.js  the written scripts: their page, matching to guides, reading Word, PDF, OpenDocument, rich-text and Google files, bringing in many from Drive or the computer (4.9, 4.11)
     16-references.js  checking each scripture reference, and changing one by hand (4.10)
     18-glossary.js    the glossary: what each approved guide showed, what a person approved, and what the edit pass is given (4.12)
+    19-export.js      downloading the Final Transcripts as a PDF or a web page; the PDF is written here, with no library
     17-events.js      event delegation, shortcuts, start-up — last in the manifest
 test/
   captions.test.js         checks the caption rules (SOURCE-OF-TRUTH 4.7)
@@ -325,6 +348,8 @@ test/
   references.test.js       checks the reference checks (4.10)
   glossary.test.js         checks the glossary: nothing takes effect before a person approves it, and no word is swapped in by the page (4.12)
   many-files.test.js       checks each kind of file and bringing in many at once
+  export.test.js           checks the PDF and web-page downloads: every word in order, and a well-formed PDF
+  script-status.test.js    checks the badge and count that say whether a written script was used (4.9)
   whole-page.js            not a test: loads the whole page against a stand-in store, for the two files above
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
@@ -356,6 +381,8 @@ node test/google-export-import.test.js  # check the tabbed Google Doc, caption f
 node test/store-safety.test.js  # check security, save order and storage limits, with the whole page loaded
 node test/glossary.test.js    # check the glossary (4.12)
 node test/many-files.test.js  # check each kind of file, and many at once
+node test/export.test.js      # check the PDF and web-page downloads
+node test/script-status.test.js  # check the written-script badge and count
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
@@ -382,7 +409,7 @@ them (with that feature switched off):
 | `mcp` → Google Drive: `search_files` | listing the files in a folder for **Bring in many from Google Drive**. It only reads. Added to the artifact's connector list in 1.4.0. |
 | `mcp` → Google Docs: `update_doc` | adding a tab for each guide to the Doc the page has just made, and writing each transcript into its tab (4.11). Added to the artifact's connector list in 1.4.0. |
 | `mcp` → Descript: `list_folders`, `list_projects`, `export_transcript` | Pull from Descript. All three only read. |
-| `downloads` | the HTML copy of the book, and the caption `.zip` |
+| `downloads` | the Final Transcripts as a PDF, a web page or a `.zip` of either, and the caption `.zip` |
 
 The artifact must run on a runtime contract that lets a page save a `.zip`
 (0.2.96 or newer). On the older contract it started on, the caption download
@@ -412,6 +439,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.6.0` | The Final Transcripts as a PDF or a web page, for the book or for each guide, and a badge on every guide saying whether a written script was used. Published 2026-11-25. |
 | `v1.5.0` | A glossary that learns only what a person approves, written scripts from many files at once (Word, PDF, OpenDocument, rich text, plain text), and a build that refuses a page that does not parse. Published 2026-11-24. |
 | `v1.4.0` | A tab for each guide in one Google Doc, caption files by kind, written scripts in bulk from Google Drive, and the fixes from a security, consistency and storage review. Published 2026-11-24. |
 | `v1.3.0` | Written scripts as a reference, checked references, a sign-off for each guide, and thirteen fixes from a QA pass. Published 2026-11-23. |

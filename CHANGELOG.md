@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.6.0 — the Final Transcripts as a PDF or a web page, and whether a written script was used, at a glance (2026-11-25)
+
+`SOURCE-OF-TRUTH.md` was amended first, each time in its own commit. None of this calls Claude (4.6) or touches Google Drive. The artifact's connector list does not change.
+
+Published 2026-11-25.
+
+- **Download the Final Transcripts**, at the foot of a book: as a **PDF** or a **web page (.html)**, and as **one file for the whole book** or **one file for each guide** in a `.zip`. Only Final Transcripts go in. The message after a download says how many were saved and how many guides not yet approved were left out.
+- **The PDF is written by the page itself**, with no library to fetch: the guide's name as a heading, its paragraphs, each quoted verse bold and set in with its reference, the guide's name and a page number at the foot. US Letter, Helvetica. A whole book's PDF starts each guide on a new page and carries an outline to jump by.
+- **A letter Helvetica does not have** (Hebrew, Greek, a macron) is drawn as its plain letter, or as "?", and the message says how many were. The web page keeps every character.
+- "Download a copy instead" is replaced by this. If Google Drive is not connected, **Create Google Doc** still falls back to saving a web page, as before.
+
+Was a written script used? (4.9)
+- **A badge on every guide's card**, beside its stage and visible when the card is folded: **Script used: <title>**, **Script not used yet** (one is matched, but the Edited Transcript was made without it, or with another: Redo uses it), **Script ready: <title>** (matched, and the edit pass has not run), or **No script**. Resting the pointer on it says the rest, including how the script was matched (by title, by wording, or chosen by hand), which is what tells you whether it is the right one.
+- **A count for the book**, above the guides: how many were edited against a written script, how many are matched but not used yet, how many wait for the edit pass, and how many have none. With no written scripts in the library at all, it says that.
+- Nothing is claimed until the library has been read: if the list of written scripts cannot be read, no card says "No script" on a guess.
+- This changes nothing about what a written script may do. It only shows what happened.
+
+Checked before publishing
+- 213 checks across eleven test files. New: `script-status.test.js`, and `export.test.js`, which reads each PDF back: its own table of where everything is, every line drawn, and that the words match the transcript in order.
+- The PDF opened in macOS's own viewer and was looked at: margins, wrapping, the bold verse, quotes, dashes and accents.
+- In a browser, with made-up data: all four choices downloaded from the page, and the PDF read back with pdf.js (pages, outline, title, text).
+- A guide's name or words cannot put drawing commands of their own into the PDF: the test strips the words out and checks every remaining command is one the page writes.
+
 ## 1.5.0 — a glossary that learns, and many written-script files at once (2026-11-24)
 
 `SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.12 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6). The artifact's connector list does not change.
