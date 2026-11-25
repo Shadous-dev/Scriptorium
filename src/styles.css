@@ -402,3 +402,12 @@ label.gloss-row:hover { background: var(--paper); }
 #gloss-lists { display: flex; flex-direction: column; gap: 24px; }
 details.gloss-section { display: block; }
 details.gloss-section > * + * { margin-top: 10px; }
+
+/* Sending a book's files to one Google Drive folder. */
+.drive-kinds { gap: 8px 18px; }
+.drive-kinds .speed-pick { font-size: 13px; color: var(--ink); cursor: pointer; }
+.drive-count { color: var(--ink-faint); font-size: 12px; }
+.drive-send .written-label { margin: 2px 0 -6px; }
+.drive-send .written-input { max-width: 640px; }
+.drive-progress { flex: 1; min-width: 0; margin: 0; }
+.drive-send .bulk-report a { color: var(--accent-ink); font-weight: 500; }

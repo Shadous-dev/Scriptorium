@@ -223,7 +223,7 @@
         }
         if (state.docResult.count != null) {
           var failedNote = state.docResult.failed ? ' ' + state.docResult.failed + ' could not be created — try again for those.' : '';
-          return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + ' in a new folder in your Google Drive' +
+          return '<p class="doc-result">Created ' + state.docResult.count + ' Doc' + plural(state.docResult.count) + (state.docResult.chosen ? ' in the folder you chose' : ' in a new folder in your Google Drive') +
             (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the folder</a>' : '') + '.' + esc(failedNote) + '</p>';
         }
         return '<p class="doc-result">Created in your Google Drive' + (state.docResult.url ? ' — <a href="' + escAttr(state.docResult.url) + '" target="_blank" rel="noopener">open the doc</a>' : '') + '.' + docNote + '</p>';
@@ -396,6 +396,7 @@
         '<label class="speed-pick"><select data-action="set-captionformat" aria-label="Which caption files"><option value="both"' + (captionFormat === 'both' ? ' selected' : '') + '>Both .srt and .vtt</option><option value="srt"' + (captionFormat === 'srt' ? ' selected' : '') + '>.srt only</option><option value="vtt"' + (captionFormat === 'vtt' ? ' selected' : '') + '>.vtt only</option></select></label>' +
         '</div>' +
         '</div>' +
+        renderDriveSend(finalCount) +
         '</footer>') +
       versionLine() +
       '</div>' + renderModal()

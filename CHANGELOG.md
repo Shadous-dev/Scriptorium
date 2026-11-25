@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.7.0 — everything for a book into one Google Drive folder (2026-11-25)
+
+`SOURCE-OF-TRUTH.md` was amended first, in its own commit: 4.11 now lets the tool add new files to a Drive folder the reader names. It still never edits, moves or deletes a file it did not just create. None of this calls Claude (4.6). The artifact's connector list does not change.
+
+Published 2026-11-25.
+
+- **Send it all to one Google Drive folder**, at the foot of a book. Tick the kinds wanted: the **Google Doc**, **.srt** captions, **.vtt** captions, **PDF**, **web page**. Paste the link to a Drive folder, or leave it empty and a folder is made for the book. One button sends everything there, with a progress line and a Stop.
+- The Google Doc is made straight into the folder, in whichever way is chosen above (tabs, pages, or one Doc per guide). The PDF and web page follow the choice above too (one file or one per guide).
+- Caption files and web pages are kept as files, not turned into Google Docs.
+- The Google Doc, PDF and web page hold Final Transcripts only. Caption files do not wait for approval. The message afterwards says what went, what could not, and what was left out, with a link to the folder.
+- One file that cannot be sent is named and the rest still go. A folder that takes nothing, or a Drive that is not connected or not allowed, stops at once with the fix.
+- Every file is added as new. Sending twice leaves two copies; nothing is replaced.
+- 224 checks across twelve test files. New: `drive-folder.test.js`.
+
+Run against Google Drive on 2026-11-25, before publishing: the requests the page builds for a one-guide book were sent through the Google Drive connector to a new test folder, and the folder was listed and read back.
+- The `.srt` and `.vtt` files arrived as plain text files with their own endings, the same size to the byte, and were not turned into Google Docs. The web page arrived as an `.html` file.
+- The PDF arrived whole (1,313 bytes sent, 1,313 stored), and Google's own reader read every word of it, accents and dashes included.
+- The Google Doc was made inside the folder. A new folder's link is one the page can read back.
+- Nothing needed changing. Not run from the live page itself: the first send made there is the last check, in particular for a large PDF of a whole book.
+
 ## 1.6.1 — the Glossary's waiting list in two parts (2026-11-25)
 
 Published 2026-11-25. No rule changes: this is how the list is shown, not what a term does.

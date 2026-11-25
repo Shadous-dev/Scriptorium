@@ -124,16 +124,19 @@
     if (url) { state.lastDoc = { url: url, at: Date.now(), kind: 'doc' }; saveMeta(); }
     return true;
   }
-  function oneDoc(mcp, createTool, finals, note) {
-    return mcp.callTool('Google Drive', createTool, { title: docTitle(), textContent: wrapDoc(docBody(finals), false), contentMimeType: 'text/html' }).then(function (res) {
+  // `parentId`, here and below, is the Drive folder the reader chose for the book's files (4.11). With none,
+  // the Doc goes to the top of their Drive, as it always has.
+  function inFolder(args, parentId) { if (parentId) args.parentId = parentId; return args; }
+  function oneDoc(mcp, createTool, finals, note, parentId) {
+    return mcp.callTool('Google Drive', createTool, inFolder({ title: docTitle(), textContent: wrapDoc(docBody(finals), false), contentMimeType: 'text/html' }, parentId)).then(function (res) {
       return docDone(urlOf(payloadOf(res)), note ? { note: note } : null);
     });
   }
-  function tabsDoc(mcp, tools, finals) {
-    if (!tools.update) return oneDoc(mcp, tools.create, finals, 'Tabs need the Google Docs connector, which isn’t connected for you, so each guide starts on its own page instead. To get tabs, add Google Docs in Claude under Settings → Connectors and create the Doc again.');
+  function tabsDoc(mcp, tools, finals, parentId) {
+    if (!tools.update) return oneDoc(mcp, tools.create, finals, 'Tabs need the Google Docs connector, which isn’t connected for you, so each guide starts on its own page instead. To get tabs, add Google Docs in Claude under Settings → Connectors and create the Doc again.', parentId);
     var docId = '', url = '';
     function docs(requests) { return mcp.callTool('Google Docs', tools.update, { documentId: docId, requests: requests }); }
-    return mcp.callTool('Google Drive', tools.create, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.document' }).then(function (res) {
+    return mcp.callTool('Google Drive', tools.create, inFolder({ title: docTitle(), contentMimeType: 'application/vnd.google-apps.document' }, parentId)).then(function (res) {
       var made = payloadOf(res);
       docId = String(made.id || ''); url = urlOf(made);
       if (!docId) throw { code: 'no_doc' };
@@ -147,7 +150,7 @@
         // The Doc exists but Google would not give it tabs. Nothing has been written to it, so the book goes
         // into a Doc of its own, and the reader is told about the empty one.
         console.warn('Scriptorium: tabs could not be added', err);
-        return oneDoc(mcp, tools.create, finals, 'Google would not add tabs, so each guide starts on its own page instead. An empty Doc with the same name was also left in your Drive; it can be deleted.').then(function () { return null; });
+        return oneDoc(mcp, tools.create, finals, 'Google would not add tabs, so each guide starts on its own page instead. An empty Doc with the same name was also left in your Drive; it can be deleted.', parentId).then(function () { return null; });
       });
     }).then(function (ids) {
       if (!ids) return true;                                  // the page-per-guide Doc was made instead
@@ -169,8 +172,10 @@
       });
     });
   }
-  function folderOfDocs(mcp, createTool, finals) {
-    return mcp.callTool('Google Drive', createTool, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.folder' }).then(function (res) {
+  // One Doc for each guide. They go into a new folder named for the book, or straight into the folder the reader chose.
+  function folderOfDocs(mcp, createTool, finals, parentId) {
+    var start = parentId ? Promise.resolve({ payload: { id: parentId } }) : mcp.callTool('Google Drive', createTool, { title: docTitle(), contentMimeType: 'application/vnd.google-apps.folder' });
+    return start.then(function (res) {
       var folder = payloadOf(res), folderId = folder && folder.id, folderUrl = urlOf(folder);
       if (!folderId) throw { code: 'no_folder' };
       var queue = finals.slice(), done = 0, failed = 0;
@@ -184,7 +189,7 @@
           .then(next);
       }
       return next().then(function () {
-        state.docResult = { method: 'drive', url: folderUrl, at: Date.now(), count: done, failed: failed };
+        state.docResult = { method: 'drive', url: folderUrl, at: Date.now(), count: done, failed: failed, chosen: !!parentId };
         if (folderUrl) { state.lastDoc = { url: folderUrl, at: Date.now(), kind: 'folder' }; saveMeta(); }
         return true;
       });
