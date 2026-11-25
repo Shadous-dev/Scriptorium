@@ -4,7 +4,7 @@
 
 `SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.12 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6). The artifact's connector list does not change.
 
-Not yet published.
+Published 2026-11-24.
 
 The glossary
 - **The page writes down what it could learn from.** When a guide is approved as a Final Transcript, the misheard words put right in it are recorded: by the edit pass, by hand, and by hand after the page had refused the change. A fix a person undid is recorded against the pair. When a written script is saved, the names in it are recorded.
