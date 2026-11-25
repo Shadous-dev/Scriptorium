@@ -57,6 +57,10 @@ count as Final: what was approved is no longer what Descript has.
   on its own page, or a folder with one Doc per guide. Only a Final Transcript
   goes in. Copying a transcript out and building its caption files do not
   wait for approval.
+- Downloading a book's Final Transcripts as files: a PDF or a web page
+  (`.html`), as one file for the whole book or one file for each guide. Only
+  a Final Transcript goes in, laid out as section 6 describes. The files are
+  made by the page: nothing here calls Claude (4.6) or touches Google Drive.
 - Timed caption files (`.srt` and `.vtt`) for each audio guide: the corrected
   transcript carried on Descript's own timings, so every word of every guide can
   be found by search. A whole book's caption files come down in one download,
@@ -349,6 +353,7 @@ Things that are deliberately *not* in the tool, and why:
 | Replacing a reference automatically | See 4.10. The page suggests; a person chooses. |
 | Replacing a word because the glossary lists it | See 4.12. The glossary informs the edit pass and the wording check. It is never a find-and-replace. |
 | A glossary that fills itself | See 4.12. What the tool notices is only proposed. A person approves each term. |
+| Letters outside the standard fonts in a PDF | A PDF made here is drawn with the fonts every PDF reader carries, which cover English and Western European letters. A letter they lack (Hebrew, Greek, a letter with a macron) is drawn as its plain letter, or as "?" when it has none, and the page says how many were. The web-page download keeps every character as written, so it is the one to use for such a guide (4.1). |
 | Reading a scanned PDF, or an old `.doc` or Pages file | A picture of a page has no text to read without a model call (4.6), and the other two cannot be read reliably in the page. The file is named and the reader is told what to do. |
 | A second "full rewrite" call when edits don't place | See 4.6. Unplaced edits are shown for a hand check instead; Redo is the user's call. |
 | Instructions for things the page does locally | Every character of the prompt is paid for on every guide. |
