@@ -4,7 +4,7 @@
 
 `SOURCE-OF-TRUTH.md` was amended first, in its own commit: 4.11 now lets the tool add new files to a Drive folder the reader names. It still never edits, moves or deletes a file it did not just create. None of this calls Claude (4.6). The artifact's connector list does not change.
 
-Not yet published.
+Published 2026-11-25.
 
 - **Send it all to one Google Drive folder**, at the foot of a book. Tick the kinds wanted: the **Google Doc**, **.srt** captions, **.vtt** captions, **PDF**, **web page**. Paste the link to a Drive folder, or leave it empty and a folder is made for the book. One button sends everything there, with a progress line and a Stop.
 - The Google Doc is made straight into the folder, in whichever way is chosen above (tabs, pages, or one Doc per guide). The PDF and web page follow the choice above too (one file or one per guide).
