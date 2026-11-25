@@ -16,7 +16,7 @@ const path = require('path');
 const assert = require('assert');
 
 const load = (file) => fs.readFileSync(path.join(__dirname, '..', 'src', 'app', file), 'utf8');
-const source = ['02-helpers.js', '03-text.js', '07-fields.js', '08-actions.js', '09-prompts.js', '10-edit-pipeline.js', '12-google-doc.js', '13-captions.js', '14-descript.js', '15-written-scripts.js', '16-references.js'].map(load).join('\n');
+const source = ['02-helpers.js', '03-text.js', '07-fields.js', '08-actions.js', '09-prompts.js', '10-edit-pipeline.js', '12-google-doc.js', '13-captions.js', '14-descript.js', '15-written-scripts.js', '16-references.js', '18-glossary.js'].map(load).join('\n');
 
 function makePage() {
   return new Function(`

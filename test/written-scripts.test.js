@@ -18,7 +18,7 @@ const zlib = require('zlib');
 const assert = require('assert');
 
 const load = (file) => fs.readFileSync(path.join(__dirname, '..', 'src', 'app', file), 'utf8');
-const source = ['02-helpers.js', '03-text.js', '07-fields.js', '08-actions.js', '09-prompts.js', '10-edit-pipeline.js', '12-google-doc.js', '13-captions.js', '14-descript.js', '15-written-scripts.js', '16-references.js'].map(load).join('\n');
+const source = ['02-helpers.js', '03-text.js', '07-fields.js', '08-actions.js', '09-prompts.js', '10-edit-pipeline.js', '12-google-doc.js', '13-captions.js', '14-descript.js', '15-written-scripts.js', '16-references.js', '18-glossary.js'].map(load).join('\n');
 
 function makePage() {
   return new Function(`
@@ -382,8 +382,10 @@ test('a file from the computer fills the form; a kind that cannot be read says w
   P.readWrittenFile({ name: 'Luke 24.docx', size: docx.length, type: '', arrayBuffer: () => Promise.resolve(docx.buffer.slice(docx.byteOffset, docx.byteOffset + docx.byteLength)) }); await tick();
   assert.strictEqual(P.form.text, DOC_TEXT.trim());
   assert.strictEqual(P.form.title, 'My own title', 'a title already typed is kept');
-  P.readWrittenFile({ name: 'Luke 24.pdf', size: 100, type: 'application/pdf' }); await tick();
-  assert.ok(/can’t be read here/.test(P.form.error) && P.form.text === DOC_TEXT.trim(), 'what was there is kept');
+  P.readWrittenFile({ name: 'Luke 24.pages', size: 100, type: '' }); await tick();
+  assert.ok(/Pages file/.test(P.form.error) && P.form.text === DOC_TEXT.trim(), 'what was there is kept');
+  P.readWrittenFile({ name: 'Luke 24.xyz', size: 100, type: '' }); await tick();
+  assert.ok(/can’t be read here/.test(P.form.error));
   P.readWrittenFile({ name: 'huge.txt', size: 9e6, type: 'text/plain' }); await tick();
   assert.ok(/too large/.test(P.form.error));
 });

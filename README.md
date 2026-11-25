@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.4.0, published 2026-11-24. It opens for members of the Through the Word organization on
+version 1.4.0, published 2026-11-24. Version 1.5.0 is in this repository and not yet published. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -60,6 +60,11 @@ Each audio guide moves through four stages, and each has one name:
    is cut at the headings that name a chapter ("Luke 24", or "Chapter 3" in a
    file named for its book). A file is read once and kept; bringing it in
    again renews the kept copy and keeps its title.
+   **Add files from this computer** takes any number of files at once: Word
+   (.docx), PDF, OpenDocument (.odt), rich text (.rtf) and plain text. Each
+   becomes its own written script. Its title starts as the file's name and
+   can be changed in the list before anything is saved. Files can also be
+   dropped anywhere on the Written Scripts page.
 2. **Pull the audio guides from Descript.** Click **Pull from Descript**, open
    the book's folder in the TTW Drive, tick the audio guides you want, and
    pull them. Each gets a card with its 1st Draft Transcript and its timed
@@ -111,6 +116,31 @@ Each audio guide moves through four stages, and each has one name:
    says how many guides have caption files ready. Caption files do not wait
    for approval.
 
+### The glossary
+
+The Scriptorium learns from its own use, so the same mishearing is not put
+right twice. It does not retrain anything: the page writes down what it
+notices, a person approves what is worth keeping, and the approved terms are
+handed to the edit pass with each later guide. None of it calls Claude.
+
+- **What is written down.** When a guide is approved as a Final Transcript,
+  the misheard words that were put right in it are recorded: by the edit
+  pass, by hand, or by hand after the page had refused the change. A fix a
+  person undid is recorded against the pair. When a written script is saved,
+  the names in it are recorded too.
+- **What a person does.** The **Glossary** page, beside Written Scripts on the
+  front page, lists what is waiting with where it came from. Tick and
+  **Approve**, or **Not a term**. A term turned down is not offered again.
+  A term can also be typed in, and the approved list can be copied out for
+  Descript's own vocabulary list.
+- **What an approved term does.** The edit pass is told the names from the
+  same book of the Bible as the guide, and is told a known mishearing when
+  its words appear in the transcript. The wording check accepts a fix to an
+  approved name, and the row for that change says "known from the glossary".
+- **What it never does.** The page does not replace a word because the
+  glossary lists it. "Us" is nearly always "us". The edit pass decides in
+  the sentence, as before (rule 4.12).
+
 ### What a caption file is, and is not
 
 - Every word of the corrected transcript appears once, in order.
@@ -141,6 +171,9 @@ Each audio guide moves through four stages, and each has one name:
   so, keeps the work on screen, and saves again once something is deleted.
 - **Written scripts are listed past the first thousand**, a thousand at a
   read, up to 6,000.
+- **The glossary adds one small item for each approved guide** (what it
+  showed) and one for each term a person has ruled on. For the whole Bible
+  that is about 1,300 and a few thousand, still well inside the 25,000.
 
 ### Known limits
 
@@ -186,10 +219,34 @@ Each audio guide moves through four stages, and each has one name:
 - **A guide edited before its written script was added is not re-edited.** Its
   card says so; **Redo this one** uses it. The reference checks apply either
   way.
-- **Written scripts come in as text.** Paste, a Google Doc or Sheet link, a
-  Word file (.docx) or a text file. For a PDF, Pages or an older .doc, open it
-  and paste the text. Reading a Google Doc uses your own Google Drive
+- **Written scripts come in as text.** Paste, a Google Doc or Sheet link, or
+  a file: Word (.docx), PDF, OpenDocument (.odt), rich text (.rtf) or plain
+  text. A Pages file or an older .doc cannot be read in the page: export it
+  as Word or PDF first. Reading a Google Doc uses your own Google Drive
   connector in Claude.
+- **A scanned PDF has no text to read.** It is a picture of each page. The
+  file is named and nothing is guessed. Reading it would take a model call,
+  which the tool does not spend on this (rule 4.6).
+- **A PDF holds lines, not paragraphs.** Lines that follow closely are run
+  together and a wider gap starts a new paragraph, so paragraph breaks can
+  differ from the original. The words do not. Up to 400 pages are read.
+- **Reading a PDF fetches a library the first time.** pdf.js 3.11.174 is
+  loaded from cdnjs only when a PDF is chosen. If the viewer refuses it, the
+  file is named with that reason and every other kind still works. PDFs in
+  Google Drive do not need it.
+- **One file is one written script.** A file from the computer is not cut at
+  chapter headings. A Doc in Google Drive is.
+- **The glossary proposes; it does not know.** The names found in a written
+  script are words with a capital in the middle of a sentence, so the list
+  waiting for approval will hold some that are not Bible terms. Turn those
+  down once and they are not offered again.
+- **A glossary name under four letters is told to the edit pass but does not
+  loosen the wording check.** With "On" listed, "in" could otherwise become
+  "on". Such a fix still goes through where the sounds match, or where that
+  exact mishearing was approved.
+- **The glossary is read when a book is opened and before an edit pass.** A
+  term a teammate approves while you are mid-pass counts from the next read,
+  at most a minute later.
 - **An emoji in a Google Doc costs the end of its text.** Google Drive hands
   a Doc over with each emoji garbled and three characters missing from the
   very end for each one. Accents, dashes and quotation marks are fine. A
@@ -254,8 +311,9 @@ src/
     12-google-doc.js  building the Google Doc from Final Transcripts (tabs, pages, or a folder), with an HTML fallback (4.11)
     13-captions.js    timed captions: reading .srt/.vtt, building .srt, .vtt and .zip
     14-descript.js    pulling transcripts and captions from Descript (reading only)
-    15-written-scripts.js  the written scripts: their page, matching to guides, reading .docx and Google Docs, bringing in many from Drive (4.9, 4.11)
+    15-written-scripts.js  the written scripts: their page, matching to guides, reading Word, PDF, OpenDocument, rich-text and Google files, bringing in many from Drive or the computer (4.9, 4.11)
     16-references.js  checking each scripture reference, and changing one by hand (4.10)
+    18-glossary.js    the glossary: what each approved guide showed, what a person approved, and what the edit pass is given (4.12)
     17-events.js      event delegation, shortcuts, start-up — last in the manifest
 test/
   captions.test.js         checks the caption rules (SOURCE-OF-TRUTH 4.7)
@@ -265,6 +323,9 @@ test/
   google-export-import.test.js  checks the tabbed Google Doc, caption files by kind, and written scripts in bulk from Drive (4.11)
   store-safety.test.js     loads the whole page against a stand-in store: stored data is shown as text and never run, saves go one at a time and in order, sizes are measured in bytes
   references.test.js       checks the reference checks (4.10)
+  glossary.test.js         checks the glossary: nothing takes effect before a person approves it, and no word is swapped in by the page (4.12)
+  many-files.test.js       checks each kind of file and bringing in many at once
+  whole-page.js            not a test: loads the whole page against a stand-in store, for the two files above
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
 SOURCE-OF-TRUTH.md    what this tool is for, and the lines not to cross
@@ -293,9 +354,15 @@ node test/written-scripts.test.js  # check written scripts, matching, the sign-o
 node test/references.test.js  # check the reference checks
 node test/google-export-import.test.js  # check the tabbed Google Doc, caption files by kind, and the bulk import from Drive
 node test/store-safety.test.js  # check security, save order and storage limits, with the whole page loaded
+node test/glossary.test.js    # check the glossary (4.12)
+node test/many-files.test.js  # check each kind of file, and many at once
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
+The build also parses every script in the assembled page and refuses to
+write one that does not parse: the tests load the modules' own text, so they
+would not notice. The page itself fetches one library at run time, pdf.js,
+and only when someone chooses a PDF.
 
 ## Publishing
 
@@ -309,7 +376,7 @@ them (with that feature switched off):
 | Capability | Used for |
 |---|---|
 | `sample` | the edit pass — the one thing that spends usage |
-| `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) and the written scripts (`written/<id>`, `writtenText/<id>`) |
+| `db` | saving the library (`books/<book>`, and under it `scripts/<guide>` and `captions/<guide>`) the written scripts (`written/<id>`, `writtenText/<id>`), and the glossary (`glossary/<term>`, `learned/<book>_<guide>`) |
 | `mcp` → Google Drive, a "create file" tool | building the Google Doc or folder of Docs |
 | `mcp` → Google Drive: `read_file_content` | bringing a written script in from a Google Doc or Sheet. It only reads. Added to the artifact's connector list in 1.3.0. |
 | `mcp` → Google Drive: `search_files` | listing the files in a folder for **Bring in many from Google Drive**. It only reads. Added to the artifact's connector list in 1.4.0. |

@@ -14,7 +14,7 @@ const path = require('path');
 const assert = require('assert');
 
 const load = (file) => fs.readFileSync(path.join(__dirname, '..', 'src', 'app', file), 'utf8');
-const source = ['02-helpers.js', '03-text.js', '10-edit-pipeline.js', '13-captions.js', '16-references.js'].map(load).join('\n');
+const source = ['02-helpers.js', '03-text.js', '10-edit-pipeline.js', '13-captions.js', '16-references.js', '18-glossary.js'].map(load).join('\n');
 const P = new Function(`
   var state = { bookTitle: 'Luke', wordsToSearchFor: '', sections: [] }, bookId = 'b1', flashed = [], saved = [];
   var root = { querySelector: function () { return null; } };

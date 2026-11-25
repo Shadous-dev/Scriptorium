@@ -1,6 +1,6 @@
 /* 01-state.js — App root element and the in-memory state shape. */
   var root = document.getElementById('app-root');
-  var VERSION = '1.4.0';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.5.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State

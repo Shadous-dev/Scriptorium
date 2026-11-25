@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.5.0 — a glossary that learns, and many written-script files at once (2026-11-24)
+
+`SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.12 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6). The artifact's connector list does not change.
+
+Not yet published.
+
+The glossary
+- **The page writes down what it could learn from.** When a guide is approved as a Final Transcript, the misheard words put right in it are recorded: by the edit pass, by hand, and by hand after the page had refused the change. A fix a person undid is recorded against the pair. When a written script is saved, the names in it are recorded.
+- **Nothing takes effect until a person approves it.** The new **Glossary** page lists what is waiting, with how it was heard, in how many guides and written scripts, and in which books. **Approve**, or **Not a term**; a term turned down is not offered again. A term can be typed in, a single mishearing can be taken out, and the approved list can be copied as plain text for Descript's own vocabulary list.
+- **An approved term is told to the edit pass**, only with a guide it bears on: names from the same book of the Bible (forty at most), and a known mishearing only when its words are in that transcript. A guide neither bears on is sent the same prompt as before, to the character.
+- **The wording check accepts an approved term**, and an approved pair outright. The row for the change says "known from the glossary".
+- **The page never replaces a word because the glossary lists it.** The edit pass decides in the sentence, as before.
+- Counts are added up from the record each time, never stored, so two people approving guides at the same moment cannot lose one. Each ruling is read again before it is changed.
+- **Scan written scripts for terms** on the Glossary page catches up the written scripts saved before this version.
+
+Written scripts
+- **Add files from this computer**: any number of files in one go, by the button or by dropping them on the page. Each is read in the page and listed with an editable title, the book and chapter the title will match, and its size. A file already in the library is marked and left unticked; ticking it renews its text and keeps its place and title. One file that cannot be saved does not stop the rest.
+- **New kinds of file**: PDF, OpenDocument (.odt) and rich text (.rtf), beside Word (.docx) and plain text. The single Add form reads them too.
+- A scanned PDF, an older .doc and a Pages file are each named with what to do. Nothing is guessed.
+- Reading a PDF uses pdf.js 3.11.174, fetched from cdnjs only when a PDF is first chosen. Its worker half runs inside the page, because the viewer does not let a page start a worker from another site.
+
+Checked before publishing
+- 197 checks across nine test files. New: `glossary.test.js` (4.12) and `many-files.test.js`.
+- The Word, OpenDocument and rich-text readers were run on files written by macOS itself, and each gave the same words as the plain-text original. A hand-made PDF and one printed by macOS were read with the real pdf.js in a browser.
+- In a browser, with made-up data: a guide approved, its terms approved on the Glossary page, and the next edit pass given the hint, the fix applied and its row marked.
+- **Found by that browser run: the built page did not parse**, though every test passed. A module's first line is dropped by the build, and the new module's opening comment ran on to a second line. The tests load the modules' own text, so none of them saw it. `build.js` now parses every script in the assembled page, on a build and on `--check`, and refuses a module whose first line is not a one-line comment.
+
+Not yet checked
+- Whether the live viewer lets the page fetch pdf.js. A private test page was published for this; the answer is on that page when it is opened signed in.
+- The edit pass with real glossary hints. The prompt is unchanged where the glossary does not bear on a guide; where it does, one or two short lines are added, and the first real guide edited that way is the check.
+
 ## 1.4.0 — a tab for each guide, caption files by kind, written scripts in bulk (2026-11-24)
 
 `SOURCE-OF-TRUTH.md` was amended first, in its own commit: rule 4.11 is new. None of this calls Claude, so none of it adds to what a guide costs (4.6).

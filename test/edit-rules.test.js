@@ -17,7 +17,7 @@ const path = require('path');
 const assert = require('assert');
 
 const load = (file) => fs.readFileSync(path.join(__dirname, '..', 'src', 'app', file), 'utf8');
-const source = ['02-helpers.js', '03-text.js', '09-prompts.js', '10-edit-pipeline.js', '13-captions.js'].map(load).join('\n');
+const source = ['02-helpers.js', '03-text.js', '09-prompts.js', '10-edit-pipeline.js', '13-captions.js', '18-glossary.js'].map(load).join('\n');
 const P = new Function(`
   var state = { bookTitle: 'John', wordsToSearchFor: 'Elihu, Zophar', sections: [] }, bookId = 'b1', root = null;
   ${source}
