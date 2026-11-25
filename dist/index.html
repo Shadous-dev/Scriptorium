@@ -380,6 +380,24 @@ label.gloss-row:hover { background: var(--paper); }
 .gloss-add .written-row { flex-wrap: wrap; }
 .gloss-add .written-input { flex: 1 1 220px; min-width: 0; }
 .gloss-line { margin: 8px 0 0 !important; }
+
+/* At a glance: was this transcript compared with a written script? A badge on each card, a count for the book. */
+.section-head { flex-wrap: wrap; }
+.section-name { flex: 1 1 180px; }
+.script-badge { flex: 0 1 auto; min-width: 0; max-width: min(300px, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 12px var(--font-body); padding: 3px 9px 3px 8px; border-radius: 4px; border: 1px solid var(--line); color: var(--ink-soft); }
+.script-badge::before, .script-dot { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: var(--ink-faint); }
+.script-used { border-color: transparent; background: var(--accent-soft); color: var(--accent-ink); }
+.script-used::before, .script-dot.script-used { background: var(--accent); }
+.script-pending { border-color: transparent; background: var(--warn-soft); color: var(--warn); }
+.script-pending::before, .script-dot.script-pending { background: var(--warn); }
+.script-ready { border-color: var(--accent); border-style: dashed; color: var(--accent-ink); }
+.script-ready::before, .script-dot.script-ready { background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.script-none { border-style: dashed; border-color: var(--line-strong); color: var(--ink-soft); }
+.script-none::before, .script-dot.script-none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-faint); }
+.script-dot { border: none; padding: 0; }
+.script-summary { margin: 0; font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
+.script-summary strong { color: var(--ink); font-weight: 600; }
+.script-sep { color: var(--ink-faint); margin: 0 4px; }
 </style>
 <div id="app-root"></div>
 <script type="application/json" id="seed-state">{"bookTitle":"","wordsToSearchFor":"","sections":[{"id":"s1","name":"","raw":"","corrected":"","editedFromRaw":null,"summary":"","changeCount":0,"misheard":[],"nonsensical":[],"status":"draft","error":null,"editedAt":null,"captions":""}],"nextId":2,"overview":"","lastEditAt":null,"approved":false,"docResult":null}</script>
@@ -836,6 +854,7 @@ label.gloss-row:hover { background: var(--paper); }
       '<button type="button" class="collapse-btn" data-action="toggle-collapse" data-id="' + id + '" aria-label="' + (isCollapsed ? 'Expand' : 'Collapse') + '" title="' + (isCollapsed ? 'Expand' : 'Collapse') + '">' + (isCollapsed ? '▸' : '▾') + '</button>' +
       '<input class="section-name" data-field="name" data-id="' + id + '" type="text" placeholder="e.g. Job – Chapter 2" value="' + escAttr(s.name) + '" aria-label="Audio guide name">' +
       (isCollapsed && sectionMeta(s) ? '<span class="section-meta">' + esc(sectionMeta(s)) + '</span>' : '') +
+      scriptBadge(s) +
       '<span class="chip ' + chipClass(s) + '"' + (clock ? ' data-ts="' + Number(clock.ts) + '" data-prefix="' + escAttr(clock.prefix) + '"' : '') + '>' + esc(statusLabel(s)) + '</span>' +
       '<button type="button" class="icon-btn" data-action="remove-section" data-id="' + id + '" aria-label="Remove this guide" title="Remove this guide">−</button>' +
       '</div>';
@@ -1089,6 +1108,7 @@ label.gloss-row:hover { background: var(--paper); }
       '</div>' +
       (loading ? renderSkeleton() :
         renderPull() +
+        renderScriptSummary() +
         renderOverview() +
         '<div class="sections">' + state.sections.map(renderSectionSafe).join('') + '</div>' +
         '<footer class="conclude-bar">' +
@@ -1138,13 +1158,16 @@ label.gloss-row:hover { background: var(--paper); }
     var s = findSection(id), el = root.querySelector('[data-section="' + id + '"]');
     if (!s || !el) { paint(); return; }
     var f = captureFocus(); el.outerHTML = renderSectionSafe(s); restoreFocus(f);
+    paintScriptSummary();                              // one card changing can change the book's count of written scripts
   }
   function paintStatus() {
     var el = root.querySelector('.status-line'); if (el) el.textContent = statusSummary();
+    paintScriptSummary();
     var sv = document.getElementById('save-state');
     if (sv) { var label = saveStateLabel(); sv.textContent = label; sv.classList.toggle('is-saving', label === 'Saving…'); }
   }
   function paintChipOnly(s) {
+    paintScriptBadge(s);
     var card = root.querySelector('[data-section="' + s.id + '"]');
     var chip = card && card.querySelector('.chip');
     if (chip) {
@@ -3364,7 +3387,7 @@ label.gloss-row:hover { background: var(--paper); }
     return readWrittenListing().then(function (got) {
       writtenIndex = got.docs.filter(function (d) { return d && typeof d.id === 'string' && !(d.id in Object.prototype); })
         .map(function (d) { return entryFromDoc(d.id, d.data()); }).filter(function (w) { return w.title; });
-      writtenMore = got.more; writtenStamp += 1;
+      writtenMore = got.more; writtenStamp += 1; writtenReady = true;
     }).catch(function (err) { console.warn('Scriptorium: could not read the written scripts', err); });
   }
   function readWrittenText(id) {
@@ -4284,6 +4307,77 @@ label.gloss-row:hover { background: var(--paper); }
       console.warn('Scriptorium: could not delete the written script', err);
       writtenDeleting = ''; flash = 'That written script couldn’t be deleted — try again.'; paint();
     });
+  }
+
+  /* ---- At a glance: was this transcript compared with a written script? (4.9) ----
+     Each guide's card carries a badge beside its stage, open or folded, and the book carries a count.
+
+       used      the edit pass compared this transcript with that written script
+       pending   one is matched, but the Edited Transcript was made without it (or with another): Redo uses it
+       ready     one is matched, and the edit pass has not run yet
+       none      no written script is matched to this guide
+       off       a person chose to use none for this guide
+
+     Nothing here changes what a written script may do. It only says what happened. ---- */
+
+  var writtenReady = false;          // true once the library has been read: until then nothing is claimed either way
+  function hasTranscript(s) { return !!(String((s && s.raw) || '').trim() || (s && s.corrected)); }
+  function scriptState(s) {
+    var m = matchWritten(s), edited = s.status === 'edited', used = edited && s.writtenUsed && s.writtenUsed.id ? s.writtenUsed : null;
+    if (edited && m && used && used.id === m.entry.id) return { kind: 'used', title: m.entry.title, how: m.how };
+    if (edited && m) return { kind: 'pending', title: m.entry.title, how: m.how, was: used ? String(used.title || '') : '' };
+    // The edit pass used one that is no longer matched (deleted, or taken off since): the transcript was still compared with it.
+    if (edited && used) return { kind: 'used', title: String(used.title || 'a written script'), how: '', gone: true };
+    if (m) return { kind: 'ready', title: m.entry.title, how: m.how };
+    return { kind: s.writtenId === 'none' ? 'off' : 'none', title: '', how: '' };
+  }
+  // The few words on the badge, and the sentence behind it (shown when the pointer rests on it, and read out).
+  function scriptWords(st) {
+    var how = st.how ? ' (' + st.how + ')' : '';
+    if (st.kind === 'used') return { label: 'Script used: ' + st.title, cls: 'script-used',
+      tip: 'The edit pass compared this transcript with the written script “' + st.title + '”' + how + '.' + (st.gone ? ' That written script is no longer matched to this guide.' : '') };
+    if (st.kind === 'pending') return { label: 'Script not used yet', cls: 'script-pending',
+      tip: '“' + st.title + '” is matched to this guide' + how + ', but the edit pass ' + (st.was ? 'used “' + st.was + '” instead' : 'ran without it') + '. Click Redo this one to compare against it.' };
+    if (st.kind === 'ready') return { label: 'Script ready: ' + st.title, cls: 'script-ready',
+      tip: 'The edit pass will compare this transcript with the written script “' + st.title + '”' + how + '.' };
+    if (st.kind === 'off') return { label: 'No script, by choice', cls: 'script-none', tip: 'Someone chose to use no written script for this guide, so the edit pass has nothing to compare the transcript with.' };
+    return { label: 'No script', cls: 'script-none', tip: 'No written script is matched to this guide, so the edit pass has nothing to compare the transcript with. Add one under Written Scripts, or choose one on this card.' };
+  }
+  function scriptBadge(s) {
+    if (!writtenReady || !hasTranscript(s)) return '';
+    var w = scriptWords(scriptState(s));
+    return '<span class="script-badge ' + w.cls + '" title="' + escAttr(w.tip) + '">' + esc(w.label) + '</span>';
+  }
+  // The book's count: how many of its guides stand in each state.
+  function scriptCounts() {
+    var c = { total: 0, used: 0, pending: 0, ready: 0, none: 0 };
+    state.sections.forEach(function (s) {
+      if (!hasTranscript(s)) return;
+      var kind = scriptState(s).kind;
+      c.total += 1; c[kind === 'off' ? 'none' : kind] += 1;
+    });
+    return c;
+  }
+  function scriptSummaryHtml() {
+    if (!writtenReady) return '';
+    var c = scriptCounts(), bits = [];
+    if (!c.total) return '';
+    if (!writtenIndex.length && !c.used) return '<span class="script-dot script-none"></span>No guide in this book is compared with a written script: there are none in the library yet. Add them under <strong>Written Scripts</strong> on the front page.';
+    if (c.used) bits.push('<span class="script-dot script-used"></span><strong>' + c.used + ' of ' + c.total + '</strong> guide' + plural(c.total) + ' edited against a written script');
+    else bits.push('<span class="script-dot script-none"></span><strong>None of ' + c.total + '</strong> guide' + plural(c.total) + ' edited against a written script yet');
+    if (c.pending) bits.push('<span class="script-dot script-pending"></span><strong>' + c.pending + '</strong> matched but not used yet (Redo to use it)');
+    if (c.ready) bits.push('<span class="script-dot script-ready"></span><strong>' + c.ready + '</strong> matched, waiting for the edit pass');
+    if (c.none) bits.push('<span class="script-dot script-none"></span><strong>' + c.none + '</strong> with no written script');
+    return bits.join(' <span class="script-sep">·</span> ');
+  }
+  function renderScriptSummary() { var html = scriptSummaryHtml(); return html ? '<p class="script-summary" aria-label="Written scripts in this book">' + html + '</p>' : ''; }
+  // After one card changes, the count and that card's badge are brought up to date without drawing the whole page again.
+  function paintScriptSummary() { var el = root.querySelector('.script-summary'); if (el) el.innerHTML = scriptSummaryHtml(); }
+  function paintScriptBadge(s) {
+    var card = root.querySelector('[data-section="' + s.id + '"]'), badge = card && card.querySelector('.script-badge');
+    if (!badge || !writtenReady || !hasTranscript(s)) return;
+    var w = scriptWords(scriptState(s));
+    badge.className = 'script-badge ' + w.cls; badge.textContent = w.label; badge.setAttribute('title', w.tip);
   }
 
   /* ---- On a guide's card ---- */

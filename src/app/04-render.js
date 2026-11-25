@@ -120,6 +120,7 @@
       '<button type="button" class="collapse-btn" data-action="toggle-collapse" data-id="' + id + '" aria-label="' + (isCollapsed ? 'Expand' : 'Collapse') + '" title="' + (isCollapsed ? 'Expand' : 'Collapse') + '">' + (isCollapsed ? '▸' : '▾') + '</button>' +
       '<input class="section-name" data-field="name" data-id="' + id + '" type="text" placeholder="e.g. Job – Chapter 2" value="' + escAttr(s.name) + '" aria-label="Audio guide name">' +
       (isCollapsed && sectionMeta(s) ? '<span class="section-meta">' + esc(sectionMeta(s)) + '</span>' : '') +
+      scriptBadge(s) +
       '<span class="chip ' + chipClass(s) + '"' + (clock ? ' data-ts="' + Number(clock.ts) + '" data-prefix="' + escAttr(clock.prefix) + '"' : '') + '>' + esc(statusLabel(s)) + '</span>' +
       '<button type="button" class="icon-btn" data-action="remove-section" data-id="' + id + '" aria-label="Remove this guide" title="Remove this guide">−</button>' +
       '</div>';
@@ -373,6 +374,7 @@
       '</div>' +
       (loading ? renderSkeleton() :
         renderPull() +
+        renderScriptSummary() +
         renderOverview() +
         '<div class="sections">' + state.sections.map(renderSectionSafe).join('') + '</div>' +
         '<footer class="conclude-bar">' +
@@ -422,13 +424,16 @@
     var s = findSection(id), el = root.querySelector('[data-section="' + id + '"]');
     if (!s || !el) { paint(); return; }
     var f = captureFocus(); el.outerHTML = renderSectionSafe(s); restoreFocus(f);
+    paintScriptSummary();                              // one card changing can change the book's count of written scripts
   }
   function paintStatus() {
     var el = root.querySelector('.status-line'); if (el) el.textContent = statusSummary();
+    paintScriptSummary();
     var sv = document.getElementById('save-state');
     if (sv) { var label = saveStateLabel(); sv.textContent = label; sv.classList.toggle('is-saving', label === 'Saving…'); }
   }
   function paintChipOnly(s) {
+    paintScriptBadge(s);
     var card = root.querySelector('[data-section="' + s.id + '"]');
     var chip = card && card.querySelector('.chip');
     if (chip) {

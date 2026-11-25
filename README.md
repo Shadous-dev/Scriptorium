@@ -73,6 +73,12 @@ Each audio guide moves through four stages, and each has one name:
    uses that Descript is likely to mangle.
 3. **Check the match.** Each card says which written script it is matched to,
    and how: by title, by wording, or both. **Change** picks another, or none.
+   A badge beside each guide's stage says the same at a glance, even when the
+   card is folded: **Script used** (the edit pass compared the transcript with
+   that written script), **Script not used yet** (one is matched, but the edit
+   pass ran without it: **Redo this one** uses it), **Script ready** (matched,
+   not edited yet), or **No script**. Rest the pointer on a badge for the
+   detail. A line above the guides counts how many stand in each.
 4. **Run the edit pass.** Each transcript is corrected for punctuation,
    capitalization, run-on sentences, and misheard names — *without* changing
    the speaker's wording, meaning, tone, or intent. Stage cues and pause marks
@@ -343,6 +349,7 @@ test/
   glossary.test.js         checks the glossary: nothing takes effect before a person approves it, and no word is swapped in by the page (4.12)
   many-files.test.js       checks each kind of file and bringing in many at once
   export.test.js           checks the PDF and web-page downloads: every word in order, and a well-formed PDF
+  script-status.test.js    checks the badge and count that say whether a written script was used (4.9)
   whole-page.js            not a test: loads the whole page against a stand-in store, for the two files above
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
@@ -375,6 +382,7 @@ node test/store-safety.test.js  # check security, save order and storage limits,
 node test/glossary.test.js    # check the glossary (4.12)
 node test/many-files.test.js  # check each kind of file, and many at once
 node test/export.test.js      # check the PDF and web-page downloads
+node test/script-status.test.js  # check the written-script badge and count
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.
