@@ -2,7 +2,7 @@
 
 ## 1.6.1 — the Glossary's waiting list in two parts (2026-11-25)
 
-Not yet published. No rule changes: this is how the list is shown, not what a term does.
+Published 2026-11-25. No rule changes: this is how the list is shown, not what a term does.
 
 - **Waiting for approval** now holds only words a guide showed being misheard. Its count is of those.
 - **Names seen in written scripts** are folded away beneath it, with their own "select all". They were the bulk of the old list, and approving them is optional: a term that is not approved has no effect, and a guide with its written script attached already shows the edit pass those names. The same Approve and Not a term buttons work on them.

@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.6.0, published 2026-11-25. Version 1.6.1 is in this repository and not yet published. It opens for members of the Through the Word organization on
+version 1.6.1, published 2026-11-25. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -444,6 +444,7 @@ was published from. `git show v1.0.0:dist/index.html` gets you back to it.
 
 | Tag | What it is |
 |---|---|
+| `v1.6.1` | The Glossary's waiting list in two parts: misheard words to approve, and names from written scripts folded away. Published 2026-11-25. |
 | `v1.6.0` | The Final Transcripts as a PDF or a web page, for the book or for each guide, and a badge on every guide saying whether a written script was used. Published 2026-11-25. |
 | `v1.5.0` | A glossary that learns only what a person approves, written scripts from many files at once (Word, PDF, OpenDocument, rich text, plain text), and a build that refuses a page that does not parse. Published 2026-11-24. |
 | `v1.4.0` | A tab for each guide in one Google Doc, caption files by kind, written scripts in bulk from Google Drive, and the fixes from a security, consistency and storage review. Published 2026-11-24. |
