@@ -4,7 +4,7 @@
 
 `SOURCE-OF-TRUTH.md` was amended first, each time in its own commit. None of this calls Claude (4.6) or touches Google Drive. The artifact's connector list does not change.
 
-Not yet published.
+Published 2026-11-25.
 
 - **Download the Final Transcripts**, at the foot of a book: as a **PDF** or a **web page (.html)**, and as **one file for the whole book** or **one file for each guide** in a `.zip`. Only Final Transcripts go in. The message after a download says how many were saved and how many guides not yet approved were left out.
 - **The PDF is written by the page itself**, with no library to fetch: the guide's name as a heading, its paragraphs, each quoted verse bold and set in with its reference, the guide's name and a page number at the foot. US Letter, Helvetica. A whole book's PDF starts each guide on a new page and carries an outline to jump by.
