@@ -61,6 +61,11 @@ count as Final: what was approved is no longer what Descript has.
   (`.html`), as one file for the whole book or one file for each guide. Only
   a Final Transcript goes in, laid out as section 6 describes. The files are
   made by the page: nothing here calls Claude (4.6) or touches Google Drive.
+- Sending a book's files to one Google Drive folder in one go: the reader
+  ticks the kinds wanted (the Google Doc, `.srt`, `.vtt`, PDF, web page) and
+  names the folder, and every file lands there together (4.11). The Google
+  Doc, the PDF and the web page hold Final Transcripts only. Caption files do
+  not wait for approval, here as elsewhere.
 - Timed caption files (`.srt` and `.vtt`) for each audio guide: the corrected
   transcript carried on Descript's own timings, so every word of every guide can
   be found by search. A whole book's caption files come down in one download,
@@ -225,8 +230,12 @@ or ESV wording.
 Docs.**
 The tool may list a folder and read a file in Google Drive to bring in a
 written script. It may create a new Doc or folder, and write into a Doc it
-has created in that same run. It never edits, moves, renames, shares or
-deletes a file it did not just create. A written script is read once and
+has created in that same run. It may also put new files into one Drive folder
+the reader points at, or one it makes for the purpose: the book's Google Doc,
+its caption files, and its Final Transcripts as a PDF or a web page, so that
+everything for a book sits in one place. Each is a new file. It never edits,
+moves, renames, shares or deletes a file it did not just create, so sending a
+book twice leaves two copies and replaces nothing. A written script is read once and
 kept in the library; bringing the same file in again replaces the kept copy.
 None of this calls Claude, so none of it costs anything (4.6).
 
@@ -350,7 +359,7 @@ Things that are deliberately *not* in the tool, and why:
 | Rewriting or improving prose | See 4.1 — that is a different tool. |
 | Audio processing, transcription, or re-timing | Descript does the listening and the timing. The tool works on Descript's text and Descript's timings (4.7). |
 | Writing to Descript | See 4.8. Reading is in scope; changing a project is not. |
-| Changing a file already in Google Drive | See 4.11. The tool reads what it is pointed at and writes only into a Doc it has just made. |
+| Changing a file already in Google Drive | See 4.11. The tool reads what it is pointed at and writes only into a Doc it has just made. It adds new files to a folder; it never replaces one that is there. |
 | Word-by-word timings | Descript's captions are timed per caption, not per word. The tool does not estimate timings it was not given (4.7). |
 | Metadata, summaries, plan ads | Those live in the per-book metadata Google Doc, not here. |
 | Making a transcript match the written script | See 4.9. The teacher did not read it out word for word. |
