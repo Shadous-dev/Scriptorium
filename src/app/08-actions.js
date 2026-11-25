@@ -127,6 +127,7 @@
     s.approvedAt = Date.now(); touchBook();
     paint();
     saveSection(id).then(saveMeta);
+    learnFromGuide(s);                          // 4.12: what this guide showed is written down, for a person to approve later
   }
   function unapproveSection(id) {
     var s = findSection(id);

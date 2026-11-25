@@ -223,7 +223,10 @@
     }
     return prev[b.length];
   }
-  function listedNames() { return String(state.wordsToSearchFor || '').split(/[,\n;]+/).map(lettersOf).filter(function (n) { return n.length >= 2; }); }
+  // The book's own Words to Search For, as letters only.
+  function listedWords() { return String(state.wordsToSearchFor || '').split(/[,\n;]+/).map(lettersOf).filter(function (n) { return n.length >= 2; }); }
+  // Every name the wording check counts as listed: the book's own, and the terms a person approved for the glossary (4.12).
+  function listedNames() { return listedWords().concat(glossaryNames()); }
 
   // Could Descript have heard one as the other? `listed` is the reader's Words to Search For, as letters only.
   function soundsAlike(a, b, listed) {
@@ -248,7 +251,8 @@
 
   // Why an edit may not be applied, or '' when it may. `text` is the transcript the edit was written against.
   // Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled, so the swap is shown where a reader looks for it.
-  function wordingProblem(e, text, listed) {
+  // `own` is the book's Words to Search For without the glossary: a swap only the glossary allows is marked, so its row can say so (4.4).
+  function wordingProblem(e, text, listed, own) {
     var find = String((e && e.find) || ''), repl = String((e && e.replace) || '');
     if (wordingKey(find) === wordingKey(repl)) return '';
     if (!repl.trim() && isLabelLine(find, text)) return '';
@@ -260,7 +264,9 @@
       if (problem || (toA - pa <= 1 && toB - pb <= 1)) return;
       var was = a.slice(pa + 1, toA).join(' '), now = b.slice(pb + 1, toB).join(' ');
       if (wordingKey(was) === wordingKey(now)) return;
-      if (soundsAlike(was, now, listed)) { swapsSound = true; return; }
+      var known = glossaryAllows(was, now);                            // 4.12: a pair a person approved counts as sounding the same
+      if (known || soundsAlike(was, now, own || listed)) { swapsSound = true; if (known) e.gloss = true; return; }
+      if (own && soundsAlike(was, now, listed)) { swapsSound = true; e.gloss = true; return; }
       problem = !wordingKey(was) ? 'adds words the speaker did not say' : !wordingKey(now) ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
     }
     pairs.forEach(function (p) { check(p[0], p[1]); pa = p[0]; pb = p[1]; });
@@ -269,14 +275,20 @@
     return problem;
   }
   function guardEdits(edits, text) {
-    var ok = [], held = [], listed = listedNames();
+    var ok = [], held = [], own = listedWords(), listed = own.concat(glossaryNames());
     (edits || []).forEach(function (e) {
       if (!e || typeof e !== 'object') return;
-      var why = wordingProblem(e, text, listed);
+      delete e.gloss;                                                  // only the page may say the glossary supported a change
+      var why = wordingProblem(e, text, listed, own);
       // 4.9: where the written script and the transcript differ in wording, the transcript stays as spoken and the difference names its source.
       if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'),
                            note: (e.source === 'script' ? 'the written script reads this way; ' : '') + why + (e.note ? ' — ' + String(e.note) : '') });
-      else ok.push(e);
+      else {
+        // 4.4, 4.12: a change the glossary supported says so in its row.
+        if (e.gloss) e.note = (e.note ? String(e.note) + ' — ' : '') + 'known from the glossary';
+        ok.push(e);
+      }
+      delete e.gloss;
     });
     return { ok: ok, held: held };
   }
@@ -337,7 +349,10 @@
     if (written && written.error) { writtenNote = written.error; written = null; }
     if (written && !String(written.text || '').trim()) written = null;
     var prepared = fixCapitals(fixNames(fixReferences(mechanics(rawAtStart, local), local), local), local, true);
-    return sample.json(buildEditsPrompt(s, prepared, written ? written.text : ''), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
+    // 4.12: the approved glossary terms that bear on this guide travel in the same one call (4.6).
+    var gloss = { names: [], hints: [] };
+    try { gloss = glossaryFor(s, prepared); } catch (err) { console.warn('Scriptorium: the glossary could not be used for this guide', err); }
+    return sample.json(buildEditsPrompt(s, prepared, written ? written.text : '', gloss), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
       var proposed = (Array.isArray(data.edits) ? data.edits : []).filter(function (e) { return e && typeof e === 'object'; });
       proposed.forEach(function (e) { if (!written || e.source !== 'script') delete e.source; });
@@ -404,7 +419,7 @@
         editControllers.push(ctl);
         item.status = 'editing'; item.error = null;
         paintSection(item.id); paintStatus();
-        return writtenFor(item).then(function (written) { return runEditOnSection(item, sample, ctl.signal, false, written); }).then(function () {
+        return freshGlossary().then(function () { return writtenFor(item); }).then(function (written) { return runEditOnSection(item, sample, ctl.signal, false, written); }).then(function () {
           editControllers = editControllers.filter(function (c) { return c !== ctl; });
           if (item.status === 'error' && item.error === '__stopped__') stoppedFlag = true;
           editState.done += 1;
@@ -436,7 +451,7 @@
       var ctl = new AbortController();
       editControllers.push(ctl);
       s.status = 'editing'; paintSection(id);
-      return writtenFor(s).then(function (written) { return runEditOnSection(s, sample, ctl.signal, false, written); }).then(function () {
+      return freshGlossary().then(function () { return writtenFor(s); }).then(function (written) { return runEditOnSection(s, sample, ctl.signal, false, written); }).then(function () {
         editControllers = editControllers.filter(function (c) { return c !== ctl; });
         paint();
         return saveSection(s.id).then(saveMeta);

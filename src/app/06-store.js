@@ -26,7 +26,7 @@
   var dbRoot = null;           // the store itself, once it can be reached
   var dbApi = null;            // the store, but only while a book is open and loaded — the gate for every write to it
   var dbStatus = 'loading';    // loading | ready | unavailable
-  var view = 'library';        // library | book | written
+  var view = 'library';        // library | book | written | glossary
   var bookId = null;           // the open book
   var library = [];            // [{ id, title, scripts, edited, finals, at }], most recently worked on first
   var deletingBook = null;
@@ -321,6 +321,7 @@
       dbStatus = 'ready'; prefSet('book', id);
       paint();
       loadWrittenIndex().then(paint);                     // the written scripts, re-read so a teammate's new one can be matched
+      loadGlossary().then(paint);                         // and the glossary, so a term approved since counts in the next edit pass (4.12)
     }).catch(function (err) {
       console.warn('Scriptorium: could not open book', err);
       return showLibrary('Couldn’t open that book just now — try again.');
@@ -408,6 +409,7 @@
         .then(loadLibrary)
         .then(function () {
           loadWrittenIndex().then(function () { if (view !== 'book' || dbStatus === 'ready') paint(); });
+          loadGlossary().then(function () { if (view === 'library') paint(); });
           var last = prefGet('book', null);
           if (last && library.some(function (b) { return b.id === last; })) return openBook(last);
           dbStatus = 'ready'; view = 'library'; paint();

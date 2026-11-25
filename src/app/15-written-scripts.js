@@ -145,14 +145,18 @@
     var place = placeOf(d.title);
     return { id: id, title: String(d.title || ''), book: place.book, chapter: place.chapter, part: place.part, chars: Number(d.chars) || 0, at: Number(d.at) || 0,
              source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''), sourceId: String(d.sourceId || ''),
-             sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [] };
+             sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [],
+             // The names found in it, for the glossary (4.12). null on a script kept before the glossary existed: not yet looked at.
+             terms: Array.isArray(d.terms) ? d.terms.filter(function (x) { return typeof x === 'string' && x && x.length <= 40; }).slice(0, WRITTEN_TERMS_MAX) : null };
   }
   // One read returns at most 1,000 documents, and a whole Bible is more written scripts than that. Past the first
   // thousand the listing is read a page at a time, oldest first by the time each was added. If the store will not
   // page (or the paging fails), the first thousand are shown and the page says some are missing.
   var WRITTEN_PAGE = 1000, WRITTEN_PAGES_MAX = 6;
-  function readWrittenListing() {
-    var col = dbRoot.collection('written');
+  function readWrittenListing() { return readListing('written', WRITTEN_PAGES_MAX); }
+  // The same read for any shared list whose documents carry the time they were written as `at`.
+  function readListing(path, pagesMax) {
+    var col = dbRoot.collection(path);
     return col.limit(WRITTEN_PAGE).get().then(function (first) {
       var firstDocs = (first && first.docs) || [];
       if (firstDocs.length < WRITTEN_PAGE) return { docs: firstDocs, more: false };
@@ -167,7 +171,7 @@
             if (!seen[d.id]) { seen[d.id] = true; all.push(d); fresh += 1; }
           });
           if (docs.length < WRITTEN_PAGE) return { docs: all, more: false };
-          if (!fresh || !last || turn >= WRITTEN_PAGES_MAX) return { docs: all, more: true };
+          if (!fresh || !last || turn >= pagesMax) return { docs: all, more: true };
           return page(last, turn + 1);
         });
       }
@@ -176,7 +180,7 @@
         firstDocs.forEach(function (d) { if (!seen[d.id]) { seen[d.id] = true; out.docs.push(d); } });
         return out;
       }, function (err) {
-        console.warn('Scriptorium: could not read past the first 1,000 written scripts', err);
+        console.warn('Scriptorium: could not read past the first 1,000 in ' + path, err);
         return { docs: firstDocs, more: true };
       });
     });
@@ -202,7 +206,7 @@
   /* ---- The Written Scripts page ---- */
 
   function openWritten() {
-    view = 'written'; flash = null; writtenForm = null; writtenOpen = null; writtenQuery = ''; dbStatus = 'loading';
+    view = 'written'; flash = null; writtenForm = null; writtenOpen = null; writtenFiles = null; writtenQuery = ''; dbStatus = 'loading';
     paint();
     function done() { dbStatus = 'ready'; paint(); }
     return loadWrittenIndex().then(done, done);
@@ -251,8 +255,8 @@
       '<div class="written-row"><input id="written-link" class="written-input" data-wfield="link" type="text" placeholder="Paste the link to the Doc or Sheet" value="' + escAttr(f.link) + '"' + dis + '>' +
       '<button type="button" class="btn" data-action="written-fetch"' + dis + '>' + (f.busy === 'drive' ? 'Reading…' : 'Bring it in') + '</button></div>' +
       '<label class="written-label" for="written-file">From a file on this computer</label>' +
-      '<input id="written-file" class="written-file" data-action="written-file" type="file" accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"' + dis + '>' +
-      '<p class="hint">A Word file (.docx) or a text file (.txt). For anything else — a PDF, Pages, an older .doc — open it and paste the text below.</p>' +
+      '<input id="written-file" class="written-file" data-action="written-file" type="file" accept="' + FILE_ACCEPT + '"' + dis + '>' +
+      '<p class="hint">Word (.docx), PDF, OpenDocument (.odt), rich text (.rtf) or plain text. For a Pages file or an older .doc, export it as Word or PDF first, or paste the text below. To add several files at once, close this and use <strong>Add files from this computer</strong>.</p>' +
       '<label class="written-label" for="written-text">The written script</label>' +
       '<textarea id="written-text" class="written-text-box" data-wfield="text" rows="12" placeholder="Or paste the written script here"' + dis + '>' + esc(f.text) + '</textarea>' +
       '<p class="hint written-count">' + esc(writtenFormNote()) + '</p>' +
@@ -275,7 +279,7 @@
       '</section>';
   }
   function renderWritten() {
-    var loading = dbStatus === 'loading', n = writtenIndex.length;
+    var loading = dbStatus === 'loading', n = writtenIndex.length, panelOpen = !!(writtenForm || writtenBulk || writtenFiles);
     return (
       '<div class="wrap">' +
       '<p class="back-line"><button type="button" class="link-btn" data-action="go-library">← All books</button></p>' +
@@ -286,13 +290,16 @@
       '</header>' +
       noticeHtml() +
       '<div class="action-bar">' +
-      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || writtenForm || writtenBulk ? ' disabled' : '') + '>+ Add Written Script</button>' +
-      '<button type="button" class="btn" data-action="written-bulk"' + (loading || writtenForm || writtenBulk ? ' disabled' : '') + ' title="Every file in a Google Drive folder, or a Doc that holds several written scripts">Bring in many from Google Drive</button></div>' +
+      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || panelOpen ? ' disabled' : '') + '>+ Add Written Script</button>' +
+      '<label class="btn file-btn' + (loading || panelOpen ? ' is-disabled' : '') + '" title="Any number of Word, PDF, OpenDocument, rich-text or plain-text files, each kept under its own title">' +
+      '<input type="file" multiple data-action="written-files" accept="' + FILE_ACCEPT + '"' + (loading || panelOpen ? ' disabled' : '') + '>Add files from this computer</label>' +
+      '<button type="button" class="btn" data-action="written-bulk"' + (loading || panelOpen ? ' disabled' : '') + ' title="Every file in a Google Drive folder, or a Doc that holds several written scripts">Bring in many from Google Drive</button></div>' +
       '<p class="status-line">' + (loading ? 'Loading the written scripts…' : n + ' written script' + plural(n)) + '</p>' +
       '<div class="action-bar-end"><input class="written-search" data-wfield="query" type="search" placeholder="Search by title, book or chapter" aria-label="Search written scripts" value="' + escAttr(writtenQuery) + '"' + (loading ? ' disabled' : '') + '></div>' +
       '</div>' +
       (writtenForm ? renderWrittenForm() : '') +
       (writtenBulk ? renderWrittenBulk() : '') +
+      (writtenFiles ? renderWrittenFiles() : '') +
       (writtenOpen ? renderWrittenOpen() : '') +
       (loading ? renderSkeleton() : '<div id="written-list">' + renderWrittenList() + '</div>') +
       versionLine() +
@@ -311,7 +318,7 @@
   }
   function writtenFail(message) { if (writtenForm) { writtenForm.busy = ''; writtenForm.error = message; paint(); } }
   // A title to start from, when the reader has not typed one: the file or Doc's name without its ending.
-  function titleFromName(name) { return String(name || '').replace(/\.(docx|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function titleFromName(name) { return String(name || '').replace(/\.(docx|pdf|odt|rtf|doc|pages|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
   // A written script as it is kept: one kind of line ending, no trailing spaces, no run of blank lines.
   function cleanWritten(text) { return trimLineEnds(tameSpaces(text || '').replace(/\r\n?/g, '\n')).replace(/\n{3,}/g, '\n\n').trim(); }
   function takeWrittenText(text, source, name, sourceId) {
@@ -668,21 +675,339 @@
       return docxXmlToText(new TextDecoder().decode(part));
     });
   }
+  /* ---- Other kinds of file: OpenDocument, rich text, PDF ---- */
+
+  // Takes every <tag …>…</tag> block out of a run of XML, in one pass. A longer tag that starts the same way
+  // (annotation-end beside annotation) is left alone.
+  function cutBlocks(text, tag) {
+    var open = '<' + tag, close = '</' + tag + '>', out = '', from = 0, look = 0, a, b, c;
+    while ((a = text.indexOf(open, look)) !== -1) {
+      c = text.charAt(a + open.length);
+      if (c !== '>' && c !== ' ' && c !== '\n' && c !== '\t') { look = a + open.length; continue; }
+      b = text.indexOf(close, a);
+      if (b === -1) break;
+      out += text.slice(from, a); from = look = b + close.length;
+    }
+    return out + text.slice(from);
+  }
+  // The words of an OpenDocument text file (.odt): one line per paragraph or heading. Text deleted with tracked
+  // changes, and comments, are left out.
+  function odtXmlToText(xml) {
+    var body = String(xml).replace(/^[\s\S]*?<office:text[^>]*>/, '');
+    body = cutBlocks(cutBlocks(body, 'text:tracked-changes'), 'office:annotation');
+    return xmlText(body.replace(/<text:s\b[^>]*\/>/g, ' ').replace(/<text:tab\b[^>]*\/>/g, '\t').replace(/<text:line-break\b[^>]*\/>/g, '\n')
+      .replace(/<\/text:(?:p|h)>/g, '\n').replace(/<[^>]+>/g, ''));
+  }
+  function odtText(buffer) {
+    return zipEntry(new Uint8Array(buffer), 'content.xml').then(function (part) {
+      if (!part) throw { code: 'empty' };
+      return odtXmlToText(new TextDecoder().decode(part));
+    });
+  }
+
+  // Rich text (.rtf). The file is plain characters with commands in it: \par ends a paragraph, \'92 is one
+  // character by its number, 舗 is one by its Unicode number with a stand-in after it for old readers.
+  // Whole groups that are not the text (fonts, colours, styles, pictures, headers) are skipped.
+  var RTF_SKIP = /^(fonttbl|colortbl|stylesheet|info|pict|header|headerl|headerr|headerf|footer|footerl|footerr|footerf|footnote|generator|listtable|listoverridetable|rsidtbl|themedata|colorschememapping|latentstyles|datastore|object|objdata|fldinst|xmlnstbl|pgdsctbl|filetbl|revtbl|annotation|atnid|atnauthor|shppict|nonshppict|pntext|listtext)$/;
+  var RTF_CHARS = { emdash: '—', endash: '–', lquote: '‘', rquote: '’', ldblquote: '“', rdblquote: '”', bullet: '•', emspace: ' ', enspace: ' ' };
+  var CP1252 = [0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F,
+                0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178];
+  function cp1252(byte) { return isNaN(byte) ? '' : String.fromCharCode(byte >= 0x80 && byte < 0xA0 ? CP1252[byte - 0x80] : byte); }
+  function rtfText(bytes) {
+    var src = '', i, n;
+    for (i = 0; i < bytes.length; i += 8192) src += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    if (src.slice(0, 5) !== '{\\rtf') throw { code: 'empty' };
+    var out = '', stack = [], skip = false, uc = 1, pending = 0, c, d, m, word, arg, top;
+    n = src.length; i = 0;
+    function ch(text) { if (pending > 0) { pending -= 1; return; } if (!skip) out += text; }   // one character of the text
+    function emit(text) { if (!skip) out += text; }                                            // a break: never a stand-in
+    while (i < n) {
+      c = src.charAt(i);
+      if (c === '{') { stack.push({ skip: skip, uc: uc }); i += 1; continue; }
+      if (c === '}') { top = stack.pop(); if (top) { skip = top.skip; uc = top.uc; } pending = 0; i += 1; continue; }
+      if (c !== '\\') { if (c !== '\n' && c !== '\r') ch(c); i += 1; continue; }
+      d = src.charAt(i + 1);
+      if (d === '\\' || d === '{' || d === '}') { ch(d); i += 2; continue; }
+      if (d === "'") { ch(cp1252(parseInt(src.substr(i + 2, 2), 16))); i += 4; continue; }
+      if (d === '~') { ch(' '); i += 2; continue; }
+      if (d === '_') { ch('-'); i += 2; continue; }
+      if (d === '*') { skip = true; i += 2; continue; }                      // a group an older reader may ignore: not the text
+      if (d === '\n' || d === '\r') { emit('\n'); i += 2; continue; }
+      m = /^([a-zA-Z]+)(-?\d+)? ?/.exec(src.substr(i + 1, 40));
+      if (!m) { i += 2; continue; }                                         // some other one-character command
+      word = m[1]; arg = m[2] == null ? null : Number(m[2]); i += 1 + m[0].length;
+      if (RTF_SKIP.test(word)) { skip = true; continue; }
+      if (word === 'par' || word === 'line' || word === 'sect' || word === 'page' || word === 'row') emit('\n');
+      else if (word === 'tab' || word === 'cell') emit('\t');
+      else if (word === 'uc') uc = arg == null ? 1 : Math.max(0, arg);
+      else if (word === 'u' && arg != null) { pending = 0; emit(String.fromCharCode(arg < 0 ? arg + 65536 : arg)); pending = uc; }
+      else if (RTF_CHARS[word]) ch(RTF_CHARS[word]);
+    }
+    return out;
+  }
+
+  // PDF. Reading one takes a library, pdf.js, which is fetched only when a PDF is first chosen. Its second half
+  // is meant to run as a worker; the viewer does not let a page start a worker from another site, so that half
+  // is loaded into the page itself, which pdf.js then uses in place of a worker.
+  var PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/', PDF_PAGES_MAX = 400, pdfLib = null;
+  function loadScript(url) {
+    return new Promise(function (resolve, reject) {
+      var el = document.createElement('script'), timer = setTimeout(function () { reject({ code: 'pdf_lib' }); }, 30000);
+      el.src = url; el.async = true;
+      el.onload = function () { clearTimeout(timer); resolve(); };
+      el.onerror = function () { clearTimeout(timer); reject({ code: 'pdf_lib' }); };
+      document.head.appendChild(el);
+    });
+  }
+  function loadPdfLib() {
+    if (!pdfLib) {
+      pdfLib = loadScript(PDF_LIB + 'pdf.min.js').then(function () { return loadScript(PDF_LIB + 'pdf.worker.min.js'); }).then(function () {
+        if (!window.pdfjsLib || !window.pdfjsWorker) throw { code: 'pdf_lib' };
+        return window.pdfjsLib;
+      }).catch(function (err) { pdfLib = null; console.warn('Scriptorium: the PDF reader could not be loaded', err); throw { code: 'pdf_lib' }; });
+    }
+    return pdfLib;
+  }
+  // One page's words. A PDF holds lines, not paragraphs: lines that follow closely are run together, and a
+  // wider gap starts a new paragraph. A word broken across two lines with a hyphen keeps its hyphen.
+  function pdfPageText(items) {
+    var paras = [], cur = '', lastY = null, lastH = 0;
+    (items || []).forEach(function (it) {
+      var str = String(it && it.str != null ? it.str : ''), y = it && it.transform ? Number(it.transform[5]) : NaN, h = Number(it && it.height) || lastH || 10;
+      if (!str.trim()) { if (str && cur && !/\s$/.test(cur.slice(-1))) cur += ' '; return; }
+      if (lastY != null && !isNaN(y) && Math.abs(y - lastY) > Math.min(h, lastH || h) * 0.5) {
+        if (Math.abs(y - lastY) > Math.max(h, lastH) * 1.75) { paras.push(cur); cur = ''; }
+        else if (cur && !(cur.slice(-1) === '-' && /^\p{Ll}/u.test(str))) cur = cur.trimEnd() + ' ';
+      }
+      cur += str;
+      if (!isNaN(y)) { lastY = y; lastH = h; }
+    });
+    paras.push(cur);
+    return paras.map(function (p) { return p.trim(); }).filter(Boolean).join('\n\n');
+  }
+  function pdfText(buffer) {
+    return loadPdfLib().then(function (lib) {
+      return lib.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false, disableFontFace: true, useSystemFonts: false, useWorkerFetch: false }).promise;
+    }).then(function (doc) {
+      var out = [], n = Math.min(Number(doc.numPages) || 0, PDF_PAGES_MAX), i = 0;
+      function next() {
+        if (i >= n) return Promise.resolve();
+        i += 1;
+        return doc.getPage(i).then(function (page) { return page.getTextContent(); }).then(function (tc) { out.push(pdfPageText(tc && tc.items)); }).then(next);
+      }
+      return next().then(function () {
+        try { doc.destroy(); } catch (e) {}
+        var text = out.filter(Boolean).join('\n\n');
+        if (text.replace(/[^\p{L}]/gu, '').length < 20) throw { code: 'scanned' };   // pictures of pages: no words to read
+        return text;
+      });
+    });
+  }
+
+  /* ---- Reading any file the page can read ---- */
+
+  var FILE_ACCEPT = '.docx,.pdf,.odt,.rtf,.txt,.md,text/plain,text/markdown,application/pdf,application/rtf,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  var WRITTEN_PDF_MAX = 30000000;    // bytes of a PDF read from the computer (most of a PDF is not its words)
+  var WRITTEN_FILES_MAX = 100;       // files read in one go
+  function fileKind(file) {
+    var name = String((file && file.name) || '').toLowerCase(), type = String((file && file.type) || ''), m = /\.([a-z0-9]+)$/.exec(name), ext = m ? m[1] : '';
+    if (ext === 'docx' || ext === 'odt' || ext === 'rtf' || ext === 'pdf' || ext === 'doc' || ext === 'pages') return ext;
+    if (ext === 'txt' || ext === 'md' || ext === 'markdown' || ext === 'text' || /^text\//.test(type)) return 'text';
+    return type === 'application/pdf' ? 'pdf' : '';
+  }
+  // The words of one file, read in the page. Nothing here calls Claude (4.6).
+  function readFileText(file) {
+    var kind = fileKind(file);
+    if (!kind) return Promise.reject({ code: 'kind' });
+    if (kind === 'doc' || kind === 'pages') return Promise.reject({ code: kind });
+    if (file.size > (kind === 'pdf' ? WRITTEN_PDF_MAX : WRITTEN_FILE_MAX)) return Promise.reject({ code: 'big' });
+    if (kind === 'text') return file.text();
+    return file.arrayBuffer().then(function (buf) {
+      return kind === 'docx' ? docxText(buf) : kind === 'odt' ? odtText(buf) : kind === 'rtf' ? rtfText(new Uint8Array(buf)) : pdfText(buf);
+    });
+  }
+  // Why a file was not read, as the end of a sentence that starts with its name.
+  function fileProblem(err) {
+    var code = err && err.code;
+    if (code === 'kind') return 'is a kind of file that can’t be read here. Use Word (.docx), PDF, OpenDocument (.odt), rich text (.rtf) or plain text';
+    if (code === 'doc') return 'is an older Word file (.doc). Open it and save it as .docx or PDF';
+    if (code === 'pages') return 'is a Pages file. Export it from Pages as Word or PDF';
+    if (code === 'big') return 'is too large to read here';
+    if (code === 'scanned') return 'is a scanned PDF: pictures of pages, with no text in it to read';
+    if (code === 'pdf_lib') return 'is a PDF, and the PDF reader couldn’t be loaded in this view';
+    if (code === 'long') return 'is too long to keep in one piece. Save it as two files';
+    if (code === 'empty') return 'had nothing in it that could be read';
+    return 'couldn’t be read';
+  }
   function readWrittenFile(file) {
     if (!writtenForm || !file) return;
     var name = String(file.name || '');
-    if (file.size > WRITTEN_FILE_MAX) { writtenFail('That file is too large to read here. Open it and paste the text in instead.'); return; }
     writtenForm.busy = 'file'; writtenForm.error = ''; paint();
-    var reading;
-    if (/\.docx$/i.test(name)) reading = file.arrayBuffer().then(docxText);
-    else if (/\.(txt|md|markdown|text)$/i.test(name) || /^text\//.test(file.type || '')) reading = file.text();
-    else reading = Promise.reject({ code: 'kind' });
-    reading.then(function (text) { takeWrittenText(text, 'file', name); }, function (err) {
+    Promise.resolve().then(function () { return readFileText(file); }).then(function (text) { takeWrittenText(text, 'file', name); }, function (err) {
       console.warn('Scriptorium: could not read the file', err);
-      writtenFail((err && err.code === 'kind')
-        ? 'That kind of file can’t be read here. Use a Word file (.docx) or a text file (.txt), or open it and paste the text in below.'
-        : 'That file couldn’t be read. If it is a Word file, open it and paste the text in below.');
+      writtenFail('“' + name + '” ' + fileProblem(err) + '. Or open it and paste the text in below.');
     });
+  }
+
+  /* ---- Many files from the computer at once ----
+     Any number of files, read here one at a time, each kept as a written script of its own under its own
+     title. The title starts as the file's name and can be changed before anything is saved. A file already in
+     the library is marked and left unticked; ticking it renews the kept text. None of this calls Claude (4.6). ---- */
+
+  var writtenFiles = null;           // { step: reading | review | saving | done, items, progress, error, report }
+  function fileSourceId(name) { return name ? 'file:' + String(name).toLowerCase().slice(0, 180) : ''; }
+  function fileHas(name) {
+    var id = fileSourceId(name);
+    return writtenIndex.filter(function (w) { return w.source === 'file' && (w.sourceId === id || (!w.sourceId && w.sourceName === name)); })[0] || null;
+  }
+  function filesProgress(text) { if (writtenFiles) { writtenFiles.progress = text; var p = root.querySelector('.files-progress'); if (p) p.textContent = text; } }
+  function filesReady(it) { return it.state === 'ready' || it.state === 'have'; }
+  function readWrittenFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList || []), f = writtenFiles;
+    if (!files.length || writtenForm || writtenBulk || (f && (f.step === 'reading' || f.step === 'saving'))) return Promise.resolve();
+    var over = Math.max(0, files.length - WRITTEN_FILES_MAX);
+    files = files.slice(0, WRITTEN_FILES_MAX);
+    f = writtenFiles = { step: 'reading', items: [], progress: 'Reading 1 of ' + files.length + '…', report: null,
+                         error: over ? 'Only the first ' + WRITTEN_FILES_MAX + ' files were taken. Add the other ' + over + ' after these are saved.' : '' };
+    writtenOpen = null; paint();
+    var i = 0;
+    function next() {
+      if (i >= files.length || writtenFiles !== f) return Promise.resolve();
+      var file = files[i], name = String((file && file.name) || 'Untitled'); i += 1;
+      filesProgress('Reading ' + i + ' of ' + files.length + ' — ' + name + '…');
+      return Promise.resolve().then(function () { return readFileText(file); }).then(function (text) {
+        text = cleanWritten(text);
+        if (!text) throw { code: 'empty' };
+        if (text.length > WRITTEN_MAX || jsonBytes({ text: text }) > DOC_MAX_BYTES) throw { code: 'long' };
+        f.items.push({ n: f.items.length, name: name, title: titleFromName(name), text: text, chars: text.length, state: 'ready', why: '', pick: true, old: '' });
+      }).catch(function (err) {
+        console.warn('Scriptorium: could not read a file', err);
+        f.items.push({ n: f.items.length, name: name, title: titleFromName(name), text: '', chars: 0, state: 'failed', why: fileProblem(err), pick: false, old: '' });
+      }).then(next);
+    }
+    // The library is read again first, so a file a teammate has already brought in is marked as here.
+    return loadWrittenIndex().then(next).then(function () {
+      if (writtenFiles !== f) return;
+      f.items.forEach(function (it) {
+        var old = it.state === 'ready' ? fileHas(it.name) : null;
+        if (old) { it.state = 'have'; it.old = old.id; it.title = old.title; it.pick = false; }
+      });
+      f.step = 'review'; paint();
+    });
+  }
+  function filesPicked() { return writtenFiles ? writtenFiles.items.filter(function (it) { return it.pick && filesReady(it); }) : []; }
+  function filesPick(n, on) {
+    var it = writtenFiles && writtenFiles.items[Number(n)];
+    if (!it || !filesReady(it) || writtenFiles.step !== 'review') return;
+    it.pick = !!on; paint();
+  }
+  function fileNote(it) {
+    if (it.state === 'failed') return 'Not read: “' + it.name + '” ' + it.why + '.';
+    if (it.state === 'saved') return 'Saved.';
+    var place = placeLabel(placeOf(it.title));
+    return it.name + ' · ' + it.chars.toLocaleString('en-US') + ' characters · ' + (place ? 'matches guides on ' + place : 'no book and chapter in the title, so matched by its wording alone') +
+      (it.state === 'have' ? ' · already in the library: ticking it renews its text' : '');
+  }
+  function filesTitleTouched(el) {
+    var it = writtenFiles && writtenFiles.items[Number(el.dataset.n)];
+    if (!it) return;
+    it.title = el.value;
+    var note = root.querySelector('.files-note[data-n="' + it.n + '"]'); if (note) note.textContent = fileNote(it);
+  }
+  function saveWrittenFiles() {
+    var f = writtenFiles, picked = filesPicked();
+    if (!f || f.step !== 'review' || !picked.length) return Promise.resolve();
+    var blank = picked.filter(function (it) { return !String(it.title || '').trim(); })[0];
+    if (blank) { f.error = '“' + blank.name + '” needs a title: the book and chapter, such as “Luke 24”.'; paint(); return Promise.resolve(); }
+    if (!dbRoot) { f.error = 'Saved work can’t be reached in this view.'; paint(); return Promise.resolve(); }
+    var report = f.report || (f.report = { files: 0, saved: 0, replaced: 0, split: [], failed: [], stopped: false, halt: false });
+    report.failed = []; report.halt = false; report.stopped = false;
+    f.step = 'saving'; f.error = ''; f.progress = 'Saving 1 of ' + picked.length + '…'; paint();
+    var i = 0;
+    function next() {
+      if (i >= picked.length || writtenFiles !== f || report.halt) { report.stopped = i < picked.length; return Promise.resolve(); }
+      var it = picked[i], title = String(it.title).replace(/\s+/g, ' ').trim(); i += 1;
+      filesProgress('Saving ' + i + ' of ' + picked.length + ' — ' + title + '…');
+      return putWritten(it.old || newWrittenId(), writtenDoc(title, it.text, 'file', it.name, fileSourceId(it.name)), it.text).then(function () {
+        report.files += 1; if (it.old) report.replaced += 1; else report.saved += 1;
+        it.state = 'saved'; it.pick = false; it.text = '';
+      }, function (err) {
+        console.warn('Scriptorium: could not save a written script', err);
+        report.failed.push({ name: title, why: writtenSaveProblem(err) });
+        if (err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded')) report.halt = true;   // the next one would fail the same way
+      }).then(next);
+    }
+    return next().then(function () {
+      if (writtenFiles !== f) return;
+      f.step = f.items.some(filesReady) ? 'review' : 'done'; paint();
+    });
+  }
+  function filesReportText(f) {
+    var out = f.report ? bulkReportText(f.report) : [], unread = f.items.filter(function (it) { return it.state === 'failed'; }).length;
+    if (f.report && f.report.stopped) out[out.length - 1] = 'Stopped before the end. What was saved is kept; the rest are still listed below.';
+    if (unread && f.step !== 'reading') out.push(unread + ' file' + plural(unread) + ' could not be read, and ' + (unread === 1 ? 'is' : 'are') + ' named below with the reason.');
+    return out;
+  }
+  function renderWrittenFiles() {
+    var f = writtenFiles, busy = f.step === 'reading' || f.step === 'saving', n = filesPicked().length, report = filesReportText(f);
+    var list = f.items.length ? '<ul class="pull-list files-list">' + f.items.map(function (it) {
+      var can = filesReady(it) && !busy;
+      return '<li class="files-item' + (it.state === 'failed' ? ' is-failed' : '') + '">' +
+        '<input type="checkbox" data-action="written-files-pick" data-n="' + it.n + '" aria-label="Bring in ' + escAttr(it.name) + '"' + (it.pick ? ' checked' : '') + (can ? '' : ' disabled') + '>' +
+        '<span class="files-main">' +
+        (it.state === 'failed' ? '' : '<input class="written-input" data-ffield="title" data-n="' + it.n + '" type="text" aria-label="Title for ' + escAttr(it.name) + '" value="' + escAttr(it.title) + '"' + (can ? '' : ' disabled') + '>') +
+        '<span class="pull-tag files-note" data-n="' + it.n + '">' + esc(fileNote(it)) + '</span></span></li>';
+    }).join('') + '</ul>' : '';
+    return '<section class="pull-panel written-form">' +
+      '<div class="pull-head"><h3>Add files from this computer</h3>' + (busy ? '' : '<button type="button" class="link-btn" data-action="written-files-close">Close</button>') + '</div>' +
+      '<p class="hint">Each file becomes a written script of its own. Its title starts as the file’s name: change any of them before saving. Start a title with the book and chapter (“Luke 24”) so it finds its audio guide.</p>' +
+      (report.length && !busy ? '<div class="notice bulk-report">' + report.map(function (line) { return '<p>' + esc(line) + '</p>'; }).join('') + '</div>' : '') +
+      (f.error ? '<p class="notice notice-warn">' + esc(f.error) + '</p>' : '') +
+      list +
+      (busy ? '<div class="pull-foot"><p class="hint files-progress">' + esc(f.progress) + '</p></div>' : '') +
+      (f.step === 'review' ? '<div class="pull-foot"><button type="button" class="btn btn-edit" data-action="written-files-save"' + (n ? '' : ' disabled') + '>' + (n ? 'Save ' + n + ' written script' + plural(n) : 'Save ticked') + '</button></div>' : '') +
+      '</section>';
+  }
+
+  /* ---- The names in a written script ----
+     Evidence for the glossary (4.12): words written with a capital in the middle of a sentence and never
+     without one, that the page does not already know as a name or a book of the Bible. Found by the page,
+     proposed on the Glossary page, and of no effect until a person approves them. ---- */
+
+  var WRITTEN_TERMS_MAX = 60, termNotMemo = null;
+  var TERM_NOT = 'i he him his she her you your yours we our us me my they them their thee thou thy thine ' +
+    'god lord jesus christ bible scripture scriptures holy spirit father son savior saviour messiah christian christians christianity jew jews jewish gentile gentiles hebrew hebrews greek greeks roman ' +
+    'israelite israelites word kingdom heaven hell church law gospel gospels temple king queen prophet priest apostle apostles disciple disciples psalm psalmist proverb ' +
+    'sabbath passover pentecost christmas easter amen hallelujah old new testament monday tuesday wednesday thursday friday saturday sunday ' +
+    'january february march april may june july august september october november december mr mrs ms dr st chapter verse verses part introduction conclusion english american ok okay yes no';
+  function termNot() {
+    if (termNotMemo) return termNotMemo;
+    var set = Object.create(null);
+    (TERM_NOT + ' ' + SURE.join(' ') + ' ' + BOOKS.replace(/\|/g, ' ')).toLowerCase().split(/\s+/).forEach(function (w) { w = w.replace(/[^a-z]/g, ''); if (w) set[w] = true; });
+    return (termNotMemo = set);
+  }
+  function writtenTerms(text) {
+    var counts = Object.create(null), lower = Object.create(null), forms = Object.create(null), not = termNot();
+    var wordRe = /\p{L}[\p{L}\p{M}'’-]*/gu, nameRe = /^\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{L}[\p{Ll}\p{M}]*)*$/u;
+    tameSpaces(text || '').split('\n').forEach(function (line) {
+      line = line.trim();
+      if (!line || line.charAt(0) === '#' || line.length > 4000) return;
+      // A short line that does not end like a sentence is a heading, where every word may wear a capital.
+      var heading = line.length < 70 && !/[.!?,;:"”’)]$/.test(line), m, word, key, before;
+      wordRe.lastIndex = 0;
+      while ((m = wordRe.exec(line))) {
+        word = m[0].replace(/['’]s$/i, '').replace(/['’-]+$/, '');
+        key = word.toLowerCase();
+        if (word.length < 2 || word.length > 30) continue;
+        if (word === key) { lower[key] = true; continue; }
+        if (heading || !nameRe.test(word)) continue;
+        before = line.slice(Math.max(0, m.index - 12), m.index).replace(/[\s"“‘'(\[*_]+$/, '');
+        if (!before || /[.!?:…]$/.test(before)) continue;               // the first word of a sentence wears a capital anyway
+        counts[key] = (counts[key] || 0) + 1; forms[key] = word;
+      }
+    });
+    return Object.keys(counts).filter(function (key) { return !lower[key] && !not[key.replace(/[^a-z]/g, '')]; })
+      .sort(function (a, b) { return (counts[b] - counts[a]) || (a < b ? -1 : 1); }).slice(0, WRITTEN_TERMS_MAX).map(function (key) { return forms[key]; });
   }
 
   /* ---- Saving, reading, renaming, deleting ---- */
@@ -698,7 +1023,7 @@
   // brought in again replaces the kept copy rather than adding a second one.
   function writtenDoc(title, text, source, sourceName, sourceId) {
     return { title: title, chars: text.length, at: Date.now(), source: source === 'drive' || source === 'file' ? source : 'paste',
-             sourceName: String(sourceName || '').slice(0, 200), sourceId: String(sourceId || '').slice(0, 200), sketch: textSketch(text) };
+             sourceName: String(sourceName || '').slice(0, 200), sourceId: String(sourceId || '').slice(0, 200), sketch: textSketch(text), terms: writtenTerms(text) };
   }
   // The text first, the listing last: a script that is listed always has its text.
   function putWritten(id, doc, text) {
@@ -726,7 +1051,7 @@
     if (!dbRoot) { writtenFail('Saved work can’t be reached in this view.'); return; }
     f.busy = 'save'; f.error = ''; paint();
     var id = newWrittenId();
-    var doc = writtenDoc(title, text, f.source, f.sourceName, f.source === 'drive' ? f.sourceId : '');
+    var doc = writtenDoc(title, text, f.source, f.sourceName, f.source === 'drive' ? f.sourceId : f.source === 'file' ? fileSourceId(f.sourceName) : '');
     putWritten(id, doc, text).then(function () {
       writtenForm = null;
       var place = placeLabel(placeOf(title));
@@ -753,7 +1078,9 @@
     if (!title) { o.error = 'A written script needs a title.'; paint(); return; }
     if (title === w.title) return;
     o.busy = true; o.error = ''; o.title = title; paint();
-    dbRoot.doc('written/' + w.id).set({ title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sourceId: w.sourceId, sketch: w.sketch }).then(function () {
+    var renamed = { title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sourceId: w.sourceId, sketch: w.sketch };
+    if (w.terms) renamed.terms = w.terms;                       // a new title changes nothing about the names found in the text
+    dbRoot.doc('written/' + w.id).set(renamed).then(function () {
       var place = placeOf(title);
       w.title = title; w.book = place.book; w.chapter = place.chapter; w.part = place.part; writtenStamp += 1;
       o.busy = false; o.title = null; paint();

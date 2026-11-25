@@ -298,7 +298,8 @@
       noticeHtml() +
       '<div class="action-bar">' +
       '<div class="bar-group"><button type="button" class="btn btn-add" data-action="new-book"' + (loading ? ' disabled' : '') + '>+ New Book</button>' +
-      '<button type="button" class="btn" data-action="go-written"' + (loading ? ' disabled' : '') + ' title="What each teacher wrote before recording, kept as a reference">Written Scripts' + (writtenIndex.length ? ' (' + writtenIndex.length + ')' : '') + '</button></div>' +
+      '<button type="button" class="btn" data-action="go-written"' + (loading ? ' disabled' : '') + ' title="What each teacher wrote before recording, kept as a reference">Written Scripts' + (writtenIndex.length ? ' (' + writtenIndex.length + ')' : '') + '</button>' +
+      '<button type="button" class="btn" data-action="go-glossary"' + (loading ? ' disabled' : '') + ' title="Bible names and terms, and the ways Descript has misheard them">Glossary' + (approvedTerms().length ? ' (' + approvedTerms().length + ')' : '') + '</button></div>' +
       '<p class="status-line">' + (loading ? 'Loading the team’s books…' : library.length + ' book' + plural(library.length)) + '</p>' +
       '</div>' +
       (loading ? renderSkeleton() :
@@ -309,7 +310,7 @@
     );
   }
 
-  function renderApp() { return view === 'library' ? renderLibrary() : view === 'written' ? renderWritten() : renderBook(); }
+  function renderApp() { return view === 'library' ? renderLibrary() : view === 'written' ? renderWritten() : view === 'glossary' ? renderGlossary() : renderBook(); }
 
   function renderBook() {
     var loading = dbStatus === 'loading';
@@ -341,7 +342,7 @@
       '</header>' +
       '<details class="tip"><summary>How this works</summary><ol>' +
       '<li>Click <strong>Pull from Descript</strong> and pick the audio guides to bring in. Each gets a card below, with its <strong>1st Draft Transcript</strong> (what Descript heard) and its timed captions. Or paste a transcript into a card by hand — use <strong>+ Add Guide</strong> for as many as the plan needs.</li>' +
-      '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
+      '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>. Terms the team has approved in the <strong>Glossary</strong> (on the front page) are passed along by themselves.</li>' +
       '<li>If the teacher’s <strong>written script</strong> has been added (front page › Written Scripts), each card says which one it is matched to. It is a reference only: evidence for a misheard word, a question mark, or where a sentence ends. The transcript is never changed to match it.</li>' +
       '<li>Click <strong>Edit All Guides</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. The result is the <strong>Edited Transcript</strong>. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished guide is saved on its own, so you can stop and resume anytime.</li>' +
       '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong>.</li>' +
@@ -352,7 +353,7 @@
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
-      '<textarea id="wordsToSearchFor" data-field="wordsToSearchFor" rows="2" placeholder="Elihu, Eliphaz, Zophar, Bildad, Behemoth, Leviathan…"' + dis + '>' + esc(state.wordsToSearchFor) + '</textarea></section>' +
+      '<textarea id="wordsToSearchFor" data-field="wordsToSearchFor" rows="2" placeholder="Elihu, Eliphaz, Zophar, Bildad, Behemoth, Leviathan…"' + dis + '>' + esc(state.wordsToSearchFor) + '</textarea>' + glossaryLine() + '</section>' +
       notice +
       '<div class="action-bar">' +
       '<div class="bar-group">' +

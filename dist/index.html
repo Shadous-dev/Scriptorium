@@ -334,13 +334,59 @@ input:disabled, textarea:disabled { cursor: wait; }
 .bulk-report p { margin: 0; }
 .bulk-progress { flex: 1; min-width: 0; }
 .written-text-box.is-links { min-height: 66px; }
+
+/* Many files from the computer: a button that is really a file box, and the list to check before saving. */
+.file-btn { position: relative; display: inline-flex; align-items: center; cursor: pointer; }
+/* The file box itself is never seen, enabled or not: the label around it is the button. */
+.file-btn input, .action-bar .file-btn input:disabled { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.file-btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.file-btn.is-disabled { cursor: not-allowed; opacity: .45; }
+.file-btn.is-disabled input { cursor: not-allowed; }
+.files-list { max-height: 460px; }
+.files-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; }
+.files-item input[type="checkbox"] { accent-color: var(--ink); margin: 9px 0 0; flex: none; }
+.files-main { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.files-main .written-input { width: 100%; }
+.files-note { overflow-wrap: anywhere; }
+.files-item.is-failed .files-note { color: var(--warn); }
+.files-progress { flex: 1; min-width: 0; margin: 0; }
+
+/* The Glossary page. */
+.gloss-section { display: flex; flex-direction: column; gap: 10px; }
+.gloss-head { margin: 0; font: 600 16px var(--font-body); color: var(--ink); display: flex; align-items: baseline; gap: 8px; }
+.gloss-count { font: 500 12.5px var(--font-mono); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.gloss-section .hint { margin: 0; font-size: 13px; color: var(--ink-soft); max-width: 72ch; }
+.gloss-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.gloss-all { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); cursor: pointer; margin-right: auto; }
+.gloss-all input, .gloss-row input { accent-color: var(--ink); margin: 0; }
+.gloss-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 6px; background: var(--paper-raised); }
+.gloss-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; }
+.gloss-row + .gloss-row { border-top: 1px solid var(--line); }
+label.gloss-row { cursor: pointer; }
+label.gloss-row:hover { background: var(--paper); }
+.gloss-row > input { margin-top: 4px; flex: none; }
+.gloss-main { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.gloss-term { font: 600 14.5px var(--font-body); color: var(--ink); overflow-wrap: anywhere; }
+.gloss-tag { font: 500 12px var(--font-body); color: var(--accent-ink); }
+.gloss-heard-line { font-size: 13px; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.gloss-heard { font-family: var(--font-mono); font-size: 12.5px; color: var(--ink); overflow-wrap: anywhere; }
+.gloss-heard em { font: italic 400 12px var(--font-body); color: var(--warn); }
+.gloss-meta { font-size: 12px; color: var(--ink-faint); }
+.gloss-x { border: none; background: none; padding: 0 3px; cursor: pointer; font: 500 14px var(--font-body); color: var(--ink-faint); border-radius: 3px; }
+.gloss-x:hover:not(:disabled) { color: var(--danger); }
+.gloss-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gloss-turned > summary { cursor: pointer; font: 600 14px var(--font-body); color: var(--ink-soft); }
+.gloss-turned[open] > summary { margin-bottom: 4px; }
+.gloss-add .written-row { flex-wrap: wrap; }
+.gloss-add .written-input { flex: 1 1 220px; min-width: 0; }
+.gloss-line { margin: 8px 0 0 !important; }
 </style>
 <div id="app-root"></div>
 <script type="application/json" id="seed-state">{"bookTitle":"","wordsToSearchFor":"","sections":[{"id":"s1","name":"","raw":"","corrected":"","editedFromRaw":null,"summary":"","changeCount":0,"misheard":[],"nonsensical":[],"status":"draft","error":null,"editedAt":null,"captions":""}],"nextId":2,"overview":"","lastEditAt":null,"approved":false,"docResult":null}</script>
 <script id="app-script">
 (function () {
   var root = document.getElementById('app-root');
-  var VERSION = '1.4.0';       // shown at the foot of the page; matches the git tag it was published from
+  var VERSION = '1.5.0';       // shown at the foot of the page; matches the git tag it was published from
 
   /* ==================================================================
      State
@@ -968,7 +1014,8 @@ input:disabled, textarea:disabled { cursor: wait; }
       noticeHtml() +
       '<div class="action-bar">' +
       '<div class="bar-group"><button type="button" class="btn btn-add" data-action="new-book"' + (loading ? ' disabled' : '') + '>+ New Book</button>' +
-      '<button type="button" class="btn" data-action="go-written"' + (loading ? ' disabled' : '') + ' title="What each teacher wrote before recording, kept as a reference">Written Scripts' + (writtenIndex.length ? ' (' + writtenIndex.length + ')' : '') + '</button></div>' +
+      '<button type="button" class="btn" data-action="go-written"' + (loading ? ' disabled' : '') + ' title="What each teacher wrote before recording, kept as a reference">Written Scripts' + (writtenIndex.length ? ' (' + writtenIndex.length + ')' : '') + '</button>' +
+      '<button type="button" class="btn" data-action="go-glossary"' + (loading ? ' disabled' : '') + ' title="Bible names and terms, and the ways Descript has misheard them">Glossary' + (approvedTerms().length ? ' (' + approvedTerms().length + ')' : '') + '</button></div>' +
       '<p class="status-line">' + (loading ? 'Loading the team’s books…' : library.length + ' book' + plural(library.length)) + '</p>' +
       '</div>' +
       (loading ? renderSkeleton() :
@@ -979,7 +1026,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     );
   }
 
-  function renderApp() { return view === 'library' ? renderLibrary() : view === 'written' ? renderWritten() : renderBook(); }
+  function renderApp() { return view === 'library' ? renderLibrary() : view === 'written' ? renderWritten() : view === 'glossary' ? renderGlossary() : renderBook(); }
 
   function renderBook() {
     var loading = dbStatus === 'loading';
@@ -1011,7 +1058,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</header>' +
       '<details class="tip"><summary>How this works</summary><ol>' +
       '<li>Click <strong>Pull from Descript</strong> and pick the audio guides to bring in. Each gets a card below, with its <strong>1st Draft Transcript</strong> (what Descript heard) and its timed captions. Or paste a transcript into a card by hand — use <strong>+ Add Guide</strong> for as many as the plan needs.</li>' +
-      '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>.</li>' +
+      '<li>List any names or terms Descript’s AI likely misheard under <strong>Words to Search For</strong>. Terms the team has approved in the <strong>Glossary</strong> (on the front page) are passed along by themselves.</li>' +
       '<li>If the teacher’s <strong>written script</strong> has been added (front page › Written Scripts), each card says which one it is matched to. It is a reference only: evidence for a misheard word, a question mark, or where a sentence ends. The transcript is never changed to match it.</li>' +
       '<li>Click <strong>Edit All Guides</strong> to fix grammar, catch misheard words, and flag anything that still doesn’t make sense. The result is the <strong>Edited Transcript</strong>. Bible verses and their references come back in <strong>bold</strong> — their wording is left alone apart from misheard words, which are listed separately. Each finished guide is saved on its own, so you can stop and resume anytime.</li>' +
       '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong>.</li>' +
@@ -1022,7 +1069,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
       '<p class="hint">Names or terms Descript’s AI probably didn’t recognize — e.g. Elihu, Eliphaz, Zophar, Bildad, Leviathan. List them and the edit pass will watch for homophones of each.</p>' +
-      '<textarea id="wordsToSearchFor" data-field="wordsToSearchFor" rows="2" placeholder="Elihu, Eliphaz, Zophar, Bildad, Behemoth, Leviathan…"' + dis + '>' + esc(state.wordsToSearchFor) + '</textarea></section>' +
+      '<textarea id="wordsToSearchFor" data-field="wordsToSearchFor" rows="2" placeholder="Elihu, Eliphaz, Zophar, Bildad, Behemoth, Leviathan…"' + dis + '>' + esc(state.wordsToSearchFor) + '</textarea>' + glossaryLine() + '</section>' +
       notice +
       '<div class="action-bar">' +
       '<div class="bar-group">' +
@@ -1167,7 +1214,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   var dbRoot = null;           // the store itself, once it can be reached
   var dbApi = null;            // the store, but only while a book is open and loaded — the gate for every write to it
   var dbStatus = 'loading';    // loading | ready | unavailable
-  var view = 'library';        // library | book | written
+  var view = 'library';        // library | book | written | glossary
   var bookId = null;           // the open book
   var library = [];            // [{ id, title, scripts, edited, finals, at }], most recently worked on first
   var deletingBook = null;
@@ -1462,6 +1509,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       dbStatus = 'ready'; prefSet('book', id);
       paint();
       loadWrittenIndex().then(paint);                     // the written scripts, re-read so a teammate's new one can be matched
+      loadGlossary().then(paint);                         // and the glossary, so a term approved since counts in the next edit pass (4.12)
     }).catch(function (err) {
       console.warn('Scriptorium: could not open book', err);
       return showLibrary('Couldn’t open that book just now — try again.');
@@ -1549,6 +1597,7 @@ input:disabled, textarea:disabled { cursor: wait; }
         .then(loadLibrary)
         .then(function () {
           loadWrittenIndex().then(function () { if (view !== 'book' || dbStatus === 'ready') paint(); });
+          loadGlossary().then(function () { if (view === 'library') paint(); });
           var last = prefGet('book', null);
           if (last && library.some(function (b) { return b.id === last; })) return openBook(last);
           dbStatus = 'ready'; view = 'library'; paint();
@@ -1701,6 +1750,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     s.approvedAt = Date.now(); touchBook();
     paint();
     saveSection(id).then(saveMeta);
+    learnFromGuide(s);                          // 4.12: what this guide showed is written down, for a person to approve later
   }
   function unapproveSection(id) {
     var s = findSection(id);
@@ -1718,11 +1768,16 @@ input:disabled, textarea:disabled { cursor: wait; }
      fixNames and fixCapitals).
      ------------------------------------------------------------------ */
 
-  function promptHeader(section, hasWritten) {
+  // `gloss` is what the glossary adds for this guide (glossaryFor): names from its book of the Bible, and the
+  // approved mishearings whose words occur in this transcript. A guide neither bears on adds nothing (4.6, 4.12).
+  function promptHeader(section, hasWritten, gloss) {
+    var names = [String(state.wordsToSearchFor || '').trim()].concat((gloss && gloss.names) || []).filter(Boolean).join(', ');
+    var hints = ((gloss && gloss.hints) || []).map(function (h) { return '"' + h.heard + '" = ' + h.term; }).join('; ');
     return 'Proofread this Descript AI transcript of a spoken audio guide. Descript captures the SOUND of words, not always the right words — unfamiliar names often come through as an ordinary phrase that sounds similar.\n\n' +
       'Book or plan: ' + (state.bookTitle || '(untitled)') + '\n' +
       'Script name: ' + (section.name || '(untitled section)') + '\n' +
-      'Names or terms the speaker uses that may be misheard: ' + (state.wordsToSearchFor || '(none listed)') + '\n\n' +
+      'Names or terms the speaker uses that may be misheard: ' + (names || '(none listed)') + '\n' +
+      (hints ? 'Mishearings found in earlier guides (apply one only where this sentence means that term): ' + hints + '\n' : '') + '\n' +
       'Fix the following WITHOUT changing the speaker’s wording, meaning, tone, or intent:\n' +
       '1. GRAMMAR AND PUNCTUATION — the main job.\n' +
       '- Every question ends with a question mark, including rhetorical ones mid-flow ("Or was it a Big Bang?"); transcription flattens these to periods.\n' +
@@ -1760,9 +1815,9 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
 
   var WRITTEN_PROMPT_MAX = 60000;      // characters of a written script sent with its guide
-  function buildEditsPrompt(section, text, written) {
+  function buildEditsPrompt(section, text, written, gloss) {
     written = String(written || '').trim().slice(0, WRITTEN_PROMPT_MAX);
-    return promptHeader(section, !!written) +
+    return promptHeader(section, !!written, gloss) +
       'Return your corrections as a list of EDITS, not a rewrite. Each: "find" — a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes, spacing), long enough to be unambiguous, usually 3 to 15 words, never crossing a blank line; "replace" — the corrected version of exactly that run. In order, one per occurrence. ' +
       'Add "kind": "misheard" for a misheard word or name, or "verse-fix" for one inside a quoted verse, each with a "note" of a few words; grammar edits need neither.\n' +
       versesSpec() +
@@ -1999,7 +2054,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     }
     return prev[b.length];
   }
-  function listedNames() { return String(state.wordsToSearchFor || '').split(/[,\n;]+/).map(lettersOf).filter(function (n) { return n.length >= 2; }); }
+  // The book's own Words to Search For, as letters only.
+  function listedWords() { return String(state.wordsToSearchFor || '').split(/[,\n;]+/).map(lettersOf).filter(function (n) { return n.length >= 2; }); }
+  // Every name the wording check counts as listed: the book's own, and the terms a person approved for the glossary (4.12).
+  function listedNames() { return listedWords().concat(glossaryNames()); }
 
   // Could Descript have heard one as the other? `listed` is the reader's Words to Search For, as letters only.
   function soundsAlike(a, b, listed) {
@@ -2024,7 +2082,8 @@ input:disabled, textarea:disabled { cursor: wait; }
 
   // Why an edit may not be applied, or '' when it may. `text` is the transcript the edit was written against.
   // Sets e.kind to 'misheard' when it swaps sound-alike words unlabelled, so the swap is shown where a reader looks for it.
-  function wordingProblem(e, text, listed) {
+  // `own` is the book's Words to Search For without the glossary: a swap only the glossary allows is marked, so its row can say so (4.4).
+  function wordingProblem(e, text, listed, own) {
     var find = String((e && e.find) || ''), repl = String((e && e.replace) || '');
     if (wordingKey(find) === wordingKey(repl)) return '';
     if (!repl.trim() && isLabelLine(find, text)) return '';
@@ -2036,7 +2095,9 @@ input:disabled, textarea:disabled { cursor: wait; }
       if (problem || (toA - pa <= 1 && toB - pb <= 1)) return;
       var was = a.slice(pa + 1, toA).join(' '), now = b.slice(pb + 1, toB).join(' ');
       if (wordingKey(was) === wordingKey(now)) return;
-      if (soundsAlike(was, now, listed)) { swapsSound = true; return; }
+      var known = glossaryAllows(was, now);                            // 4.12: a pair a person approved counts as sounding the same
+      if (known || soundsAlike(was, now, own || listed)) { swapsSound = true; if (known) e.gloss = true; return; }
+      if (own && soundsAlike(was, now, listed)) { swapsSound = true; e.gloss = true; return; }
       problem = !wordingKey(was) ? 'adds words the speaker did not say' : !wordingKey(now) ? 'removes words the speaker said' : 'the new words do not sound like the old ones';
     }
     pairs.forEach(function (p) { check(p[0], p[1]); pa = p[0]; pb = p[1]; });
@@ -2045,14 +2106,20 @@ input:disabled, textarea:disabled { cursor: wait; }
     return problem;
   }
   function guardEdits(edits, text) {
-    var ok = [], held = [], listed = listedNames();
+    var ok = [], held = [], own = listedWords(), listed = own.concat(glossaryNames());
     (edits || []).forEach(function (e) {
       if (!e || typeof e !== 'object') return;
-      var why = wordingProblem(e, text, listed);
+      delete e.gloss;                                                  // only the page may say the glossary supported a change
+      var why = wordingProblem(e, text, listed, own);
       // 4.9: where the written script and the transcript differ in wording, the transcript stays as spoken and the difference names its source.
       if (why) held.push({ find: String(e.find || ''), replace: String(e.replace || ''), kind: String(e.kind || 'grammar'),
                            note: (e.source === 'script' ? 'the written script reads this way; ' : '') + why + (e.note ? ' — ' + String(e.note) : '') });
-      else ok.push(e);
+      else {
+        // 4.4, 4.12: a change the glossary supported says so in its row.
+        if (e.gloss) e.note = (e.note ? String(e.note) + ' — ' : '') + 'known from the glossary';
+        ok.push(e);
+      }
+      delete e.gloss;
     });
     return { ok: ok, held: held };
   }
@@ -2113,7 +2180,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (written && written.error) { writtenNote = written.error; written = null; }
     if (written && !String(written.text || '').trim()) written = null;
     var prepared = fixCapitals(fixNames(fixReferences(mechanics(rawAtStart, local), local), local), local, true);
-    return sample.json(buildEditsPrompt(s, prepared, written ? written.text : ''), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
+    // 4.12: the approved glossary terms that bear on this guide travel in the same one call (4.6).
+    var gloss = { names: [], hints: [] };
+    try { gloss = glossaryFor(s, prepared); } catch (err) { console.warn('Scriptorium: the glossary could not be used for this guide', err); }
+    return sample.json(buildEditsPrompt(s, prepared, written ? written.text : '', gloss), { modelTier: 'quick', cache: false, signal: signal }).then(function (data) {
       data = data || {};
       var proposed = (Array.isArray(data.edits) ? data.edits : []).filter(function (e) { return e && typeof e === 'object'; });
       proposed.forEach(function (e) { if (!written || e.source !== 'script') delete e.source; });
@@ -2180,7 +2250,7 @@ input:disabled, textarea:disabled { cursor: wait; }
         editControllers.push(ctl);
         item.status = 'editing'; item.error = null;
         paintSection(item.id); paintStatus();
-        return writtenFor(item).then(function (written) { return runEditOnSection(item, sample, ctl.signal, false, written); }).then(function () {
+        return freshGlossary().then(function () { return writtenFor(item); }).then(function (written) { return runEditOnSection(item, sample, ctl.signal, false, written); }).then(function () {
           editControllers = editControllers.filter(function (c) { return c !== ctl; });
           if (item.status === 'error' && item.error === '__stopped__') stoppedFlag = true;
           editState.done += 1;
@@ -2212,7 +2282,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       var ctl = new AbortController();
       editControllers.push(ctl);
       s.status = 'editing'; paintSection(id);
-      return writtenFor(s).then(function (written) { return runEditOnSection(s, sample, ctl.signal, false, written); }).then(function () {
+      return freshGlossary().then(function () { return writtenFor(s); }).then(function (written) { return runEditOnSection(s, sample, ctl.signal, false, written); }).then(function () {
         editControllers = editControllers.filter(function (c) { return c !== ctl; });
         paint();
         return saveSection(s.id).then(saveMeta);
@@ -3249,14 +3319,18 @@ input:disabled, textarea:disabled { cursor: wait; }
     var place = placeOf(d.title);
     return { id: id, title: String(d.title || ''), book: place.book, chapter: place.chapter, part: place.part, chars: Number(d.chars) || 0, at: Number(d.at) || 0,
              source: String(d.source || 'paste'), sourceName: String(d.sourceName || ''), sourceId: String(d.sourceId || ''),
-             sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [] };
+             sketch: Array.isArray(d.sketch) ? d.sketch.map(Number).filter(function (n) { return n >= 0; }).sort(function (a, b) { return a - b; }) : [],
+             // The names found in it, for the glossary (4.12). null on a script kept before the glossary existed: not yet looked at.
+             terms: Array.isArray(d.terms) ? d.terms.filter(function (x) { return typeof x === 'string' && x && x.length <= 40; }).slice(0, WRITTEN_TERMS_MAX) : null };
   }
   // One read returns at most 1,000 documents, and a whole Bible is more written scripts than that. Past the first
   // thousand the listing is read a page at a time, oldest first by the time each was added. If the store will not
   // page (or the paging fails), the first thousand are shown and the page says some are missing.
   var WRITTEN_PAGE = 1000, WRITTEN_PAGES_MAX = 6;
-  function readWrittenListing() {
-    var col = dbRoot.collection('written');
+  function readWrittenListing() { return readListing('written', WRITTEN_PAGES_MAX); }
+  // The same read for any shared list whose documents carry the time they were written as `at`.
+  function readListing(path, pagesMax) {
+    var col = dbRoot.collection(path);
     return col.limit(WRITTEN_PAGE).get().then(function (first) {
       var firstDocs = (first && first.docs) || [];
       if (firstDocs.length < WRITTEN_PAGE) return { docs: firstDocs, more: false };
@@ -3271,7 +3345,7 @@ input:disabled, textarea:disabled { cursor: wait; }
             if (!seen[d.id]) { seen[d.id] = true; all.push(d); fresh += 1; }
           });
           if (docs.length < WRITTEN_PAGE) return { docs: all, more: false };
-          if (!fresh || !last || turn >= WRITTEN_PAGES_MAX) return { docs: all, more: true };
+          if (!fresh || !last || turn >= pagesMax) return { docs: all, more: true };
           return page(last, turn + 1);
         });
       }
@@ -3280,7 +3354,7 @@ input:disabled, textarea:disabled { cursor: wait; }
         firstDocs.forEach(function (d) { if (!seen[d.id]) { seen[d.id] = true; out.docs.push(d); } });
         return out;
       }, function (err) {
-        console.warn('Scriptorium: could not read past the first 1,000 written scripts', err);
+        console.warn('Scriptorium: could not read past the first 1,000 in ' + path, err);
         return { docs: firstDocs, more: true };
       });
     });
@@ -3306,7 +3380,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   /* ---- The Written Scripts page ---- */
 
   function openWritten() {
-    view = 'written'; flash = null; writtenForm = null; writtenOpen = null; writtenQuery = ''; dbStatus = 'loading';
+    view = 'written'; flash = null; writtenForm = null; writtenOpen = null; writtenFiles = null; writtenQuery = ''; dbStatus = 'loading';
     paint();
     function done() { dbStatus = 'ready'; paint(); }
     return loadWrittenIndex().then(done, done);
@@ -3355,8 +3429,8 @@ input:disabled, textarea:disabled { cursor: wait; }
       '<div class="written-row"><input id="written-link" class="written-input" data-wfield="link" type="text" placeholder="Paste the link to the Doc or Sheet" value="' + escAttr(f.link) + '"' + dis + '>' +
       '<button type="button" class="btn" data-action="written-fetch"' + dis + '>' + (f.busy === 'drive' ? 'Reading…' : 'Bring it in') + '</button></div>' +
       '<label class="written-label" for="written-file">From a file on this computer</label>' +
-      '<input id="written-file" class="written-file" data-action="written-file" type="file" accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"' + dis + '>' +
-      '<p class="hint">A Word file (.docx) or a text file (.txt). For anything else — a PDF, Pages, an older .doc — open it and paste the text below.</p>' +
+      '<input id="written-file" class="written-file" data-action="written-file" type="file" accept="' + FILE_ACCEPT + '"' + dis + '>' +
+      '<p class="hint">Word (.docx), PDF, OpenDocument (.odt), rich text (.rtf) or plain text. For a Pages file or an older .doc, export it as Word or PDF first, or paste the text below. To add several files at once, close this and use <strong>Add files from this computer</strong>.</p>' +
       '<label class="written-label" for="written-text">The written script</label>' +
       '<textarea id="written-text" class="written-text-box" data-wfield="text" rows="12" placeholder="Or paste the written script here"' + dis + '>' + esc(f.text) + '</textarea>' +
       '<p class="hint written-count">' + esc(writtenFormNote()) + '</p>' +
@@ -3379,7 +3453,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</section>';
   }
   function renderWritten() {
-    var loading = dbStatus === 'loading', n = writtenIndex.length;
+    var loading = dbStatus === 'loading', n = writtenIndex.length, panelOpen = !!(writtenForm || writtenBulk || writtenFiles);
     return (
       '<div class="wrap">' +
       '<p class="back-line"><button type="button" class="link-btn" data-action="go-library">← All books</button></p>' +
@@ -3390,13 +3464,16 @@ input:disabled, textarea:disabled { cursor: wait; }
       '</header>' +
       noticeHtml() +
       '<div class="action-bar">' +
-      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || writtenForm || writtenBulk ? ' disabled' : '') + '>+ Add Written Script</button>' +
-      '<button type="button" class="btn" data-action="written-bulk"' + (loading || writtenForm || writtenBulk ? ' disabled' : '') + ' title="Every file in a Google Drive folder, or a Doc that holds several written scripts">Bring in many from Google Drive</button></div>' +
+      '<div class="bar-group"><button type="button" class="btn btn-add" data-action="written-new"' + (loading || panelOpen ? ' disabled' : '') + '>+ Add Written Script</button>' +
+      '<label class="btn file-btn' + (loading || panelOpen ? ' is-disabled' : '') + '" title="Any number of Word, PDF, OpenDocument, rich-text or plain-text files, each kept under its own title">' +
+      '<input type="file" multiple data-action="written-files" accept="' + FILE_ACCEPT + '"' + (loading || panelOpen ? ' disabled' : '') + '>Add files from this computer</label>' +
+      '<button type="button" class="btn" data-action="written-bulk"' + (loading || panelOpen ? ' disabled' : '') + ' title="Every file in a Google Drive folder, or a Doc that holds several written scripts">Bring in many from Google Drive</button></div>' +
       '<p class="status-line">' + (loading ? 'Loading the written scripts…' : n + ' written script' + plural(n)) + '</p>' +
       '<div class="action-bar-end"><input class="written-search" data-wfield="query" type="search" placeholder="Search by title, book or chapter" aria-label="Search written scripts" value="' + escAttr(writtenQuery) + '"' + (loading ? ' disabled' : '') + '></div>' +
       '</div>' +
       (writtenForm ? renderWrittenForm() : '') +
       (writtenBulk ? renderWrittenBulk() : '') +
+      (writtenFiles ? renderWrittenFiles() : '') +
       (writtenOpen ? renderWrittenOpen() : '') +
       (loading ? renderSkeleton() : '<div id="written-list">' + renderWrittenList() + '</div>') +
       versionLine() +
@@ -3415,7 +3492,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function writtenFail(message) { if (writtenForm) { writtenForm.busy = ''; writtenForm.error = message; paint(); } }
   // A title to start from, when the reader has not typed one: the file or Doc's name without its ending.
-  function titleFromName(name) { return String(name || '').replace(/\.(docx|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function titleFromName(name) { return String(name || '').replace(/\.(docx|pdf|odt|rtf|doc|pages|txt|md|markdown|text)$/i, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim(); }
   // A written script as it is kept: one kind of line ending, no trailing spaces, no run of blank lines.
   function cleanWritten(text) { return trimLineEnds(tameSpaces(text || '').replace(/\r\n?/g, '\n')).replace(/\n{3,}/g, '\n\n').trim(); }
   function takeWrittenText(text, source, name, sourceId) {
@@ -3772,21 +3849,339 @@ input:disabled, textarea:disabled { cursor: wait; }
       return docxXmlToText(new TextDecoder().decode(part));
     });
   }
+  /* ---- Other kinds of file: OpenDocument, rich text, PDF ---- */
+
+  // Takes every <tag …>…</tag> block out of a run of XML, in one pass. A longer tag that starts the same way
+  // (annotation-end beside annotation) is left alone.
+  function cutBlocks(text, tag) {
+    var open = '<' + tag, close = '</' + tag + '>', out = '', from = 0, look = 0, a, b, c;
+    while ((a = text.indexOf(open, look)) !== -1) {
+      c = text.charAt(a + open.length);
+      if (c !== '>' && c !== ' ' && c !== '\n' && c !== '\t') { look = a + open.length; continue; }
+      b = text.indexOf(close, a);
+      if (b === -1) break;
+      out += text.slice(from, a); from = look = b + close.length;
+    }
+    return out + text.slice(from);
+  }
+  // The words of an OpenDocument text file (.odt): one line per paragraph or heading. Text deleted with tracked
+  // changes, and comments, are left out.
+  function odtXmlToText(xml) {
+    var body = String(xml).replace(/^[\s\S]*?<office:text[^>]*>/, '');
+    body = cutBlocks(cutBlocks(body, 'text:tracked-changes'), 'office:annotation');
+    return xmlText(body.replace(/<text:s\b[^>]*\/>/g, ' ').replace(/<text:tab\b[^>]*\/>/g, '\t').replace(/<text:line-break\b[^>]*\/>/g, '\n')
+      .replace(/<\/text:(?:p|h)>/g, '\n').replace(/<[^>]+>/g, ''));
+  }
+  function odtText(buffer) {
+    return zipEntry(new Uint8Array(buffer), 'content.xml').then(function (part) {
+      if (!part) throw { code: 'empty' };
+      return odtXmlToText(new TextDecoder().decode(part));
+    });
+  }
+
+  // Rich text (.rtf). The file is plain characters with commands in it: \par ends a paragraph, \'92 is one
+  // character by its number, 舗 is one by its Unicode number with a stand-in after it for old readers.
+  // Whole groups that are not the text (fonts, colours, styles, pictures, headers) are skipped.
+  var RTF_SKIP = /^(fonttbl|colortbl|stylesheet|info|pict|header|headerl|headerr|headerf|footer|footerl|footerr|footerf|footnote|generator|listtable|listoverridetable|rsidtbl|themedata|colorschememapping|latentstyles|datastore|object|objdata|fldinst|xmlnstbl|pgdsctbl|filetbl|revtbl|annotation|atnid|atnauthor|shppict|nonshppict|pntext|listtext)$/;
+  var RTF_CHARS = { emdash: '—', endash: '–', lquote: '‘', rquote: '’', ldblquote: '“', rdblquote: '”', bullet: '•', emspace: ' ', enspace: ' ' };
+  var CP1252 = [0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F,
+                0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178];
+  function cp1252(byte) { return isNaN(byte) ? '' : String.fromCharCode(byte >= 0x80 && byte < 0xA0 ? CP1252[byte - 0x80] : byte); }
+  function rtfText(bytes) {
+    var src = '', i, n;
+    for (i = 0; i < bytes.length; i += 8192) src += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+    if (src.slice(0, 5) !== '{\\rtf') throw { code: 'empty' };
+    var out = '', stack = [], skip = false, uc = 1, pending = 0, c, d, m, word, arg, top;
+    n = src.length; i = 0;
+    function ch(text) { if (pending > 0) { pending -= 1; return; } if (!skip) out += text; }   // one character of the text
+    function emit(text) { if (!skip) out += text; }                                            // a break: never a stand-in
+    while (i < n) {
+      c = src.charAt(i);
+      if (c === '{') { stack.push({ skip: skip, uc: uc }); i += 1; continue; }
+      if (c === '}') { top = stack.pop(); if (top) { skip = top.skip; uc = top.uc; } pending = 0; i += 1; continue; }
+      if (c !== '\\') { if (c !== '\n' && c !== '\r') ch(c); i += 1; continue; }
+      d = src.charAt(i + 1);
+      if (d === '\\' || d === '{' || d === '}') { ch(d); i += 2; continue; }
+      if (d === "'") { ch(cp1252(parseInt(src.substr(i + 2, 2), 16))); i += 4; continue; }
+      if (d === '~') { ch(' '); i += 2; continue; }
+      if (d === '_') { ch('-'); i += 2; continue; }
+      if (d === '*') { skip = true; i += 2; continue; }                      // a group an older reader may ignore: not the text
+      if (d === '\n' || d === '\r') { emit('\n'); i += 2; continue; }
+      m = /^([a-zA-Z]+)(-?\d+)? ?/.exec(src.substr(i + 1, 40));
+      if (!m) { i += 2; continue; }                                         // some other one-character command
+      word = m[1]; arg = m[2] == null ? null : Number(m[2]); i += 1 + m[0].length;
+      if (RTF_SKIP.test(word)) { skip = true; continue; }
+      if (word === 'par' || word === 'line' || word === 'sect' || word === 'page' || word === 'row') emit('\n');
+      else if (word === 'tab' || word === 'cell') emit('\t');
+      else if (word === 'uc') uc = arg == null ? 1 : Math.max(0, arg);
+      else if (word === 'u' && arg != null) { pending = 0; emit(String.fromCharCode(arg < 0 ? arg + 65536 : arg)); pending = uc; }
+      else if (RTF_CHARS[word]) ch(RTF_CHARS[word]);
+    }
+    return out;
+  }
+
+  // PDF. Reading one takes a library, pdf.js, which is fetched only when a PDF is first chosen. Its second half
+  // is meant to run as a worker; the viewer does not let a page start a worker from another site, so that half
+  // is loaded into the page itself, which pdf.js then uses in place of a worker.
+  var PDF_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/', PDF_PAGES_MAX = 400, pdfLib = null;
+  function loadScript(url) {
+    return new Promise(function (resolve, reject) {
+      var el = document.createElement('script'), timer = setTimeout(function () { reject({ code: 'pdf_lib' }); }, 30000);
+      el.src = url; el.async = true;
+      el.onload = function () { clearTimeout(timer); resolve(); };
+      el.onerror = function () { clearTimeout(timer); reject({ code: 'pdf_lib' }); };
+      document.head.appendChild(el);
+    });
+  }
+  function loadPdfLib() {
+    if (!pdfLib) {
+      pdfLib = loadScript(PDF_LIB + 'pdf.min.js').then(function () { return loadScript(PDF_LIB + 'pdf.worker.min.js'); }).then(function () {
+        if (!window.pdfjsLib || !window.pdfjsWorker) throw { code: 'pdf_lib' };
+        return window.pdfjsLib;
+      }).catch(function (err) { pdfLib = null; console.warn('Scriptorium: the PDF reader could not be loaded', err); throw { code: 'pdf_lib' }; });
+    }
+    return pdfLib;
+  }
+  // One page's words. A PDF holds lines, not paragraphs: lines that follow closely are run together, and a
+  // wider gap starts a new paragraph. A word broken across two lines with a hyphen keeps its hyphen.
+  function pdfPageText(items) {
+    var paras = [], cur = '', lastY = null, lastH = 0;
+    (items || []).forEach(function (it) {
+      var str = String(it && it.str != null ? it.str : ''), y = it && it.transform ? Number(it.transform[5]) : NaN, h = Number(it && it.height) || lastH || 10;
+      if (!str.trim()) { if (str && cur && !/\s$/.test(cur.slice(-1))) cur += ' '; return; }
+      if (lastY != null && !isNaN(y) && Math.abs(y - lastY) > Math.min(h, lastH || h) * 0.5) {
+        if (Math.abs(y - lastY) > Math.max(h, lastH) * 1.75) { paras.push(cur); cur = ''; }
+        else if (cur && !(cur.slice(-1) === '-' && /^\p{Ll}/u.test(str))) cur = cur.trimEnd() + ' ';
+      }
+      cur += str;
+      if (!isNaN(y)) { lastY = y; lastH = h; }
+    });
+    paras.push(cur);
+    return paras.map(function (p) { return p.trim(); }).filter(Boolean).join('\n\n');
+  }
+  function pdfText(buffer) {
+    return loadPdfLib().then(function (lib) {
+      return lib.getDocument({ data: new Uint8Array(buffer), isEvalSupported: false, disableFontFace: true, useSystemFonts: false, useWorkerFetch: false }).promise;
+    }).then(function (doc) {
+      var out = [], n = Math.min(Number(doc.numPages) || 0, PDF_PAGES_MAX), i = 0;
+      function next() {
+        if (i >= n) return Promise.resolve();
+        i += 1;
+        return doc.getPage(i).then(function (page) { return page.getTextContent(); }).then(function (tc) { out.push(pdfPageText(tc && tc.items)); }).then(next);
+      }
+      return next().then(function () {
+        try { doc.destroy(); } catch (e) {}
+        var text = out.filter(Boolean).join('\n\n');
+        if (text.replace(/[^\p{L}]/gu, '').length < 20) throw { code: 'scanned' };   // pictures of pages: no words to read
+        return text;
+      });
+    });
+  }
+
+  /* ---- Reading any file the page can read ---- */
+
+  var FILE_ACCEPT = '.docx,.pdf,.odt,.rtf,.txt,.md,text/plain,text/markdown,application/pdf,application/rtf,application/vnd.oasis.opendocument.text,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  var WRITTEN_PDF_MAX = 30000000;    // bytes of a PDF read from the computer (most of a PDF is not its words)
+  var WRITTEN_FILES_MAX = 100;       // files read in one go
+  function fileKind(file) {
+    var name = String((file && file.name) || '').toLowerCase(), type = String((file && file.type) || ''), m = /\.([a-z0-9]+)$/.exec(name), ext = m ? m[1] : '';
+    if (ext === 'docx' || ext === 'odt' || ext === 'rtf' || ext === 'pdf' || ext === 'doc' || ext === 'pages') return ext;
+    if (ext === 'txt' || ext === 'md' || ext === 'markdown' || ext === 'text' || /^text\//.test(type)) return 'text';
+    return type === 'application/pdf' ? 'pdf' : '';
+  }
+  // The words of one file, read in the page. Nothing here calls Claude (4.6).
+  function readFileText(file) {
+    var kind = fileKind(file);
+    if (!kind) return Promise.reject({ code: 'kind' });
+    if (kind === 'doc' || kind === 'pages') return Promise.reject({ code: kind });
+    if (file.size > (kind === 'pdf' ? WRITTEN_PDF_MAX : WRITTEN_FILE_MAX)) return Promise.reject({ code: 'big' });
+    if (kind === 'text') return file.text();
+    return file.arrayBuffer().then(function (buf) {
+      return kind === 'docx' ? docxText(buf) : kind === 'odt' ? odtText(buf) : kind === 'rtf' ? rtfText(new Uint8Array(buf)) : pdfText(buf);
+    });
+  }
+  // Why a file was not read, as the end of a sentence that starts with its name.
+  function fileProblem(err) {
+    var code = err && err.code;
+    if (code === 'kind') return 'is a kind of file that can’t be read here. Use Word (.docx), PDF, OpenDocument (.odt), rich text (.rtf) or plain text';
+    if (code === 'doc') return 'is an older Word file (.doc). Open it and save it as .docx or PDF';
+    if (code === 'pages') return 'is a Pages file. Export it from Pages as Word or PDF';
+    if (code === 'big') return 'is too large to read here';
+    if (code === 'scanned') return 'is a scanned PDF: pictures of pages, with no text in it to read';
+    if (code === 'pdf_lib') return 'is a PDF, and the PDF reader couldn’t be loaded in this view';
+    if (code === 'long') return 'is too long to keep in one piece. Save it as two files';
+    if (code === 'empty') return 'had nothing in it that could be read';
+    return 'couldn’t be read';
+  }
   function readWrittenFile(file) {
     if (!writtenForm || !file) return;
     var name = String(file.name || '');
-    if (file.size > WRITTEN_FILE_MAX) { writtenFail('That file is too large to read here. Open it and paste the text in instead.'); return; }
     writtenForm.busy = 'file'; writtenForm.error = ''; paint();
-    var reading;
-    if (/\.docx$/i.test(name)) reading = file.arrayBuffer().then(docxText);
-    else if (/\.(txt|md|markdown|text)$/i.test(name) || /^text\//.test(file.type || '')) reading = file.text();
-    else reading = Promise.reject({ code: 'kind' });
-    reading.then(function (text) { takeWrittenText(text, 'file', name); }, function (err) {
+    Promise.resolve().then(function () { return readFileText(file); }).then(function (text) { takeWrittenText(text, 'file', name); }, function (err) {
       console.warn('Scriptorium: could not read the file', err);
-      writtenFail((err && err.code === 'kind')
-        ? 'That kind of file can’t be read here. Use a Word file (.docx) or a text file (.txt), or open it and paste the text in below.'
-        : 'That file couldn’t be read. If it is a Word file, open it and paste the text in below.');
+      writtenFail('“' + name + '” ' + fileProblem(err) + '. Or open it and paste the text in below.');
     });
+  }
+
+  /* ---- Many files from the computer at once ----
+     Any number of files, read here one at a time, each kept as a written script of its own under its own
+     title. The title starts as the file's name and can be changed before anything is saved. A file already in
+     the library is marked and left unticked; ticking it renews the kept text. None of this calls Claude (4.6). ---- */
+
+  var writtenFiles = null;           // { step: reading | review | saving | done, items, progress, error, report }
+  function fileSourceId(name) { return name ? 'file:' + String(name).toLowerCase().slice(0, 180) : ''; }
+  function fileHas(name) {
+    var id = fileSourceId(name);
+    return writtenIndex.filter(function (w) { return w.source === 'file' && (w.sourceId === id || (!w.sourceId && w.sourceName === name)); })[0] || null;
+  }
+  function filesProgress(text) { if (writtenFiles) { writtenFiles.progress = text; var p = root.querySelector('.files-progress'); if (p) p.textContent = text; } }
+  function filesReady(it) { return it.state === 'ready' || it.state === 'have'; }
+  function readWrittenFiles(fileList) {
+    var files = Array.prototype.slice.call(fileList || []), f = writtenFiles;
+    if (!files.length || writtenForm || writtenBulk || (f && (f.step === 'reading' || f.step === 'saving'))) return Promise.resolve();
+    var over = Math.max(0, files.length - WRITTEN_FILES_MAX);
+    files = files.slice(0, WRITTEN_FILES_MAX);
+    f = writtenFiles = { step: 'reading', items: [], progress: 'Reading 1 of ' + files.length + '…', report: null,
+                         error: over ? 'Only the first ' + WRITTEN_FILES_MAX + ' files were taken. Add the other ' + over + ' after these are saved.' : '' };
+    writtenOpen = null; paint();
+    var i = 0;
+    function next() {
+      if (i >= files.length || writtenFiles !== f) return Promise.resolve();
+      var file = files[i], name = String((file && file.name) || 'Untitled'); i += 1;
+      filesProgress('Reading ' + i + ' of ' + files.length + ' — ' + name + '…');
+      return Promise.resolve().then(function () { return readFileText(file); }).then(function (text) {
+        text = cleanWritten(text);
+        if (!text) throw { code: 'empty' };
+        if (text.length > WRITTEN_MAX || jsonBytes({ text: text }) > DOC_MAX_BYTES) throw { code: 'long' };
+        f.items.push({ n: f.items.length, name: name, title: titleFromName(name), text: text, chars: text.length, state: 'ready', why: '', pick: true, old: '' });
+      }).catch(function (err) {
+        console.warn('Scriptorium: could not read a file', err);
+        f.items.push({ n: f.items.length, name: name, title: titleFromName(name), text: '', chars: 0, state: 'failed', why: fileProblem(err), pick: false, old: '' });
+      }).then(next);
+    }
+    // The library is read again first, so a file a teammate has already brought in is marked as here.
+    return loadWrittenIndex().then(next).then(function () {
+      if (writtenFiles !== f) return;
+      f.items.forEach(function (it) {
+        var old = it.state === 'ready' ? fileHas(it.name) : null;
+        if (old) { it.state = 'have'; it.old = old.id; it.title = old.title; it.pick = false; }
+      });
+      f.step = 'review'; paint();
+    });
+  }
+  function filesPicked() { return writtenFiles ? writtenFiles.items.filter(function (it) { return it.pick && filesReady(it); }) : []; }
+  function filesPick(n, on) {
+    var it = writtenFiles && writtenFiles.items[Number(n)];
+    if (!it || !filesReady(it) || writtenFiles.step !== 'review') return;
+    it.pick = !!on; paint();
+  }
+  function fileNote(it) {
+    if (it.state === 'failed') return 'Not read: “' + it.name + '” ' + it.why + '.';
+    if (it.state === 'saved') return 'Saved.';
+    var place = placeLabel(placeOf(it.title));
+    return it.name + ' · ' + it.chars.toLocaleString('en-US') + ' characters · ' + (place ? 'matches guides on ' + place : 'no book and chapter in the title, so matched by its wording alone') +
+      (it.state === 'have' ? ' · already in the library: ticking it renews its text' : '');
+  }
+  function filesTitleTouched(el) {
+    var it = writtenFiles && writtenFiles.items[Number(el.dataset.n)];
+    if (!it) return;
+    it.title = el.value;
+    var note = root.querySelector('.files-note[data-n="' + it.n + '"]'); if (note) note.textContent = fileNote(it);
+  }
+  function saveWrittenFiles() {
+    var f = writtenFiles, picked = filesPicked();
+    if (!f || f.step !== 'review' || !picked.length) return Promise.resolve();
+    var blank = picked.filter(function (it) { return !String(it.title || '').trim(); })[0];
+    if (blank) { f.error = '“' + blank.name + '” needs a title: the book and chapter, such as “Luke 24”.'; paint(); return Promise.resolve(); }
+    if (!dbRoot) { f.error = 'Saved work can’t be reached in this view.'; paint(); return Promise.resolve(); }
+    var report = f.report || (f.report = { files: 0, saved: 0, replaced: 0, split: [], failed: [], stopped: false, halt: false });
+    report.failed = []; report.halt = false; report.stopped = false;
+    f.step = 'saving'; f.error = ''; f.progress = 'Saving 1 of ' + picked.length + '…'; paint();
+    var i = 0;
+    function next() {
+      if (i >= picked.length || writtenFiles !== f || report.halt) { report.stopped = i < picked.length; return Promise.resolve(); }
+      var it = picked[i], title = String(it.title).replace(/\s+/g, ' ').trim(); i += 1;
+      filesProgress('Saving ' + i + ' of ' + picked.length + ' — ' + title + '…');
+      return putWritten(it.old || newWrittenId(), writtenDoc(title, it.text, 'file', it.name, fileSourceId(it.name)), it.text).then(function () {
+        report.files += 1; if (it.old) report.replaced += 1; else report.saved += 1;
+        it.state = 'saved'; it.pick = false; it.text = '';
+      }, function (err) {
+        console.warn('Scriptorium: could not save a written script', err);
+        report.failed.push({ name: title, why: writtenSaveProblem(err) });
+        if (err && (err.code === 'invalid_argument' || err.code === 'quota_exceeded')) report.halt = true;   // the next one would fail the same way
+      }).then(next);
+    }
+    return next().then(function () {
+      if (writtenFiles !== f) return;
+      f.step = f.items.some(filesReady) ? 'review' : 'done'; paint();
+    });
+  }
+  function filesReportText(f) {
+    var out = f.report ? bulkReportText(f.report) : [], unread = f.items.filter(function (it) { return it.state === 'failed'; }).length;
+    if (f.report && f.report.stopped) out[out.length - 1] = 'Stopped before the end. What was saved is kept; the rest are still listed below.';
+    if (unread && f.step !== 'reading') out.push(unread + ' file' + plural(unread) + ' could not be read, and ' + (unread === 1 ? 'is' : 'are') + ' named below with the reason.');
+    return out;
+  }
+  function renderWrittenFiles() {
+    var f = writtenFiles, busy = f.step === 'reading' || f.step === 'saving', n = filesPicked().length, report = filesReportText(f);
+    var list = f.items.length ? '<ul class="pull-list files-list">' + f.items.map(function (it) {
+      var can = filesReady(it) && !busy;
+      return '<li class="files-item' + (it.state === 'failed' ? ' is-failed' : '') + '">' +
+        '<input type="checkbox" data-action="written-files-pick" data-n="' + it.n + '" aria-label="Bring in ' + escAttr(it.name) + '"' + (it.pick ? ' checked' : '') + (can ? '' : ' disabled') + '>' +
+        '<span class="files-main">' +
+        (it.state === 'failed' ? '' : '<input class="written-input" data-ffield="title" data-n="' + it.n + '" type="text" aria-label="Title for ' + escAttr(it.name) + '" value="' + escAttr(it.title) + '"' + (can ? '' : ' disabled') + '>') +
+        '<span class="pull-tag files-note" data-n="' + it.n + '">' + esc(fileNote(it)) + '</span></span></li>';
+    }).join('') + '</ul>' : '';
+    return '<section class="pull-panel written-form">' +
+      '<div class="pull-head"><h3>Add files from this computer</h3>' + (busy ? '' : '<button type="button" class="link-btn" data-action="written-files-close">Close</button>') + '</div>' +
+      '<p class="hint">Each file becomes a written script of its own. Its title starts as the file’s name: change any of them before saving. Start a title with the book and chapter (“Luke 24”) so it finds its audio guide.</p>' +
+      (report.length && !busy ? '<div class="notice bulk-report">' + report.map(function (line) { return '<p>' + esc(line) + '</p>'; }).join('') + '</div>' : '') +
+      (f.error ? '<p class="notice notice-warn">' + esc(f.error) + '</p>' : '') +
+      list +
+      (busy ? '<div class="pull-foot"><p class="hint files-progress">' + esc(f.progress) + '</p></div>' : '') +
+      (f.step === 'review' ? '<div class="pull-foot"><button type="button" class="btn btn-edit" data-action="written-files-save"' + (n ? '' : ' disabled') + '>' + (n ? 'Save ' + n + ' written script' + plural(n) : 'Save ticked') + '</button></div>' : '') +
+      '</section>';
+  }
+
+  /* ---- The names in a written script ----
+     Evidence for the glossary (4.12): words written with a capital in the middle of a sentence and never
+     without one, that the page does not already know as a name or a book of the Bible. Found by the page,
+     proposed on the Glossary page, and of no effect until a person approves them. ---- */
+
+  var WRITTEN_TERMS_MAX = 60, termNotMemo = null;
+  var TERM_NOT = 'i he him his she her you your yours we our us me my they them their thee thou thy thine ' +
+    'god lord jesus christ bible scripture scriptures holy spirit father son savior saviour messiah christian christians christianity jew jews jewish gentile gentiles hebrew hebrews greek greeks roman ' +
+    'israelite israelites word kingdom heaven hell church law gospel gospels temple king queen prophet priest apostle apostles disciple disciples psalm psalmist proverb ' +
+    'sabbath passover pentecost christmas easter amen hallelujah old new testament monday tuesday wednesday thursday friday saturday sunday ' +
+    'january february march april may june july august september october november december mr mrs ms dr st chapter verse verses part introduction conclusion english american ok okay yes no';
+  function termNot() {
+    if (termNotMemo) return termNotMemo;
+    var set = Object.create(null);
+    (TERM_NOT + ' ' + SURE.join(' ') + ' ' + BOOKS.replace(/\|/g, ' ')).toLowerCase().split(/\s+/).forEach(function (w) { w = w.replace(/[^a-z]/g, ''); if (w) set[w] = true; });
+    return (termNotMemo = set);
+  }
+  function writtenTerms(text) {
+    var counts = Object.create(null), lower = Object.create(null), forms = Object.create(null), not = termNot();
+    var wordRe = /\p{L}[\p{L}\p{M}'’-]*/gu, nameRe = /^\p{Lu}[\p{Ll}\p{M}]+(?:[-'’]\p{L}[\p{Ll}\p{M}]*)*$/u;
+    tameSpaces(text || '').split('\n').forEach(function (line) {
+      line = line.trim();
+      if (!line || line.charAt(0) === '#' || line.length > 4000) return;
+      // A short line that does not end like a sentence is a heading, where every word may wear a capital.
+      var heading = line.length < 70 && !/[.!?,;:"”’)]$/.test(line), m, word, key, before;
+      wordRe.lastIndex = 0;
+      while ((m = wordRe.exec(line))) {
+        word = m[0].replace(/['’]s$/i, '').replace(/['’-]+$/, '');
+        key = word.toLowerCase();
+        if (word.length < 2 || word.length > 30) continue;
+        if (word === key) { lower[key] = true; continue; }
+        if (heading || !nameRe.test(word)) continue;
+        before = line.slice(Math.max(0, m.index - 12), m.index).replace(/[\s"“‘'(\[*_]+$/, '');
+        if (!before || /[.!?:…]$/.test(before)) continue;               // the first word of a sentence wears a capital anyway
+        counts[key] = (counts[key] || 0) + 1; forms[key] = word;
+      }
+    });
+    return Object.keys(counts).filter(function (key) { return !lower[key] && !not[key.replace(/[^a-z]/g, '')]; })
+      .sort(function (a, b) { return (counts[b] - counts[a]) || (a < b ? -1 : 1); }).slice(0, WRITTEN_TERMS_MAX).map(function (key) { return forms[key]; });
   }
 
   /* ---- Saving, reading, renaming, deleting ---- */
@@ -3802,7 +4197,7 @@ input:disabled, textarea:disabled { cursor: wait; }
   // brought in again replaces the kept copy rather than adding a second one.
   function writtenDoc(title, text, source, sourceName, sourceId) {
     return { title: title, chars: text.length, at: Date.now(), source: source === 'drive' || source === 'file' ? source : 'paste',
-             sourceName: String(sourceName || '').slice(0, 200), sourceId: String(sourceId || '').slice(0, 200), sketch: textSketch(text) };
+             sourceName: String(sourceName || '').slice(0, 200), sourceId: String(sourceId || '').slice(0, 200), sketch: textSketch(text), terms: writtenTerms(text) };
   }
   // The text first, the listing last: a script that is listed always has its text.
   function putWritten(id, doc, text) {
@@ -3830,7 +4225,7 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!dbRoot) { writtenFail('Saved work can’t be reached in this view.'); return; }
     f.busy = 'save'; f.error = ''; paint();
     var id = newWrittenId();
-    var doc = writtenDoc(title, text, f.source, f.sourceName, f.source === 'drive' ? f.sourceId : '');
+    var doc = writtenDoc(title, text, f.source, f.sourceName, f.source === 'drive' ? f.sourceId : f.source === 'file' ? fileSourceId(f.sourceName) : '');
     putWritten(id, doc, text).then(function () {
       writtenForm = null;
       var place = placeLabel(placeOf(title));
@@ -3857,7 +4252,9 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!title) { o.error = 'A written script needs a title.'; paint(); return; }
     if (title === w.title) return;
     o.busy = true; o.error = ''; o.title = title; paint();
-    dbRoot.doc('written/' + w.id).set({ title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sourceId: w.sourceId, sketch: w.sketch }).then(function () {
+    var renamed = { title: title, chars: w.chars, at: w.at, source: w.source, sourceName: w.sourceName, sourceId: w.sourceId, sketch: w.sketch };
+    if (w.terms) renamed.terms = w.terms;                       // a new title changes nothing about the names found in the text
+    dbRoot.doc('written/' + w.id).set(renamed).then(function () {
       var place = placeOf(title);
       w.title = title; w.book = place.book; w.chapter = place.chapter; w.part = place.part; writtenStamp += 1;
       o.busy = false; o.title = null; paint();
@@ -4256,6 +4653,548 @@ input:disabled, textarea:disabled { cursor: wait; }
   }
   function cancelRefEdit() { var id = refEdit && refEdit.id; refEdit = null; if (id) paintSection(id); }
   /* ==================================================================
+     What the page notices is written down, so the same problem is not fixed twice. A person decides what is kept.
+
+     Three kinds of document, all shared with the whole team and none of them inside a book:
+
+       learned/<book>_<guide>   what one approved guide showed: the misheard words put right in it. Evidence.
+       written/<id>.terms       the names found in one written script. Evidence.
+       glossary/<key>           a person's ruling on one term: approved or turned down. The glossary itself.
+
+     Evidence has no effect. Only a term a person approved is told to the edit pass and counted as a listed
+     name by the wording check, and the page never replaces a word because the glossary lists it. Nothing
+     here calls Claude (4.6).
+     ================================================================== */
+
+  var GLOSS_TEXT_MAX = 60, GLOSS_WORDS_MAX = 4;        // one term, or one mishearing of it
+  var GLOSS_HEARD_MAX = 40, GLOSS_BOOKS_MAX = 20;      // kept on one term
+  var GLOSS_PAIRS_MAX = 60, GLOSS_USED_MAX = 80;       // kept for one guide
+  var GLOSS_NAMES_MAX = 40, GLOSS_NAMES_CHARS = 500;   // sent with one guide (4.6): names from its book of the Bible
+  var GLOSS_HINTS_MAX = 30;                            // sent with one guide: known mishearings that occur in it
+  var GLOSS_SHOWN_MAX = 300;                           // rows drawn in one list
+  var GLOSS_FRESH_MS = 60000;                          // how long a read of the glossary is trusted before an edit pass
+  var GLOSS_PAGES_MAX = 8;
+
+  var glossary = Object.create(null);  // key → { key, term, status, heard, notHeard, books, seen, at }
+  var glossaryAt = 0;                  // when it was last read
+  var glossaryStamp = 0;               // goes up whenever it changes
+  var glossaryMore = false;            // true when the store holds more than could be read
+  var learnedLogs = [];                // the evidence, read only for the Glossary page
+  var learnedMore = false;
+  var glossView = null;                // the Glossary page: { query, picked, busy, error, term, heard, copyText, scan }
+
+  // The time a document is written, never the same twice from one page. A long list is read a page at a time in
+  // the order of these times, and many terms approved in one go would otherwise share one.
+  var lastStamp = 0;
+  function stampNow() { var t = Date.now(); lastStamp = t > lastStamp ? t : lastStamp + 1; return lastStamp; }
+
+  /* ---- Words ---- */
+
+  // A term or a mishearing as it is kept: nothing around it but letters and digits, single spaces, no
+  // possessive, and short. '' when it is not something to keep. Inside it only letters, digits, spaces,
+  // hyphens and apostrophes are let through: these words are shown on the page and sent to the edit pass,
+  // and come from a store anyone with access can write to, so nothing that could pass for markup or for an
+  // instruction's punctuation is kept.
+  function glossText(text) {
+    var raw = String(text == null ? '' : text), plain = '', i, c;
+    for (i = 0; i < raw.length && i < 400; i++) { c = raw.charCodeAt(i); plain += c < 32 || c === 127 ? ' ' : raw.charAt(i); }   // no control characters
+    var t = plain.replace(/[^\p{L}\p{N}\p{M}'’ -]+/gu, ' ').replace(/\s+/g, ' ').trim().replace(/^[^\p{L}\p{N}]+/u, '').replace(/[^\p{L}\p{N}]+$/u, '').replace(/['’]s$/i, '');
+    if (!t || t.length > GLOSS_TEXT_MAX || t.split(' ').length > GLOSS_WORDS_MAX) return '';
+    return t;
+  }
+  // The name a term is stored under: its letters and digits. "Beth-el", "Bethel" and "bethel" are one term.
+  function termKey(term) {
+    var k = glossText(term).toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return k && k.length <= 80 ? 'g_' + k : '';
+  }
+  function heardKey(text) { return wordingKey(glossText(text)); }
+  function glossStrings(list, max) {
+    var out = [], seen = Object.create(null);
+    (Array.isArray(list) ? list : []).forEach(function (v) {
+      if (typeof v !== 'string') return;
+      var t = glossText(v), k = t.toLowerCase();
+      if (!t || seen[k] || out.length >= max) return;
+      seen[k] = true; out.push(t);
+    });
+    return out;
+  }
+  function isApproved(key) { var d = glossary[key]; return !!d && d.status === 'approved'; }
+  function approvedTerms() { return Object.keys(glossary).map(function (k) { return glossary[k]; }).filter(function (d) { return d.status === 'approved'; }); }
+
+  // Where two runs of text differ in wording, word for word: [{ heard, term }]. Punctuation and capitals are not wording.
+  function wordSwaps(find, repl) {
+    var a = String(find || '').match(/\S+/g) || [], b = String(repl || '').match(/\S+/g) || [];
+    if (!a.length || !b.length || a.length > 80 || b.length > 80) return [];
+    var pairs = matchWords(a.map(wordingKey), b.map(wordingKey), 400), out = [], pa = -1, pb = -1;
+    if (!pairs) return [];
+    function gap(toA, toB) {
+      if (toA - pa <= 1 && toB - pb <= 1) return;
+      var was = a.slice(pa + 1, toA).join(' '), now = b.slice(pb + 1, toB).join(' ');
+      if (!wordingKey(was) || !wordingKey(now) || wordingKey(was) === wordingKey(now)) return;
+      out.push({ heard: was, term: now });
+    }
+    pairs.forEach(function (p) { gap(p[0], p[1]); pa = p[0]; pb = p[1]; });
+    gap(a.length, b.length);
+    return out;
+  }
+  // Two everyday words that are spelled differently and sound the same (their / there). The wording check
+  // already knows these, and they are not Bible terms.
+  function everydayHomophones(heard, term) {
+    var a = letterWords(heard), b = letterWords(term);
+    return a.length === 1 && b.length === 1 && !!HOMOPHONE_GROUP[a[0]] && HOMOPHONE_GROUP[a[0]] === HOMOPHONE_GROUP[b[0]] && !/[A-Z]/.test(term);
+  }
+  function flatWords(text) { return ' ' + String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim() + ' '; }
+
+  /* ---- What one approved guide showed (the evidence) ---- */
+
+  // The misheard words put right in a guide, from its own list of changes: by the edit pass, by hand, and by
+  // hand after the page had refused them. A fix a person reversed is kept apart, against the pair.
+  function guideEvidence(s) {
+    var pass = [], hand = [], refused = [];
+    (s.edits || []).forEach(function (e) {
+      if (!e) return;
+      if (e.kind === 'misheard' || e.kind === 'verse-fix') pass = pass.concat(wordSwaps(e.find, e.replace));
+      else if (e.kind === 'hand' && e.note === 'changed by hand' && String(e.find).indexOf('…') === -1 && String(e.replace).indexOf('…') === -1) hand = hand.concat(wordSwaps(e.find, e.replace));
+    });
+    (s.suggested || []).forEach(function (e) { if (e) refused = refused.concat(wordSwaps(e.find, e.replace)); });
+    var final = flatWords(s.corrected), seen = Object.create(null), pairs = [], undone = [];
+    function same(x, y) { return wordingKey(x) === wordingKey(y); }
+    function inFinal(term) { return final.indexOf(flatWords(term)) !== -1; }
+    function add(list, heard, term, from) {
+      heard = glossText(heard).toLowerCase(); term = glossText(term);
+      var key = termKey(term), id = key + '|' + wordingKey(heard);
+      if (!heard || !key || seen[id] || everydayHomophones(heard, term)) return;
+      seen[id] = true; list.push({ heard: heard, term: term, from: from });
+    }
+    function reverses(h, p) { return same(h.heard, p.term) && same(h.term, p.heard); }
+    pass.forEach(function (p) {
+      if (hand.some(function (h) { return reverses(h, p); })) { if (undone.length < 30) add(undone, p.heard, p.term, 'undone'); }
+      else if (inFinal(p.term) && pairs.length < GLOSS_PAIRS_MAX) add(pairs, p.heard, p.term, 'pass');
+    });
+    hand.forEach(function (h) {
+      if (pass.some(function (p) { return reverses(h, p); }) || !inFinal(h.term) || pairs.length >= GLOSS_PAIRS_MAX) return;
+      // A hand change counts only when it could be a mishearing: the new word is a name, or sounds like the old one.
+      if (!/\p{Lu}/u.test(h.term) && !soundsAlike(h.heard, h.term, [lettersOf(h.term)])) return;
+      add(pairs, h.heard, h.term, refused.some(function (r) { return same(r.heard, h.heard) && same(r.term, h.term); }) ? 'refused' : 'hand');
+    });
+    var used = approvedTerms().filter(function (d) { return final.indexOf(flatWords(d.term)) !== -1; }).slice(0, GLOSS_USED_MAX).map(function (d) { return d.term; });
+    return { at: stampNow(), book: guideRef(s).book || '', bookTitle: String(state.bookTitle || '').slice(0, 120), guide: String(s.name || '').slice(0, 160), pairs: pairs, undone: undone, used: used };
+  }
+  function learnedId(book, id) { var out = (String(book || '') + '_' + String(id || '')).replace(/[^A-Za-z0-9_-]/g, ''); return out.length > 2 && out.length <= 120 ? out : ''; }
+
+  // Called when a person approves a guide as its Final Transcript. One small write; a failure here never
+  // stands in the way of the approval, because the evidence is a convenience and the approval is the work.
+  function learnFromGuide(s) {
+    if (!dbApi || !dbRoot || !bookId || !s || !s.corrected) return Promise.resolve();
+    var doc, id = learnedId(bookId, s.id);
+    try { doc = guideEvidence(s); } catch (err) { console.warn('Scriptorium: could not read what this guide showed', err); return Promise.resolve(); }
+    if (!id || tooLarge(doc, 'What this guide showed')) return Promise.resolve();
+    return inOrder('learned:' + id, function () { return dbRoot.doc('learned/' + id).set(doc); }).then(function () {
+      return noteBooks(doc);
+    }).catch(function (err) { console.warn('Scriptorium: could not write down what this guide showed', err); });
+  }
+  // An approved term used in a book of the Bible it was not yet listed for is listed for it, so the next guide
+  // on that book is told the name. A handful at most for one guide.
+  function noteBooks(doc) {
+    if (!doc.book) return Promise.resolve();
+    var keys = doc.used.concat(doc.pairs.map(function (p) { return p.term; })).map(termKey).filter(function (k, i, all) {
+      var d = glossary[k];
+      return all.indexOf(k) === i && d && d.status === 'approved' && d.books.indexOf(doc.book) === -1 && d.books.length < GLOSS_BOOKS_MAX;
+    }).slice(0, 8);
+    return keys.reduce(function (before, key) {
+      return before.then(function () {
+        var d = glossary[key], books = d.books.concat([doc.book]);
+        return inOrder('g:' + key, function () { return dbRoot.doc('glossary/' + key).update({ books: books }); }).then(function () { d.books = books; glossaryStamp += 1; }, function () {});
+      });
+    }, Promise.resolve());
+  }
+  function logFromDoc(id, d) {
+    d = d || {};
+    function rows(list, max) {
+      return flatRows(list).map(function (r) { return { heard: glossText(r.heard).toLowerCase(), term: glossText(r.term), from: r.from === 'hand' || r.from === 'refused' ? r.from : 'pass' }; })
+        .filter(function (r) { return r.heard && termKey(r.term); }).slice(0, max);
+    }
+    return { id: id, at: Number(d.at) || 0, book: typeof d.book === 'string' ? d.book.slice(0, 40) : '', guide: typeof d.guide === 'string' ? d.guide.slice(0, 160) : '',
+             pairs: rows(d.pairs, GLOSS_PAIRS_MAX), undone: rows(d.undone, 30) };
+  }
+
+  /* ---- The glossary: what a person ruled ---- */
+
+  function decisionFromDoc(key, d) {
+    d = d || {};
+    var status = d.status === 'approved' ? 'approved' : d.status === 'rejected' ? 'rejected' : '', term = glossText(d.term);
+    if (!status || !term || termKey(term) !== key) return null;             // a document under the wrong name is not a ruling
+    return { key: key, term: term, status: status, heard: glossStrings(d.heard, GLOSS_HEARD_MAX).map(function (h) { return h.toLowerCase(); }),
+             notHeard: glossStrings(d.notHeard, GLOSS_HEARD_MAX).map(function (h) { return h.toLowerCase(); }),
+             books: (Array.isArray(d.books) ? d.books : []).filter(function (b) { return typeof b === 'string' && b && b.length <= 40; }).slice(0, GLOSS_BOOKS_MAX),
+             seen: Number(d.seen) || 0, at: Number(d.at) || 0 };
+  }
+  function decisionDoc(d) { return { term: d.term, status: d.status, heard: d.heard, notHeard: d.notHeard, books: d.books, seen: d.seen, at: d.at }; }
+  function loadGlossary() {
+    if (!dbRoot) return Promise.resolve();
+    return readListing('glossary', GLOSS_PAGES_MAX).then(function (got) {
+      var next = Object.create(null);
+      got.docs.forEach(function (doc) {
+        if (!doc || typeof doc.id !== 'string') return;
+        var d = decisionFromDoc(doc.id, doc.data());
+        if (d) next[d.key] = d;
+      });
+      glossary = next; glossaryMore = got.more; glossaryAt = Date.now(); glossaryStamp += 1;
+    }).catch(function (err) { console.warn('Scriptorium: could not read the glossary', err); });
+  }
+  // Before an edit pass: the glossary as it stands now, so a teammate's approval made a minute ago counts.
+  function freshGlossary() { return Date.now() - glossaryAt < GLOSS_FRESH_MS ? Promise.resolve() : loadGlossary(); }
+  function loadLearned() {
+    if (!dbRoot) return Promise.resolve();
+    return readListing('learned', GLOSS_PAGES_MAX).then(function (got) {
+      learnedLogs = got.docs.filter(function (doc) { return doc && typeof doc.id === 'string'; }).map(function (doc) { return logFromDoc(doc.id, doc.data()); });
+      learnedMore = got.more;
+    }).catch(function (err) { console.warn('Scriptorium: could not read what the guides have shown', err); });
+  }
+  function putDecision(d) {
+    var doc = decisionDoc(d);
+    if (tooLarge(doc, 'This term')) return Promise.reject({ code: 'too_large' });
+    return inOrder('g:' + d.key, function () { return dbRoot.doc('glossary/' + d.key).set(doc); }).then(function () { glossary[d.key] = d; glossaryStamp += 1; });
+  }
+
+  /* ---- What the edit pass and the wording check are given ---- */
+
+  var glossNamesMemo = { stamp: -1, list: [] };
+  // Every approved term, as letters only: the wording check counts each as a listed name (4.12). A listed name
+  // loosens how alike two words must sound, and with a whole team's glossary behind it that is too loose for a
+  // very short name: with "On" listed, "in" could become "on". So a name under four letters is not listed here.
+  // It still gets through where the sounds truly match, or where a person approved that exact mishearing.
+  function glossaryNames() {
+    if (glossNamesMemo.stamp !== glossaryStamp) glossNamesMemo = { stamp: glossaryStamp, list: approvedTerms().map(function (d) { return lettersOf(d.term); }).filter(function (n) { return n.length >= 4; }) };
+    return glossNamesMemo.list;
+  }
+  // Did a person approve "this was heard, and that is what it stood for"?
+  function glossaryAllows(was, now) {
+    var d = glossary[termKey(now)], k = heardKey(was);
+    return !!d && d.status === 'approved' && !!k && d.heard.some(function (h) { return wordingKey(h) === k; });
+  }
+  // What one guide's edit call is told (4.6): approved terms from the guide's own book of the Bible that the
+  // book's Words to Search For does not already list, and the approved mishearings that occur in this text.
+  function glossaryFor(s, text) {
+    var out = { names: [], hints: [] }, approved = approvedTerms();
+    if (!approved.length) return out;
+    var flat = flatWords(text), book = guideRef(s).book, listed = listedWords(), chars = 0;
+    approved.forEach(function (d) {
+      d.heard.forEach(function (h) { if (out.hints.length < GLOSS_HINTS_MAX && flat.indexOf(flatWords(h)) !== -1) out.hints.push({ heard: h, term: d.term }); });
+    });
+    if (book) {
+      approved.filter(function (d) { return d.books.indexOf(book) !== -1 && listed.indexOf(lettersOf(d.term)) === -1; })
+        .sort(function (a, b) { return (b.seen - a.seen) || naturalCompare(a.term, b.term); })
+        .forEach(function (d) {
+          if (out.names.length >= GLOSS_NAMES_MAX || chars + d.term.length + 2 > GLOSS_NAMES_CHARS) return;
+          out.names.push(d.term); chars += d.term.length + 2;
+        });
+    }
+    return out;
+  }
+
+  /* ---- What is waiting for a person ---- */
+
+  // The evidence added up: one row for each term, with how it was heard, in how many guides and written
+  // scripts, and in which books. Counts are worked out here every time, never stored, so two people
+  // approving guides at the same moment cannot lose one.
+  function glossaryEvidence() {
+    var map = Object.create(null);
+    function entry(term) {
+      var key = termKey(term); if (!key) return null;
+      var p = map[key] || (map[key] = { key: key, forms: Object.create(null), heard: Object.create(null), guides: 0, scripts: 0, books: Object.create(null), from: Object.create(null) });
+      p.forms[term] = (p.forms[term] || 0) + 1;
+      return p;
+    }
+    function heardOf(p, text) { var k = wordingKey(text); return k ? (p.heard[k] || (p.heard[k] = { key: k, text: text, guides: 0, undone: 0, refused: false })) : null; }
+    learnedLogs.forEach(function (log) {
+      var counted = Object.create(null);
+      log.pairs.forEach(function (pr) {
+        var p = entry(pr.term), h = p && heardOf(p, pr.heard); if (!h) return;
+        h.guides += 1; if (pr.from === 'refused') h.refused = true;
+        p.from[pr.from === 'pass' ? 'pass' : 'hand'] = true;
+        if (!counted[p.key]) { counted[p.key] = true; p.guides += 1; }
+        if (log.book) p.books[log.book] = true;
+      });
+      log.undone.forEach(function (pr) { var p = entry(pr.term), h = p && heardOf(p, pr.heard); if (h) h.undone += 1; });
+    });
+    writtenIndex.forEach(function (w) {
+      (w.terms || []).forEach(function (t) { var p = entry(t); if (!p) return; p.scripts += 1; p.from.script = true; if (w.book) p.books[w.book] = true; });
+    });
+    return map;
+  }
+  // How a term is written when its sources disagree: the way most of them wrote it, capitals winning a tie.
+  function bestForm(p) {
+    return Object.keys(p.forms).sort(function (a, b) { return (p.forms[b] - p.forms[a]) || (/\p{Lu}/u.test(b) ? 1 : 0) - (/\p{Lu}/u.test(a) ? 1 : 0) || naturalCompare(a, b); })[0];
+  }
+  // The rows waiting for a ruling: a term nobody has ruled on, or an approved term heard in a new way.
+  function glossaryWaiting(map) {
+    map = map || glossaryEvidence();
+    return Object.keys(map).map(function (key) {
+      var p = map[key], d = glossary[key];
+      if (d && d.status !== 'approved') return null;
+      var heard = Object.keys(p.heard).map(function (k) { return p.heard[k]; }).filter(function (h) {
+        return h.guides > 0 && !(d && (d.heard.concat(d.notHeard)).some(function (x) { return wordingKey(x) === h.key; }));
+      }).sort(function (a, b) { return b.guides - a.guides; }).slice(0, GLOSS_HEARD_MAX);
+      if (d && !heard.length) return null;
+      if (!d && !heard.length && !p.scripts) return null;                  // only ever seen being undone: nothing to approve
+      return { key: key, term: d ? d.term : bestForm(p), isNew: !d, heard: heard, guides: p.guides, scripts: p.scripts, books: Object.keys(p.books).sort(naturalCompare), from: p.from };
+    }).filter(Boolean).sort(function (a, b) { return (b.guides - a.guides) || (b.scripts - a.scripts) || naturalCompare(a.term, b.term); });
+  }
+
+  /* ---- A person's rulings ---- */
+
+  function glossFail(message) { if (glossView) { glossView.busy = ''; glossView.error = message; paint(); } }
+  function glossProblem(err) {
+    var code = err && err.code;
+    if (code === 'invalid_argument') return 'That couldn’t be saved. Your access to this artifact may be view-only — ask its owner to make you a Contributor.';
+    if (code === 'quota_exceeded') return 'The Scriptorium’s storage is full. Remove something that is no longer needed, then try again.';
+    return 'That couldn’t be saved just now — try again.';
+  }
+  // Applies one change to each picked row, one write at a time. Stops at the first that fails and says so;
+  // what was saved before it stays saved.
+  function ruleOn(keys, change, busy) {
+    var v = glossView;
+    if (!v || v.busy || !keys.length) return Promise.resolve();
+    if (!dbRoot) { glossFail('Saved work can’t be reached in this view.'); return Promise.resolve(); }
+    v.busy = busy; v.error = ''; paint();
+    // The glossary is read again first: a teammate may have ruled on some of these since this page was opened.
+    return loadGlossary().then(function () {
+      var map = glossaryEvidence(), rows = glossaryWaiting(map), i = 0;
+      function next() {
+        if (i >= keys.length) return Promise.resolve();
+        var key = keys[i]; i += 1;
+        var d = change(key, rows.filter(function (r) { return r.key === key; })[0], map[key]);
+        return (d ? putDecision(d) : Promise.resolve()).then(function () { delete v.picked[key]; }).then(next);
+      }
+      return next();
+    }).then(function () { if (glossView === v) { v.busy = ''; paint(); } }, function (err) {
+      console.warn('Scriptorium: could not save to the glossary', err);
+      if (glossView === v) glossFail(glossProblem(err));
+    });
+  }
+  function union(a, b, max) { return glossStrings((a || []).concat(b || []), max).map(function (x) { return x.toLowerCase(); }); }
+  function pickedKeys() { return glossView ? Object.keys(glossView.picked).filter(function (k) { return glossView.picked[k]; }) : []; }
+  function approveTerms() {
+    return ruleOn(pickedKeys(), function (key, row, ev) {
+      if (!row) return null;                                          // ruled on by someone else in the meantime
+      var d = glossary[key], heard = row.heard.map(function (h) { return h.text; }), books = Object.keys((ev && ev.books) || {});
+      return { key: key, term: d ? d.term : row.term, status: 'approved', heard: union(d && d.heard, heard, GLOSS_HEARD_MAX), notHeard: d ? d.notHeard : [],
+               books: (d ? d.books : []).concat(books).filter(function (b, n, all) { return all.indexOf(b) === n; }).slice(0, GLOSS_BOOKS_MAX),
+               seen: row.guides + row.scripts, at: stampNow() };
+    }, 'approve');
+  }
+  // "Not a term" for one nobody had ruled on; for an approved term heard in a new way, "not a mishearing of it".
+  function rejectTerms() {
+    return ruleOn(pickedKeys(), function (key, row) {
+      if (!row) return null;
+      var d = glossary[key], heard = row.heard.map(function (h) { return h.text; });
+      if (d) return { key: key, term: d.term, status: 'approved', heard: d.heard, notHeard: union(d.notHeard, heard, GLOSS_HEARD_MAX), books: d.books, seen: d.seen, at: stampNow() };
+      return { key: key, term: row.term, status: 'rejected', heard: [], notHeard: [], books: [], seen: 0, at: stampNow() };
+    }, 'reject');
+  }
+  function oneRuling(key, change, busy) {
+    if (!glossView || glossView.busy || !glossary[key]) return Promise.resolve();
+    var v = glossView; v.busy = busy; v.error = ''; paint();
+    return Promise.resolve().then(function () { return change(glossary[key]); }).then(function () { if (glossView === v) { v.busy = ''; paint(); } }, function (err) {
+      console.warn('Scriptorium: could not save to the glossary', err);
+      if (glossView === v) glossFail(glossProblem(err));
+    });
+  }
+  // Takes an approved term out. It is kept as turned down, so the evidence does not bring it straight back.
+  function removeTerm(key) {
+    return oneRuling(key, function (d) { return putDecision({ key: key, term: d.term, status: 'rejected', heard: [], notHeard: [], books: [], seen: 0, at: stampNow() }); }, 'remove');
+  }
+  // One way of hearing an approved term, taken out and remembered as not one.
+  function removeHeard(key, n) {
+    return oneRuling(key, function (d) {
+      var h = d.heard[n]; if (h == null) return null;
+      return putDecision({ key: key, term: d.term, status: d.status, heard: d.heard.filter(function (x, i) { return i !== n; }), notHeard: union(d.notHeard, [h], GLOSS_HEARD_MAX), books: d.books, seen: d.seen, at: stampNow() });
+    }, 'remove');
+  }
+  // A turned-down term forgotten: if the evidence still shows it, it waits for approval again.
+  function restoreTerm(key) {
+    return oneRuling(key, function () {
+      return inOrder('g:' + key, function () { return dbRoot.doc('glossary/' + key).delete(); }).then(function () { delete glossary[key]; glossaryStamp += 1; });
+    }, 'remove');
+  }
+  // A term typed in by a person: approved as it is entered, since typing it is the ruling.
+  function addTerm() {
+    var v = glossView;
+    if (!v || v.busy) return Promise.resolve();
+    var term = glossText(v.term), key = termKey(term), heard = String(v.heard || '').split(/[,;\n]+/).map(glossText).filter(Boolean);
+    if (!key) { glossFail('Type the term as it should be spelled: one to four words, such as “Zophar” or “Beth Shemesh”.'); return Promise.resolve(); }
+    if (!dbRoot) { glossFail('Saved work can’t be reached in this view.'); return Promise.resolve(); }
+    v.busy = 'add'; v.error = ''; paint();
+    return loadGlossary().then(function () {
+      var d = glossary[key];
+      return putDecision({ key: key, term: d && d.status === 'approved' ? d.term : term, status: 'approved', heard: union(d && d.status === 'approved' ? d.heard : [], heard, GLOSS_HEARD_MAX),
+                           notHeard: d ? d.notHeard.filter(function (x) { return !heard.some(function (h) { return wordingKey(h) === wordingKey(x); }); }) : [],
+                           books: d ? d.books : [], seen: d ? d.seen : 0, at: stampNow() });
+    }).then(function () { if (glossView === v) { v.busy = ''; v.term = ''; v.heard = ''; paint(); } }, function (err) {
+      console.warn('Scriptorium: could not add to the glossary', err);
+      if (glossView === v) glossFail(glossProblem(err));
+    });
+  }
+
+  /* ---- Written scripts saved before the glossary existed ---- */
+
+  function unscanned() { return writtenIndex.filter(function (w) { return !w.terms; }); }
+  // Reads each one's text once and keeps the names found in it on its listing. Nothing else about it changes.
+  function scanWritten() {
+    var v = glossView, todo = unscanned();
+    if (!v || v.busy || v.scan || !todo.length || !dbRoot) return Promise.resolve();
+    var scan = v.scan = { done: 0, total: todo.length, failed: 0, stop: false };
+    paint();
+    function show() { var p = root.querySelector('.gloss-scan-progress'); if (p) p.textContent = scanText(scan); }
+    function next() {
+      var w = todo.shift();
+      if (!w || scan.stop || glossView !== v || scan.failed > 5) return Promise.resolve();
+      var kept = writtenTexts[w.id] != null;
+      return readWrittenText(w.id).then(function (text) {
+        var terms = writtenTerms(text);
+        if (!kept) delete writtenTexts[w.id];                         // a whole library's text is not held in memory
+        return dbRoot.doc('written/' + w.id).update({ terms: terms }).then(function () { w.terms = terms; });
+      }).then(function () { scan.done += 1; }, function (err) { console.warn('Scriptorium: could not scan a written script', err); scan.failed += 1; }).then(function () { show(); return next(); });
+    }
+    return next().then(function () { if (glossView === v) { v.scan = null; if (scan.failed) v.error = scan.failed + ' written script' + plural(scan.failed) + ' could not be scanned. Try again in a moment.'; paint(); } });
+  }
+  function scanText(scan) { return 'Scanning written scripts: ' + scan.done + ' of ' + scan.total + '…'; }
+
+  /* ---- The Glossary page ---- */
+
+  function openGlossary() {
+    view = 'glossary'; flash = null; dbStatus = 'loading';
+    glossView = { query: '', picked: {}, busy: '', error: '', term: '', heard: '', copyText: '', scan: null };
+    paint();
+    function done() { dbStatus = 'ready'; paint(); }
+    return Promise.all([loadGlossary(), loadLearned(), loadWrittenIndex()]).then(done, done);
+  }
+  function glossMatches(text) {
+    var q = glossView.query.trim().toLowerCase().split(/\s+/).filter(Boolean), hay = String(text).toLowerCase();
+    return q.every(function (word) { return hay.indexOf(word) !== -1; });
+  }
+  function whereFrom(row) {
+    var bits = [];
+    if (row.guides) bits.push('put right in ' + row.guides + ' approved guide' + plural(row.guides));
+    if (row.scripts) bits.push('in ' + row.scripts + ' written script' + plural(row.scripts));
+    if (row.books.length) bits.push(row.books.slice(0, 4).map(displayBook).join(', ') + (row.books.length > 4 ? ' and ' + (row.books.length - 4) + ' more' : ''));
+    return bits.join(' · ');
+  }
+  function renderWaitingRow(row) {
+    var v = glossView, heard = row.heard.map(function (h) {
+      return '<span class="gloss-heard">“' + esc(h.text) + '”' + (h.guides > 1 ? ' ×' + h.guides : '') + (h.refused ? ' <em>the page had refused this</em>' : '') + (h.undone ? ' <em>undone ' + h.undone + ' time' + plural(h.undone) + '</em>' : '') + '</span>';
+    }).join('');
+    return '<label class="gloss-row"><input type="checkbox" data-action="gloss-pick" data-id="' + escAttr(row.key) + '"' + (v.picked[row.key] ? ' checked' : '') + (v.busy ? ' disabled' : '') + '>' +
+      '<span class="gloss-main"><span class="gloss-term">' + esc(row.term) + '</span>' + (row.isNew ? '' : ' <span class="gloss-tag">already approved · heard a new way</span>') +
+      (heard ? '<span class="gloss-heard-line">heard as ' + heard + '</span>' : '') +
+      '<span class="gloss-meta">' + esc(whereFrom(row)) + '</span></span></label>';
+  }
+  function renderApprovedRow(d) {
+    var v = glossView, dis = v.busy ? ' disabled' : '';
+    var heard = d.heard.map(function (h, n) {
+      return '<span class="gloss-heard">“' + esc(h) + '” <button type="button" class="gloss-x" data-action="gloss-unheard" data-id="' + escAttr(d.key) + '" data-n="' + n + '" aria-label="Remove this mishearing" title="Not a mishearing of ' + escAttr(d.term) + '"' + dis + '>×</button></span>';
+    }).join('');
+    return '<div class="gloss-row"><span class="gloss-main"><span class="gloss-term">' + esc(d.term) + '</span>' +
+      (heard ? '<span class="gloss-heard-line">heard as ' + heard + '</span>' : '') +
+      (d.books.length ? '<span class="gloss-meta">' + esc(d.books.slice(0, 6).map(displayBook).join(', ') + (d.books.length > 6 ? ' and ' + (d.books.length - 6) + ' more' : '')) + '</span>' : '') + '</span>' +
+      '<button type="button" class="link-btn" data-action="gloss-remove" data-id="' + escAttr(d.key) + '"' + dis + '>Remove</button></div>';
+  }
+  function capped(rows, draw) {
+    return rows.slice(0, GLOSS_SHOWN_MAX).map(draw).join('') +
+      (rows.length > GLOSS_SHOWN_MAX ? '<p class="hint">Showing the first ' + GLOSS_SHOWN_MAX + ' of ' + rows.length.toLocaleString('en-US') + '. Search to narrow the list.</p>' : '');
+  }
+  function renderGlossaryLists() {
+    var v = glossView, dis = v.busy ? ' disabled' : '';
+    var waiting = glossaryWaiting().filter(function (r) { return glossMatches(r.term + ' ' + r.heard.map(function (h) { return h.text; }).join(' ') + ' ' + r.books.join(' ')); });
+    var all = Object.keys(glossary).map(function (k) { return glossary[k]; }).filter(function (d) { return glossMatches(d.term + ' ' + d.heard.join(' ') + ' ' + d.books.join(' ')); });
+    var approved = all.filter(function (d) { return d.status === 'approved'; }).sort(function (a, b) { return naturalCompare(a.term, b.term); });
+    var turned = all.filter(function (d) { return d.status === 'rejected'; }).sort(function (a, b) { return naturalCompare(a.term, b.term); });
+    var picked = pickedKeys().length, shown = waiting.slice(0, GLOSS_SHOWN_MAX), allPicked = shown.length > 0 && shown.every(function (r) { return v.picked[r.key]; });
+    return '<section class="gloss-section"><h2 class="gloss-head">Waiting for approval <span class="gloss-count">' + waiting.length.toLocaleString('en-US') + '</span></h2>' +
+      (waiting.length ?
+        '<p class="hint">Each of these was noticed in a guide a person approved, or in a written script. Nothing here has any effect until you approve it. A term you turn down is not offered again.</p>' +
+        '<div class="gloss-bar"><label class="gloss-all"><input type="checkbox" data-action="gloss-all"' + (allPicked ? ' checked' : '') + dis + '> Select all shown</label>' +
+        '<button type="button" class="btn btn-edit" data-action="gloss-approve"' + (picked && !v.busy ? '' : ' disabled') + '>' + (v.busy === 'approve' ? 'Approving…' : picked ? 'Approve ' + picked : 'Approve ticked') + '</button>' +
+        '<button type="button" class="btn" data-action="gloss-reject"' + (picked && !v.busy ? '' : ' disabled') + '>' + (v.busy === 'reject' ? 'Saving…' : 'Not a term') + '</button></div>' +
+        '<div class="gloss-list">' + capped(waiting, renderWaitingRow) + '</div>'
+        : '<p class="library-empty">' + (v.query.trim() ? 'Nothing waiting matches that search.' : 'Nothing is waiting. Terms appear here when a guide with a misheard word is approved as a Final Transcript, and when a written script is added.') + '</p>') +
+      '</section>' +
+      '<section class="gloss-section"><h2 class="gloss-head">Approved <span class="gloss-count">' + approved.length.toLocaleString('en-US') + '</span></h2>' +
+      (approved.length ?
+        '<p class="hint">The edit pass is told these names for guides on the same book of the Bible, and is told a known mishearing when its words appear in a transcript. The page never swaps a word in by itself.</p>' +
+        '<div class="gloss-list">' + capped(approved, renderApprovedRow) + '</div>'
+        : '<p class="library-empty">' + (v.query.trim() ? 'No approved term matches that search.' : 'No terms approved yet.') + '</p>') +
+      '</section>' +
+      (turned.length ? '<details class="gloss-section gloss-turned"><summary>Turned down <span class="gloss-count">' + turned.length.toLocaleString('en-US') + '</span></summary>' +
+        '<p class="hint">These are not offered again. “Offer again” forgets the ruling, and the term comes back to the top list if a guide or a written script still shows it.</p>' +
+        '<div class="gloss-list">' + capped(turned, function (d) {
+          return '<div class="gloss-row"><span class="gloss-main"><span class="gloss-term">' + esc(d.term) + '</span></span><button type="button" class="link-btn" data-action="gloss-restore" data-id="' + escAttr(d.key) + '"' + dis + '>Offer again</button></div>';
+        }) + '</div></details>' : '');
+  }
+  function renderGlossary() {
+    var v = glossView, loading = dbStatus === 'loading', dis = loading || v.busy ? ' disabled' : '', todo = loading ? 0 : unscanned().length, n = loading ? 0 : approvedTerms().length;
+    return (
+      '<div class="wrap">' +
+      '<p class="back-line"><button type="button" class="link-btn" data-action="go-library">← All books</button></p>' +
+      '<header class="hero">' +
+      '<p class="eyebrow">Through the Word · The Scriptorium</p>' +
+      '<h1 class="library-title">Glossary</h1>' +
+      '<p class="dek">The Bible names and terms the team’s guides use, and the ways Descript has misheard each one. The Scriptorium writes down what it notices; a person decides what is kept. An approved term helps every later guide, so the same word is not put right twice.</p>' +
+      '</header>' +
+      noticeHtml() +
+      '<div class="action-bar">' +
+      '<div class="bar-group"><button type="button" class="btn" data-action="gloss-copy"' + (n && !loading ? '' : ' disabled') + ' title="A plain list, for Descript’s own vocabulary list or anywhere else">Copy approved terms</button>' +
+      (todo ? '<button type="button" class="btn" data-action="gloss-scan"' + (v.scan ? ' disabled' : dis) + ' title="Finds the names in written scripts added before the glossary existed">Scan ' + todo.toLocaleString('en-US') + ' written script' + plural(todo) + ' for terms</button>' : '') + '</div>' +
+      '<p class="status-line">' + (loading ? 'Loading the glossary…' : n.toLocaleString('en-US') + ' approved term' + plural(n)) + '</p>' +
+      '<div class="action-bar-end"><input class="written-search" data-gfield="query" type="search" placeholder="Search terms, mishearings or books" aria-label="Search the glossary" value="' + escAttr(v.query) + '"' + (loading ? ' disabled' : '') + '></div>' +
+      '</div>' +
+      (v.scan ? '<p class="notice notice-info"><span class="gloss-scan-progress">' + esc(scanText(v.scan)) + '</span> <button type="button" class="link-btn" data-action="gloss-scan-stop">Stop</button></p>' : '') +
+      (v.error ? '<p class="notice notice-warn">' + esc(v.error) + '</p>' : '') +
+      (glossaryMore || learnedMore ? '<p class="notice notice-warn">There is more here than this page could read, so some terms or some of what the guides showed is missing from the lists below. Nothing is lost. Tell whoever looks after the Scriptorium.</p>' : '') +
+      (v.copyText ? '<section class="pull-panel"><div class="pull-head"><h3>Approved terms</h3><button type="button" class="link-btn" data-action="gloss-copy-close">Close</button></div><p class="hint">Copying didn’t work in this view. Select the list and copy it by hand.</p><textarea class="written-text-box" rows="6" readonly>' + esc(v.copyText) + '</textarea></section>' : '') +
+      '<section class="pull-panel gloss-add">' +
+      '<div class="pull-head"><h3>Add a term yourself</h3></div>' +
+      '<div class="written-row"><input class="written-input" data-gfield="term" type="text" placeholder="The term, spelled right — Zophar" aria-label="The term" value="' + escAttr(v.term) + '"' + dis + '>' +
+      '<input class="written-input" data-gfield="heard" type="text" placeholder="Heard as (optional) — so far, sofa" aria-label="How Descript has heard it" value="' + escAttr(v.heard) + '"' + dis + '>' +
+      '<button type="button" class="btn" data-action="gloss-add"' + dis + '>' + (v.busy === 'add' ? 'Adding…' : 'Add') + '</button></div>' +
+      '</section>' +
+      (loading ? renderSkeleton() : '<div id="gloss-lists">' + renderGlossaryLists() + '</div>') +
+      versionLine() +
+      '</div>' + renderModal()
+    );
+  }
+  function paintGlossaryLists() { var el = document.getElementById('gloss-lists'); if (el && glossView) el.innerHTML = renderGlossaryLists(); }
+  // Ticking one row changes only the buttons above the list. The rows are not drawn again, so the box that was
+  // ticked keeps the keyboard's place, and a long list does not flicker.
+  function paintGlossBar() {
+    var v = glossView, picked = pickedKeys().length;
+    var approve = root.querySelector('[data-action="gloss-approve"]'), reject = root.querySelector('[data-action="gloss-reject"]'), all = root.querySelector('[data-action="gloss-all"]');
+    if (approve) { approve.textContent = picked ? 'Approve ' + picked : 'Approve ticked'; approve.disabled = !picked || !!v.busy; }
+    if (reject) reject.disabled = !picked || !!v.busy;
+    if (all) { var boxes = root.querySelectorAll('[data-action="gloss-pick"]'); all.checked = boxes.length > 0 && Array.prototype.every.call(boxes, function (x) { return x.checked; }); }
+  }
+  function pickTerm(key, on) { if (glossView && !glossView.busy) { if (on) glossView.picked[key] = true; else delete glossView.picked[key]; paintGlossBar(); } }
+  function pickAllTerms(on) {
+    if (!glossView || glossView.busy) return;
+    var shown = glossaryWaiting().filter(function (r) { return glossMatches(r.term + ' ' + r.heard.map(function (h) { return h.text; }).join(' ') + ' ' + r.books.join(' ')); }).slice(0, GLOSS_SHOWN_MAX);
+    shown.forEach(function (r) { if (on) glossView.picked[r.key] = true; else delete glossView.picked[r.key]; });
+    paintGlossaryLists();
+  }
+  function copyTerms(btn) {
+    var text = approvedTerms().map(function (d) { return d.term; }).sort(naturalCompare).join('\n');
+    if (!text || !glossView) return;
+    var done = function () { if (btn) { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy approved terms'; }, 1800); } };
+    var fail = function () { if (glossView) { glossView.copyText = text; paint(); } };
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fail); else fail(); } catch (e) { fail(); }
+  }
+  // The line under a book's Words to Search For: what the glossary adds for this book, in words.
+  function glossaryLine() {
+    var n = approvedTerms().length;
+    if (!n) return '';
+    return '<p class="hint gloss-line">The glossary holds ' + n.toLocaleString('en-US') + ' approved term' + plural(n) + '. The ones that bear on a guide are passed to the edit pass with it, so they need not be listed here.</p>';
+  }
+  /* ==================================================================
      Events
      ================================================================== */
 
@@ -4271,7 +5210,22 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (action === 'new-book') { createBook(); return; }
     if (action === 'open-book') { openBook(id); return; }
     if (action === 'delete-book') { askDeleteBook(id); return; }
-    if (action === 'go-library') { if (view === 'written') showLibrary(); else leaveBook(); return; }
+    if (action === 'go-library') { if (view === 'written' || view === 'glossary') { glossView = null; writtenFiles = null; showLibrary(); } else leaveBook(); return; }
+    if (action === 'go-glossary') { openGlossary(); return; }
+    if (action === 'gloss-approve') { approveTerms(); return; }
+    if (action === 'gloss-reject') { rejectTerms(); return; }
+    if (action === 'gloss-remove') { removeTerm(id); return; }
+    if (action === 'gloss-unheard') { removeHeard(id, Number(btn.dataset.n)); return; }
+    if (action === 'gloss-restore') { restoreTerm(id); return; }
+    if (action === 'gloss-add') { addTerm(); return; }
+    if (action === 'gloss-copy') { copyTerms(btn); return; }
+    if (action === 'gloss-copy-close') { if (glossView) { glossView.copyText = ''; paint(); } return; }
+    if (action === 'gloss-scan') { scanWritten(); return; }
+    if (action === 'gloss-scan-stop') { if (glossView && glossView.scan) glossView.scan.stop = true; return; }
+    if (action === 'gloss-pick' || action === 'gloss-all') return;      // checkboxes: handled on change
+    if (action === 'written-files' || action === 'written-files-pick') return;   // a file box and checkboxes: handled on change
+    if (action === 'written-files-save') { saveWrittenFiles(); return; }
+    if (action === 'written-files-close') { writtenFiles = null; paint(); return; }
     if (action === 'go-written') { openWritten(); return; }
     if (action === 'written-new') { startWrittenForm(); return; }
     if (action === 'written-cancel') { writtenForm = null; paint(); return; }
@@ -4327,6 +5281,10 @@ input:disabled, textarea:disabled { cursor: wait; }
     if (!t || !t.dataset) return;
     if (t.dataset.action === 'set-written') setWritten(t.dataset.id, t.value);
     if (t.dataset.action === 'written-file') readWrittenFile(t.files && t.files[0]);
+    if (t.dataset.action === 'written-files') { var chosen = Array.prototype.slice.call(t.files || []); try { t.value = ''; } catch (err) {} readWrittenFiles(chosen); }
+    if (t.dataset.action === 'written-files-pick') filesPick(t.dataset.n, t.checked);
+    if (t.dataset.action === 'gloss-pick') pickTerm(t.dataset.id, t.checked);
+    if (t.dataset.action === 'gloss-all') pickAllTerms(t.checked);
     if (t.dataset.action === 'written-bulk-pick') bulkPick(t.dataset.id, t.checked);
     if (t.dataset.action === 'written-bulk-all') bulkPickAll(t.checked);
     if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
@@ -4368,9 +5326,26 @@ input:disabled, textarea:disabled { cursor: wait; }
       var note = root.querySelector('.written-count'); if (note) note.textContent = writtenFormNote();
     }
   }
+  // The Glossary page's own fields.
+  function glossFieldTouched(el) {
+    if (!glossView) return;
+    var field = el.dataset.gfield;
+    if (field === 'query') { glossView.query = el.value; paintGlossaryLists(); return; }
+    if (field === 'term' || field === 'heard') glossView[field] = el.value;
+  }
+  // Files dropped anywhere on the Written Scripts page are taken as files to add.
+  function hasFiles(e) { var types = e.dataTransfer && e.dataTransfer.types; return !!types && Array.prototype.indexOf.call(types, 'Files') !== -1; }
+  root.addEventListener('dragover', function (e) { if (view === 'written' && hasFiles(e)) e.preventDefault(); });
+  root.addEventListener('drop', function (e) {
+    if (view !== 'written' || !hasFiles(e)) return;
+    e.preventDefault();
+    if (dbStatus === 'ready') readWrittenFiles(e.dataTransfer.files);
+  });
   root.addEventListener('input', function (e) {
     var t = e.target;
     if (t && t.dataset && t.dataset.wfield) { writtenFieldTouched(t); return; }
+    if (t && t.dataset && t.dataset.ffield) { filesTitleTouched(t); return; }
+    if (t && t.dataset && t.dataset.gfield) { glossFieldTouched(t); return; }
     var changed = fieldTouched(t);
     // Typing is work on the book — but not typing in an unsaved hand correction, which changes nothing yet.
     if (changed && dbApi && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }
@@ -4390,6 +5365,7 @@ input:disabled, textarea:disabled { cursor: wait; }
       return;
     }
     // Enter in a guide's name moves on to its transcript box.
+    if (e.key === 'Enter' && e.target && e.target.dataset && (e.target.dataset.gfield === 'term' || e.target.dataset.gfield === 'heard')) { e.preventDefault(); addTerm(); return; }
     if (e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.field === 'name') {
       e.preventDefault();
       var ta = root.querySelector('[data-field="raw"][data-id="' + e.target.dataset.id + '"]');

@@ -30,3 +30,7 @@ jobs:
         run: node test/google-export-import.test.js
       - name: Stored data is safe, saves are in order, sizes are checked
         run: node test/store-safety.test.js
+      - name: The glossary holds only what a person approved
+        run: node test/glossary.test.js
+      - name: Every kind of file is read, many at once
+        run: node test/many-files.test.js

@@ -15,7 +15,22 @@
     if (action === 'new-book') { createBook(); return; }
     if (action === 'open-book') { openBook(id); return; }
     if (action === 'delete-book') { askDeleteBook(id); return; }
-    if (action === 'go-library') { if (view === 'written') showLibrary(); else leaveBook(); return; }
+    if (action === 'go-library') { if (view === 'written' || view === 'glossary') { glossView = null; writtenFiles = null; showLibrary(); } else leaveBook(); return; }
+    if (action === 'go-glossary') { openGlossary(); return; }
+    if (action === 'gloss-approve') { approveTerms(); return; }
+    if (action === 'gloss-reject') { rejectTerms(); return; }
+    if (action === 'gloss-remove') { removeTerm(id); return; }
+    if (action === 'gloss-unheard') { removeHeard(id, Number(btn.dataset.n)); return; }
+    if (action === 'gloss-restore') { restoreTerm(id); return; }
+    if (action === 'gloss-add') { addTerm(); return; }
+    if (action === 'gloss-copy') { copyTerms(btn); return; }
+    if (action === 'gloss-copy-close') { if (glossView) { glossView.copyText = ''; paint(); } return; }
+    if (action === 'gloss-scan') { scanWritten(); return; }
+    if (action === 'gloss-scan-stop') { if (glossView && glossView.scan) glossView.scan.stop = true; return; }
+    if (action === 'gloss-pick' || action === 'gloss-all') return;      // checkboxes: handled on change
+    if (action === 'written-files' || action === 'written-files-pick') return;   // a file box and checkboxes: handled on change
+    if (action === 'written-files-save') { saveWrittenFiles(); return; }
+    if (action === 'written-files-close') { writtenFiles = null; paint(); return; }
     if (action === 'go-written') { openWritten(); return; }
     if (action === 'written-new') { startWrittenForm(); return; }
     if (action === 'written-cancel') { writtenForm = null; paint(); return; }
@@ -71,6 +86,10 @@
     if (!t || !t.dataset) return;
     if (t.dataset.action === 'set-written') setWritten(t.dataset.id, t.value);
     if (t.dataset.action === 'written-file') readWrittenFile(t.files && t.files[0]);
+    if (t.dataset.action === 'written-files') { var chosen = Array.prototype.slice.call(t.files || []); try { t.value = ''; } catch (err) {} readWrittenFiles(chosen); }
+    if (t.dataset.action === 'written-files-pick') filesPick(t.dataset.n, t.checked);
+    if (t.dataset.action === 'gloss-pick') pickTerm(t.dataset.id, t.checked);
+    if (t.dataset.action === 'gloss-all') pickAllTerms(t.checked);
     if (t.dataset.action === 'written-bulk-pick') bulkPick(t.dataset.id, t.checked);
     if (t.dataset.action === 'written-bulk-all') bulkPickAll(t.checked);
     if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
@@ -112,9 +131,26 @@
       var note = root.querySelector('.written-count'); if (note) note.textContent = writtenFormNote();
     }
   }
+  // The Glossary page's own fields.
+  function glossFieldTouched(el) {
+    if (!glossView) return;
+    var field = el.dataset.gfield;
+    if (field === 'query') { glossView.query = el.value; paintGlossaryLists(); return; }
+    if (field === 'term' || field === 'heard') glossView[field] = el.value;
+  }
+  // Files dropped anywhere on the Written Scripts page are taken as files to add.
+  function hasFiles(e) { var types = e.dataTransfer && e.dataTransfer.types; return !!types && Array.prototype.indexOf.call(types, 'Files') !== -1; }
+  root.addEventListener('dragover', function (e) { if (view === 'written' && hasFiles(e)) e.preventDefault(); });
+  root.addEventListener('drop', function (e) {
+    if (view !== 'written' || !hasFiles(e)) return;
+    e.preventDefault();
+    if (dbStatus === 'ready') readWrittenFiles(e.dataTransfer.files);
+  });
   root.addEventListener('input', function (e) {
     var t = e.target;
     if (t && t.dataset && t.dataset.wfield) { writtenFieldTouched(t); return; }
+    if (t && t.dataset && t.dataset.ffield) { filesTitleTouched(t); return; }
+    if (t && t.dataset && t.dataset.gfield) { glossFieldTouched(t); return; }
     var changed = fieldTouched(t);
     // Typing is work on the book — but not typing in an unsaved hand correction, which changes nothing yet.
     if (changed && dbApi && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }
@@ -134,6 +170,7 @@
       return;
     }
     // Enter in a guide's name moves on to its transcript box.
+    if (e.key === 'Enter' && e.target && e.target.dataset && (e.target.dataset.gfield === 'term' || e.target.dataset.gfield === 'heard')) { e.preventDefault(); addTerm(); return; }
     if (e.key === 'Enter' && e.target && e.target.dataset && e.target.dataset.field === 'name') {
       e.preventDefault();
       var ta = root.querySelector('[data-field="raw"][data-id="' + e.target.dataset.id + '"]');

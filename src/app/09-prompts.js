@@ -8,11 +8,16 @@
      fixNames and fixCapitals).
      ------------------------------------------------------------------ */
 
-  function promptHeader(section, hasWritten) {
+  // `gloss` is what the glossary adds for this guide (glossaryFor): names from its book of the Bible, and the
+  // approved mishearings whose words occur in this transcript. A guide neither bears on adds nothing (4.6, 4.12).
+  function promptHeader(section, hasWritten, gloss) {
+    var names = [String(state.wordsToSearchFor || '').trim()].concat((gloss && gloss.names) || []).filter(Boolean).join(', ');
+    var hints = ((gloss && gloss.hints) || []).map(function (h) { return '"' + h.heard + '" = ' + h.term; }).join('; ');
     return 'Proofread this Descript AI transcript of a spoken audio guide. Descript captures the SOUND of words, not always the right words — unfamiliar names often come through as an ordinary phrase that sounds similar.\n\n' +
       'Book or plan: ' + (state.bookTitle || '(untitled)') + '\n' +
       'Script name: ' + (section.name || '(untitled section)') + '\n' +
-      'Names or terms the speaker uses that may be misheard: ' + (state.wordsToSearchFor || '(none listed)') + '\n\n' +
+      'Names or terms the speaker uses that may be misheard: ' + (names || '(none listed)') + '\n' +
+      (hints ? 'Mishearings found in earlier guides (apply one only where this sentence means that term): ' + hints + '\n' : '') + '\n' +
       'Fix the following WITHOUT changing the speaker’s wording, meaning, tone, or intent:\n' +
       '1. GRAMMAR AND PUNCTUATION — the main job.\n' +
       '- Every question ends with a question mark, including rhetorical ones mid-flow ("Or was it a Big Bang?"); transcription flattens these to periods.\n' +
@@ -50,9 +55,9 @@
   }
 
   var WRITTEN_PROMPT_MAX = 60000;      // characters of a written script sent with its guide
-  function buildEditsPrompt(section, text, written) {
+  function buildEditsPrompt(section, text, written, gloss) {
     written = String(written || '').trim().slice(0, WRITTEN_PROMPT_MAX);
-    return promptHeader(section, !!written) +
+    return promptHeader(section, !!written, gloss) +
       'Return your corrections as a list of EDITS, not a rewrite. Each: "find" — a run of text copied CHARACTER FOR CHARACTER from the transcript below (same quotes, apostrophes, spacing), long enough to be unambiguous, usually 3 to 15 words, never crossing a blank line; "replace" — the corrected version of exactly that run. In order, one per occurrence. ' +
       'Add "kind": "misheard" for a misheard word or name, or "verse-fix" for one inside a quoted verse, each with a "note" of a few words; grammar edits need neither.\n' +
       versesSpec() +
