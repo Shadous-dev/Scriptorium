@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.6.1, published 2026-11-25. It opens for members of the Through the Word organization on
+version 1.6.1, published 2026-11-25. Version 1.7.0 is in this repository and not yet published. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -116,6 +116,12 @@ Each audio guide moves through four stages, and each has one name:
    book or one file for each guide in a `.zip`. The PDF is for reading,
    printing and sending. The web page opens in any browser, and in Word or
    Google Docs to keep editing. Neither needs Google Drive.
+   **Send it all to one Google Drive folder**, at the very bottom, puts
+   everything for the book in one place in one go. Tick the kinds wanted (the
+   Google Doc, `.srt`, `.vtt`, PDF, web page), paste the link to a Drive
+   folder or leave it empty to have one made, and click **Send to Google
+   Drive**. The Google Doc, PDF and web page are made the way chosen in the
+   sections above.
 9. **Download caption files.** A guide pulled from Descript already has its
    timed captions. For one pasted by hand, open **Timed captions for search**
    and paste in the `.srt` file Descript exports for that audio guide (in
@@ -218,6 +224,18 @@ handed to the edit pass with each later guide. None of it calls Claude.
   projects. Past that the page says so rather than showing part.
 - **Caption files download as a `.zip`.** The Claude viewer does not allow a
   page to save `.srt` or `.vtt` directly.
+- **Sending to a Drive folder always adds, never replaces.** The page may
+  not change or delete a file already in Drive (rule 4.11), so sending a book
+  twice leaves two copies of each file. Send to a fresh folder, or delete the
+  old copies yourself.
+- **A folder on your computer cannot be chosen.** A web page cannot pick
+  where a download lands; your browser decides. Only a Google Drive folder
+  can be named.
+- **The Drive folder's link is remembered in your browser only**, for each
+  book. A teammate pastes their own.
+- **Files go to Drive one at a time.** A 40-guide book with both caption
+  kinds is about 80 files, so allow a minute or two. Stop is safe: what was
+  sent stays.
 - **A PDF is drawn in Helvetica, on US Letter pages.** The page writes the
   PDF itself, with the fonts every PDF reader carries. Those cover English
   and Western European letters, curly quotes and dashes. A letter they lack
@@ -342,6 +360,7 @@ src/
     16-references.js  checking each scripture reference, and changing one by hand (4.10)
     18-glossary.js    the glossary: what each approved guide showed, what a person approved, and what the edit pass is given (4.12)
     19-export.js      downloading the Final Transcripts as a PDF or a web page; the PDF is written here, with no library
+    20-drive-folder.js  sending the Google Doc, caption files, PDF and web page to one Drive folder the reader names (4.11)
     17-events.js      event delegation, shortcuts, start-up — last in the manifest
 test/
   captions.test.js         checks the caption rules (SOURCE-OF-TRUTH 4.7)
@@ -355,6 +374,7 @@ test/
   many-files.test.js       checks each kind of file and bringing in many at once
   export.test.js           checks the PDF and web-page downloads: every word in order, and a well-formed PDF
   script-status.test.js    checks the badge and count that say whether a written script was used (4.9)
+  drive-folder.test.js     checks sending a book's files to one Google Drive folder (4.11)
   whole-page.js            not a test: loads the whole page against a stand-in store, for the two files above
 build.js              reassembles src/ into dist/index.html
 dist/index.html       the built artifact — what actually gets published
@@ -388,6 +408,7 @@ node test/glossary.test.js    # check the glossary (4.12)
 node test/many-files.test.js  # check each kind of file, and many at once
 node test/export.test.js      # check the PDF and web-page downloads
 node test/script-status.test.js  # check the written-script badge and count
+node test/drive-folder.test.js   # check sending to one Google Drive folder
 ```
 
 No dependencies. Node is only used to copy text around and run the checks.

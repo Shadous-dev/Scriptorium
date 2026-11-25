@@ -79,6 +79,8 @@
     else if (action === 'download-captions') downloadCaptions(id);
     else if (action === 'download-all-captions') downloadAllCaptions();
     else if (action === 'export-transcripts') exportTranscripts();
+    else if (action === 'drive-send') sendToDrive();
+    else if (action === 'drive-stop') { if (driveSend && driveSend.step === 'sending') { driveSend.stop = true; paint(); } }
     else if (action === 'download-copy') { syncFieldsFromDom(); saveDownload(false).then(function () { paint(); }); }
   });
 
@@ -98,6 +100,7 @@
     if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
     if (t.dataset.action === 'set-repair') { repairParagraphs = !!t.checked; prefSet('repairParagraphs', repairParagraphs); }
     if (t.dataset.action === 'set-docmode') { docMode = docModeOf(t.value); prefSet('docMode', docMode); paint(); }
+    if (t.dataset.action === 'drive-kind' && DRIVE_KINDS.indexOf(t.dataset.kind) !== -1) { driveKinds[t.dataset.kind] = !!t.checked; prefSet('driveKinds', driveKinds); paint(); }
     if (t.dataset.action === 'set-exportkind') { exportKind = exportKindOf(t.value); prefSet('exportKind', exportKind); }
     if (t.dataset.action === 'set-exportsplit') { exportSplit = exportSplitOf(t.value); prefSet('exportSplit', exportSplit); }
     if (t.dataset.action === 'set-captionformat') { captionFormat = captionFormatOf(t.value); prefSet('captionFormat', captionFormat); }
@@ -154,6 +157,7 @@
     if (t && t.dataset && t.dataset.wfield) { writtenFieldTouched(t); return; }
     if (t && t.dataset && t.dataset.ffield) { filesTitleTouched(t); return; }
     if (t && t.dataset && t.dataset.gfield) { glossFieldTouched(t); return; }
+    if (t && t.dataset && t.dataset.dfield === 'folder') { setDriveLink(t.value); return; }
     var changed = fieldTouched(t);
     // Typing is work on the book — but not typing in an unsaved hand correction, which changes nothing yet.
     if (changed && dbApi && t.dataset.field !== 'handDraft') { touchBook(); if (t.dataset.id) saveMetaSoon(); }

@@ -209,26 +209,27 @@
       return name;
     });
   }
-  // The file to save for the choices made: { filename, data, pages, plain, lost }. `when` is the time written into it.
-  function exportFile(kind, split, finals, when) {
+  // The separate files for the choices made, before any are zipped: { files: [{ name, bytes } or { name, text }],
+  // pages, plain, lost }. One file for the whole book, or one for each guide.
+  function exportParts(kind, split, finals, when) {
     kind = exportKindOf(kind); split = exportSplitOf(split);
-    var base = exportBase(), names = exportNames(finals), out = { filename: '', data: null, pages: 0, plain: 0, lost: 0 };
+    var base = exportBase(), names = exportNames(finals), out = { files: [], pages: 0, plain: 0, lost: 0 };
     function pdfOf(title, list) {
       var layout = pdfLayout(title, list.map(function (s) { return { name: s.name || 'Untitled guide', blocks: layoutBlocks(s) }; }));
       out.pages += layout.pages.length; out.plain += layout.tally.plain; out.lost += layout.tally.lost;
       return pdfBuild(layout, title || list[0].name || 'Untitled guide', when);
     }
     function htmlOf(s) { return wrapDoc('<h1>' + esc(s.name || 'Untitled guide') + '</h1>' + scriptBody(s, false), true); }
-    if (split === 'book') {
-      out.filename = base + ' transcripts.' + kind;
-      out.data = kind === 'pdf' ? pdfOf(docTitle(), finals) : wrapDoc(docBody(finals), true);
-    } else {
-      out.filename = base + ' transcripts (' + kind + ').zip';
-      out.data = zipFiles(finals.map(function (s, n) {
-        return kind === 'pdf' ? { name: names[n] + '.pdf', bytes: pdfOf('', [s]) } : { name: names[n] + '.html', text: htmlOf(s) };
-      }), when);
-    }
+    if (split === 'book') out.files.push(kind === 'pdf' ? { name: base + ' transcripts.pdf', bytes: pdfOf(docTitle(), finals) } : { name: base + ' transcripts.html', text: wrapDoc(docBody(finals), true) });
+    else finals.forEach(function (s, n) { out.files.push(kind === 'pdf' ? { name: names[n] + '.pdf', bytes: pdfOf('', [s]) } : { name: names[n] + '.html', text: htmlOf(s) }); });
     return out;
+  }
+  // The file to save for the choices made: { filename, data, pages, plain, lost }. `when` is the time written into it.
+  function exportFile(kind, split, finals, when) {
+    kind = exportKindOf(kind); split = exportSplitOf(split);
+    var parts = exportParts(kind, split, finals, when), one = parts.files[0];
+    return { filename: split === 'book' ? one.name : exportBase() + ' transcripts (' + kind + ').zip',
+             data: split === 'book' ? (one.bytes || one.text) : zipFiles(parts.files, when), pages: parts.pages, plain: parts.plain, lost: parts.lost };
   }
   function exportSaid(made, kind, split, count, left) {
     var what = kind === 'pdf' ? 'PDF' : 'web page';
