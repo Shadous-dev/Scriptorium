@@ -193,6 +193,12 @@ matched to its written script by title and wording; the page shows the match,
 and a person can change or remove it. A change the written script supported
 says so in its row (4.4).
 
+Whether a transcript was compared with a written script, and with which one,
+is never left to be assumed. Every guide's card says so at a glance, open or
+folded: the written script the edit pass used, one that is matched but that
+the edit pass has not used yet, or none at all. The book says how many of its
+guides stand in each of the three.
+
 **4.10 A reference is checked, and never silently changed.**
 The edit pass works out each reference from memory, and it can be wrong: Luke
 24:1 has come back as Luke 1:1. The page checks every reference itself, at no
