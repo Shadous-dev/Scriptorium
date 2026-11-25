@@ -90,7 +90,7 @@
     if (t.dataset.action === 'written-files') { var chosen = Array.prototype.slice.call(t.files || []); try { t.value = ''; } catch (err) {} readWrittenFiles(chosen); }
     if (t.dataset.action === 'written-files-pick') filesPick(t.dataset.n, t.checked);
     if (t.dataset.action === 'gloss-pick') pickTerm(t.dataset.id, t.checked);
-    if (t.dataset.action === 'gloss-all') pickAllTerms(t.checked);
+    if (t.dataset.action === 'gloss-all') pickAllTerms(t.checked, t.dataset.group);
     if (t.dataset.action === 'written-bulk-pick') bulkPick(t.dataset.id, t.checked);
     if (t.dataset.action === 'written-bulk-all') bulkPickAll(t.checked);
     if (t.dataset.action === 'pull-pick') pullPick(t.dataset.id, t.checked);
@@ -160,6 +160,8 @@
   });
   // Remember which captions boxes are unfolded, so a repaint does not fold one the user just opened.
   root.addEventListener('toggle', function (e) {
+    // The folded list of names on the Glossary page stays as the reader left it when the lists are drawn again.
+    if (e.target && e.target.dataset && e.target.dataset.glossFold && glossView) { glossView.namesOpen = !!e.target.open; return; }
     var id = e.target && e.target.dataset && e.target.dataset.captionFold;
     if (id) captionOpen[id] = !!e.target.open;
   }, true);

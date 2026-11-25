@@ -451,6 +451,39 @@ test('a written script\'s names are kept on its listing, survive a new title, an
   assert.deepStrictEqual(P.ev('glossaryNames')(), [], 'and they do nothing until approved');
 });
 
+test('the waiting list is in two parts: words a guide showed being misheard, and names only seen in written scripts, folded away', async () => {
+  const S = makeStore();
+  S.store.set('learned/b1_g1', { at: now, book: 'Job', guide: 'x', pairs: [{ heard: 'so far', term: 'Zophar', from: 'pass' }], undone: [] });
+  S.store.set('written/w1', { title: 'Job 2', chars: 10, at: now, source: 'paste', sourceName: '', sourceId: '', sketch: [], terms: ['Zophar', 'Bildad', 'Temanite'] });
+  const P = makePage(S); P.ev('initStore')(); await settle(); await P.ev('openGlossary')(); await settle();
+  const w = P.ev('waitingShown')();
+  assert.deepStrictEqual([w.heard.map((r) => r.term), w.names.map((r) => r.term)], [['Zophar'], ['Bildad', 'Temanite']], 'a name that was also misheard is with the misheard words');
+  let html = P.root.innerHTML;
+  assert.ok(/Waiting for approval <span class="gloss-count">1<\/span>/.test(html), 'the count is of what needs a person, not of every name');
+  assert.ok(/<details class="gloss-section gloss-names" data-gloss-fold="names"><summary>Names seen in written scripts <span class="gloss-count">2<\/span>/.test(html), 'the names are there, folded');
+  assert.ok(/approving them is optional/.test(html));
+  // "Select all" above the misheard words ticks only those; the names have their own.
+  P.ev('pickAllTerms')(true, 'heard');
+  assert.deepStrictEqual(Object.keys(P.ev('glossView').picked), ['g_zophar']);
+  P.ev('pickAllTerms')(false, 'heard'); P.ev('pickAllTerms')(true, 'names');
+  assert.deepStrictEqual(Object.keys(P.ev('glossView').picked).sort(), ['g_bildad', 'g_temanite']);
+  // Left open by the reader, it stays open when the lists are drawn again; a search that finds only names opens it.
+  P.ev('glossView').namesOpen = true; P.ev('paint')();
+  assert.ok(/data-gloss-fold="names" open>/.test(P.root.innerHTML));
+  P.ev('glossView').namesOpen = false; P.ev('glossView').query = 'bildad'; P.ev('paint')();
+  html = P.root.innerHTML;
+  assert.ok(/data-gloss-fold="names" open>/.test(html) && /No misheard word waiting matches that search/.test(html) && />Bildad</.test(html) && !/>Temanite</.test(html));
+  // A name from the folded list can still be approved or turned down with the same buttons.
+  P.ev('glossView').query = ''; P.ev('glossView').picked = { g_bildad: true };
+  await P.ev('rejectTerms')(); await settle();
+  assert.strictEqual(S.store.get('glossary/g_bildad').status, 'rejected');
+  assert.deepStrictEqual(P.ev('waitingShown')().names.map((r) => r.term), ['Temanite']);
+  // With no misheard word waiting, the page says so, and says the names can be left.
+  P.ev('glossView').picked = { g_zophar: true }; await P.ev('approveTerms')(); await settle();
+  html = P.root.innerHTML;
+  assert.ok(/No misheard word is waiting\./.test(html) && /can be left as they are/.test(html) && /data-action="gloss-approve"/.test(html));
+});
+
 test('written scripts kept before the glossary existed are scanned once, on request, and nothing else about them changes', async () => {
   const S = makeStore();
   S.store.set('written/w1', { title: 'Job 2', chars: SCRIPT.length, at: now, source: 'paste', sourceName: '', sourceId: '', sketch: [1, 2, 3] });

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.1 — the Glossary's waiting list in two parts (2026-11-25)
+
+Published 2026-11-25. No rule changes: this is how the list is shown, not what a term does.
+
+- **Waiting for approval** now holds only words a guide showed being misheard. Its count is of those.
+- **Names seen in written scripts** are folded away beneath it, with their own "select all". They were the bulk of the old list, and approving them is optional: a term that is not approved has no effect, and a guide with its written script attached already shows the edit pass those names. The same Approve and Not a term buttons work on them.
+- A search that finds only names opens the folded list. Left open, it stays open while you work.
+- 214 checks across eleven test files.
+
 ## 1.6.0 — the Final Transcripts as a PDF or a web page, and whether a written script was used, at a glance (2026-11-25)
 
 `SOURCE-OF-TRUTH.md` was amended first, each time in its own commit. None of this calls Claude (4.6) or touches Google Drive. The artifact's connector list does not change.

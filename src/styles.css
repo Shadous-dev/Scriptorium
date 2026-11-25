@@ -394,3 +394,11 @@ label.gloss-row:hover { background: var(--paper); }
 .script-summary { margin: 0; font-size: 13px; color: var(--ink-soft); line-height: 1.7; }
 .script-summary strong { color: var(--ink); font-weight: 600; }
 .script-sep { color: var(--ink-faint); margin: 0 4px; }
+
+/* The Glossary's folded list of names from written scripts. */
+.gloss-names > summary { cursor: pointer; font: 600 16px var(--font-body); color: var(--ink); }
+.gloss-names[open] > summary { margin-bottom: 2px; }
+.gloss-names .gloss-bar { justify-content: flex-start; }
+#gloss-lists { display: flex; flex-direction: column; gap: 24px; }
+details.gloss-section { display: block; }
+details.gloss-section > * + * { margin-top: 10px; }
