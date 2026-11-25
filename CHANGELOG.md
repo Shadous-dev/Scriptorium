@@ -25,10 +25,11 @@ Checked before publishing
 - 197 checks across nine test files. New: `glossary.test.js` (4.12) and `many-files.test.js`.
 - The Word, OpenDocument and rich-text readers were run on files written by macOS itself, and each gave the same words as the plain-text original. A hand-made PDF and one printed by macOS were read with the real pdf.js in a browser.
 - In a browser, with made-up data: a guide approved, its terms approved on the Glossary page, and the next edit pass given the hint, the fix applied and its row marked.
+- In a browser, the Word, PDF and other readers through the real file box and by dropping files on the page.
+- **pdf.js under the live viewer's own rules.** A private test page that loads the same pinned library the same way, and reads a small PDF, was opened in the viewer by Noah on 2026-11-24 and passed.
 - **Found by that browser run: the built page did not parse**, though every test passed. A module's first line is dropped by the build, and the new module's opening comment ran on to a second line. The tests load the modules' own text, so none of them saw it. `build.js` now parses every script in the assembled page, on a build and on `--check`, and refuses a module whose first line is not a one-line comment.
 
 Not yet checked
-- Whether the live viewer lets the page fetch pdf.js. A private test page was published for this; the answer is on that page when it is opened signed in.
 - The edit pass with real glossary hints. The prompt is unchanged where the glossary does not bear on a guide; where it does, one or two short lines are added, and the first real guide edited that way is the check.
 
 ## 1.4.0 — a tab for each guide, caption files by kind, written scripts in bulk (2026-11-24)
