@@ -78,6 +78,7 @@
     else if (action === 'conclude') conclude();
     else if (action === 'download-captions') downloadCaptions(id);
     else if (action === 'download-all-captions') downloadAllCaptions();
+    else if (action === 'export-transcripts') exportTranscripts();
     else if (action === 'download-copy') { syncFieldsFromDom(); saveDownload(false).then(function () { paint(); }); }
   });
 
@@ -97,6 +98,8 @@
     if (t.dataset.action === 'set-concurrency') { concurrency = Number(t.value) === 1 ? 1 : 2; prefSet('concurrency', concurrency); }
     if (t.dataset.action === 'set-repair') { repairParagraphs = !!t.checked; prefSet('repairParagraphs', repairParagraphs); }
     if (t.dataset.action === 'set-docmode') { docMode = docModeOf(t.value); prefSet('docMode', docMode); paint(); }
+    if (t.dataset.action === 'set-exportkind') { exportKind = exportKindOf(t.value); prefSet('exportKind', exportKind); }
+    if (t.dataset.action === 'set-exportsplit') { exportSplit = exportSplitOf(t.value); prefSet('exportSplit', exportSplit); }
     if (t.dataset.action === 'set-captionformat') { captionFormat = captionFormatOf(t.value); prefSet('captionFormat', captionFormat); }
   });
 

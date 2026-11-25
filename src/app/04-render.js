@@ -348,7 +348,7 @@
       '<li>The edit pass may only fix punctuation, capitals and words Descript misheard. Anything that would change the speaker’s words is listed as a suggestion and <strong>not applied</strong>, and a quotation that may not match the verse is listed <strong>for the teacher</strong>. For a small fix of your own, use <strong>Edit by hand</strong>.</li>' +
       '<li>Check the scripture. Every reference is checked against the chapter the guide is on, what was said aloud, and the written script. Where one looks wrong, the likelier references are listed — click one to use it, or <strong>Change</strong> to type your own.</li>' +
       '<li>When you have reviewed a guide, click <strong>Approve as Final</strong>. That makes it the <strong>Final Transcript</strong>. Changing it afterwards takes it back to Edited until it is approved again.</li>' +
-      '<li>Click <strong>Create Google Doc</strong> — one Doc with a tab for each guide, one Doc with a page for each guide, or one Doc per guide in a folder. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted.</li>' +
+      '<li>Click <strong>Create Google Doc</strong> — one Doc with a tab for each guide, one Doc with a page for each guide, or one Doc per guide in a folder. Only Final Transcripts go in. <strong>Copy for YouVersion</strong> works on any Edited or Final Transcript, with the verses already formatted. <strong>Download</strong>, under it, saves the Final Transcripts as a PDF or a web page, as one file or one for each guide.</li>' +
       '<li>For searchable captions, use <strong>Download .srt + .vtt</strong> under <strong>Timed captions for search</strong> on a guide once it is edited, or <strong>Download all caption files</strong> at the bottom for the whole book, as .srt, .vtt or both. Every file carries the corrected words on Descript’s timings.</li>' +
       '</ol></details>' +
       '<section class="search-panel"><label for="wordsToSearchFor">Words to Search For</label>' +
@@ -384,8 +384,8 @@
         '<div class="conclude-row">' +
         '<button type="button" class="btn btn-conclude" data-action="conclude"' + concludeDisabled + '>' + (docMode === 'perScript' ? 'Create Google Docs' : 'Create Google Doc') + '</button>' +
         '<label class="speed-pick"><select data-action="set-docmode"' + (pending ? ' disabled' : '') + '><option value="tabs"' + (docMode === 'tabs' ? ' selected' : '') + '>One Doc, a tab for each guide</option><option value="one"' + (docMode === 'one' ? ' selected' : '') + '>One Doc, a page for each guide</option><option value="perScript"' + (docMode === 'perScript' ? ' selected' : '') + '>One Doc per guide, in a folder</option></select></label>' +
-        '<button type="button" class="btn btn-ghost" data-action="download-copy"' + (finalCount ? '' : ' disabled') + '>Download a copy instead</button>' +
         '</div>' + renderDocResult() +
+        renderExport(finalCount) +
         '<div class="caption-export">' +
         '<p class="approve-prompt">Export every guide’s caption files</p>' +
         '<p class="hint conclude-note">' + captionsLine() + ' Each file carries the corrected transcript on Descript’s own timings. These do not wait for approval.</p>' +

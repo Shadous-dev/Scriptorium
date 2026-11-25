@@ -168,14 +168,14 @@
     for (var i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
     return (c ^ 0xFFFFFFFF) >>> 0;
   }
-  // files: [{name, text}] → Uint8Array holding a .zip of them, stored without compression.
+  // files: [{name, text}] or [{name, bytes}] → Uint8Array holding a .zip of them, stored without compression.
   function zipFiles(files, now) {
     var enc = new TextEncoder(), when = now || new Date();
     var time = (when.getHours() << 11) | (when.getMinutes() << 5) | (when.getSeconds() >> 1);
     var date = ((when.getFullYear() - 1980) << 9) | ((when.getMonth() + 1) << 5) | when.getDate();
     var chunks = [], central = [], offset = 0;
     files.forEach(function (f) {
-      var name = enc.encode(f.name), data = enc.encode(f.text), crc = crc32(data);
+      var name = enc.encode(f.name), data = f.bytes instanceof Uint8Array ? f.bytes : enc.encode(f.text), crc = crc32(data);
       function header(isCentral) {
         var skip = isCentral ? 2 : 0, h = new Uint8Array((isCentral ? 46 : 30) + name.length), v = new DataView(h.buffer);
         v.setUint32(0, isCentral ? 0x02014b50 : 0x04034b50, true);
