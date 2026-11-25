@@ -14,6 +14,12 @@ Not yet published.
 - Every file is added as new. Sending twice leaves two copies; nothing is replaced.
 - 224 checks across twelve test files. New: `drive-folder.test.js`.
 
+Run against Google Drive on 2026-11-25, before publishing: the requests the page builds for a one-guide book were sent through the Google Drive connector to a new test folder, and the folder was listed and read back.
+- The `.srt` and `.vtt` files arrived as plain text files with their own endings, the same size to the byte, and were not turned into Google Docs. The web page arrived as an `.html` file.
+- The PDF arrived whole (1,313 bytes sent, 1,313 stored), and Google's own reader read every word of it, accents and dashes included.
+- The Google Doc was made inside the folder. A new folder's link is one the page can read back.
+- Nothing needed changing. Not run from the live page itself: the first send made there is the last check, in particular for a large PDF of a whole book.
+
 ## 1.6.1 — the Glossary's waiting list in two parts (2026-11-25)
 
 Published 2026-11-25. No rule changes: this is how the list is shown, not what a term does.
