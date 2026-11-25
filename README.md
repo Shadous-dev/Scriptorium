@@ -12,7 +12,7 @@ Claude artifact: one web page, opened inside Claude.
 > [One source of truth](#one-source-of-truth).
 
 **Live tool:** [The Scriptorium](https://claude.ai/artifact/FraE4AkPkEJNUrsuoABCRp),
-version 1.6.0, published 2026-11-25. It opens for members of the Through the Word organization on
+version 1.6.0, published 2026-11-25. Version 1.6.1 is in this repository and not yet published. It opens for members of the Through the Word organization on
 Claude. This is the one published copy; see [Publishing](#publishing).
 
 ---
@@ -142,6 +142,11 @@ handed to the edit pass with each later guide. None of it calls Claude.
 - **What a person does.** The **Glossary** page, beside Written Scripts on the
   front page, lists what is waiting with where it came from. Tick and
   **Approve**, or **Not a term**. A term turned down is not offered again.
+  The list is in two parts. **Waiting for approval** holds words a guide
+  showed being misheard: few, and the ones worth approving. **Names seen in
+  written scripts** is folded away beneath it: many, with no sign Descript
+  got them wrong, and optional. A term that is not approved has no effect at
+  all, so leaving those alone costs nothing.
   A term can also be typed in, and the approved list can be copied out for
   Descript's own vocabulary list.
 - **What an approved term does.** The edit pass is told the names from the

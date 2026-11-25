@@ -412,7 +412,7 @@
 
   function openGlossary() {
     view = 'glossary'; flash = null; dbStatus = 'loading';
-    glossView = { query: '', picked: {}, busy: '', error: '', term: '', heard: '', copyText: '', scan: null };
+    glossView = { query: '', picked: {}, busy: '', error: '', term: '', heard: '', copyText: '', scan: null, namesOpen: false };
     paint();
     function done() { dbStatus = 'ready'; paint(); }
     return Promise.all([loadGlossary(), loadLearned(), loadWrittenIndex()]).then(done, done);
@@ -428,11 +428,11 @@
     if (row.books.length) bits.push(row.books.slice(0, 4).map(displayBook).join(', ') + (row.books.length > 4 ? ' and ' + (row.books.length - 4) + ' more' : ''));
     return bits.join(' · ');
   }
-  function renderWaitingRow(row) {
+  function renderWaitingRow(row, group) {
     var v = glossView, heard = row.heard.map(function (h) {
       return '<span class="gloss-heard">“' + esc(h.text) + '”' + (h.guides > 1 ? ' ×' + h.guides : '') + (h.refused ? ' <em>the page had refused this</em>' : '') + (h.undone ? ' <em>undone ' + h.undone + ' time' + plural(h.undone) + '</em>' : '') + '</span>';
     }).join('');
-    return '<label class="gloss-row"><input type="checkbox" data-action="gloss-pick" data-id="' + escAttr(row.key) + '"' + (v.picked[row.key] ? ' checked' : '') + (v.busy ? ' disabled' : '') + '>' +
+    return '<label class="gloss-row"><input type="checkbox" data-action="gloss-pick" data-group="' + (group === 'names' ? 'names' : 'heard') + '" data-id="' + escAttr(row.key) + '"' + (v.picked[row.key] ? ' checked' : '') + (v.busy ? ' disabled' : '') + '>' +
       '<span class="gloss-main"><span class="gloss-term">' + esc(row.term) + '</span>' + (row.isNew ? '' : ' <span class="gloss-tag">already approved · heard a new way</span>') +
       (heard ? '<span class="gloss-heard-line">heard as ' + heard + '</span>' : '') +
       '<span class="gloss-meta">' + esc(whereFrom(row)) + '</span></span></label>';
@@ -451,30 +451,46 @@
     return rows.slice(0, GLOSS_SHOWN_MAX).map(draw).join('') +
       (rows.length > GLOSS_SHOWN_MAX ? '<p class="hint">Showing the first ' + GLOSS_SHOWN_MAX + ' of ' + rows.length.toLocaleString('en-US') + '. Search to narrow the list.</p>' : '');
   }
+  // The rows waiting for a ruling that match the search, in the two groups the page shows them in. `heard` are
+  // words a guide showed being misheard: the ones worth a person's time. `names` were only ever seen written in
+  // a written script, with no sign Descript got them wrong: there are many, and approving them is optional.
+  function waitingShown() {
+    var rows = glossaryWaiting().filter(function (r) { return glossMatches(r.term + ' ' + r.heard.map(function (h) { return h.text; }).join(' ') + ' ' + r.books.join(' ')); });
+    return { heard: rows.filter(function (r) { return r.heard.length > 0; }), names: rows.filter(function (r) { return !r.heard.length; }) };
+  }
   function renderGlossaryLists() {
-    var v = glossView, dis = v.busy ? ' disabled' : '';
-    var waiting = glossaryWaiting().filter(function (r) { return glossMatches(r.term + ' ' + r.heard.map(function (h) { return h.text; }).join(' ') + ' ' + r.books.join(' ')); });
+    var v = glossView, dis = v.busy ? ' disabled' : '', w = waitingShown(), searching = !!v.query.trim();
     var all = Object.keys(glossary).map(function (k) { return glossary[k]; }).filter(function (d) { return glossMatches(d.term + ' ' + d.heard.join(' ') + ' ' + d.books.join(' ')); });
     var approved = all.filter(function (d) { return d.status === 'approved'; }).sort(function (a, b) { return naturalCompare(a.term, b.term); });
     var turned = all.filter(function (d) { return d.status === 'rejected'; }).sort(function (a, b) { return naturalCompare(a.term, b.term); });
-    var picked = pickedKeys().length, shown = waiting.slice(0, GLOSS_SHOWN_MAX), allPicked = shown.length > 0 && shown.every(function (r) { return v.picked[r.key]; });
-    return '<section class="gloss-section"><h2 class="gloss-head">Waiting for approval <span class="gloss-count">' + waiting.length.toLocaleString('en-US') + '</span></h2>' +
-      (waiting.length ?
-        '<p class="hint">Each of these was noticed in a guide a person approved, or in a written script. Nothing here has any effect until you approve it. A term you turn down is not offered again.</p>' +
-        '<div class="gloss-bar"><label class="gloss-all"><input type="checkbox" data-action="gloss-all"' + (allPicked ? ' checked' : '') + dis + '> Select all shown</label>' +
-        '<button type="button" class="btn btn-edit" data-action="gloss-approve"' + (picked && !v.busy ? '' : ' disabled') + '>' + (v.busy === 'approve' ? 'Approving…' : picked ? 'Approve ' + picked : 'Approve ticked') + '</button>' +
-        '<button type="button" class="btn" data-action="gloss-reject"' + (picked && !v.busy ? '' : ' disabled') + '>' + (v.busy === 'reject' ? 'Saving…' : 'Not a term') + '</button></div>' +
-        '<div class="gloss-list">' + capped(waiting, renderWaitingRow) + '</div>'
-        : '<p class="library-empty">' + (v.query.trim() ? 'Nothing waiting matches that search.' : 'Nothing is waiting. Terms appear here when a guide with a misheard word is approved as a Final Transcript, and when a written script is added.') + '</p>') +
+    var picked = pickedKeys().length;
+    function allPicked(rows) { var shown = rows.slice(0, GLOSS_SHOWN_MAX); return shown.length > 0 && shown.every(function (r) { return v.picked[r.key]; }); }
+    function selectAll(group, rows, label) { return '<label class="gloss-all"><input type="checkbox" data-action="gloss-all" data-group="' + group + '"' + (allPicked(rows) ? ' checked' : '') + dis + '> ' + label + '</label>'; }
+    var bar = '<div class="gloss-bar">' + (w.heard.length ? selectAll('heard', w.heard, 'Select all shown') : '<span class="gloss-all"></span>') +
+      '<button type="button" class="btn btn-edit" data-action="gloss-approve"' + (picked && !v.busy ? '' : ' disabled') + '>' + (v.busy === 'approve' ? 'Approving…' : picked ? 'Approve ' + picked : 'Approve ticked') + '</button>' +
+      '<button type="button" class="btn" data-action="gloss-reject"' + (picked && !v.busy ? '' : ' disabled') + '>' + (v.busy === 'reject' ? 'Saving…' : 'Not a term') + '</button></div>';
+    // The names from written scripts are folded away unless the reader opened them, or a search found some.
+    var namesOpen = v.namesOpen || (searching && w.names.length > 0 && !w.heard.length);
+    return '<section class="gloss-section"><h2 class="gloss-head">Waiting for approval <span class="gloss-count">' + w.heard.length.toLocaleString('en-US') + '</span></h2>' +
+      (w.heard.length ?
+        '<p class="hint">Each of these is a word that was put right in a guide a person approved, so it is one Descript really does mishear. Approve the real ones and the next guide gets the fix without anyone making it by hand. Nothing here has any effect until you approve it, and a term you turn down is not offered again.</p>' +
+        bar + '<div class="gloss-list">' + capped(w.heard, function (r) { return renderWaitingRow(r, 'heard'); }) + '</div>'
+        : '<p class="library-empty">' + (searching ? 'No misheard word waiting matches that search.' :
+            'No misheard word is waiting. One appears here when a guide with a misheard word is approved as a Final Transcript.' + (w.names.length ? ' The names found in written scripts are below, and can be left as they are.' : '')) + '</p>' +
+          (w.names.length ? bar : '')) +
       '</section>' +
+      (w.names.length ? '<details class="gloss-section gloss-names" data-gloss-fold="names"' + (namesOpen ? ' open' : '') + '><summary>Names seen in written scripts <span class="gloss-count">' + w.names.length.toLocaleString('en-US') + '</span></summary>' +
+        '<p class="hint">These were found written in a written script. No guide has shown Descript mishearing them, so approving them is optional: a guide with its written script attached already shows the edit pass these names. Leave them here, approve the ones you expect trouble with, or turn down the ones that are not Bible terms so they are not listed again. Tick any, then use the buttons above.</p>' +
+        '<div class="gloss-bar">' + selectAll('names', w.names, 'Select all of these shown') + '</div>' +
+        '<div class="gloss-list">' + capped(w.names, function (r) { return renderWaitingRow(r, 'names'); }) + '</div></details>' : '') +
       '<section class="gloss-section"><h2 class="gloss-head">Approved <span class="gloss-count">' + approved.length.toLocaleString('en-US') + '</span></h2>' +
       (approved.length ?
         '<p class="hint">The edit pass is told these names for guides on the same book of the Bible, and is told a known mishearing when its words appear in a transcript. The page never swaps a word in by itself.</p>' +
         '<div class="gloss-list">' + capped(approved, renderApprovedRow) + '</div>'
-        : '<p class="library-empty">' + (v.query.trim() ? 'No approved term matches that search.' : 'No terms approved yet.') + '</p>') +
+        : '<p class="library-empty">' + (searching ? 'No approved term matches that search.' : 'No terms approved yet.') + '</p>') +
       '</section>' +
       (turned.length ? '<details class="gloss-section gloss-turned"><summary>Turned down <span class="gloss-count">' + turned.length.toLocaleString('en-US') + '</span></summary>' +
-        '<p class="hint">These are not offered again. “Offer again” forgets the ruling, and the term comes back to the top list if a guide or a written script still shows it.</p>' +
+        '<p class="hint">These are not offered again. “Offer again” forgets the ruling, and the term comes back to the lists above if a guide or a written script still shows it.</p>' +
         '<div class="gloss-list">' + capped(turned, function (d) {
           return '<div class="gloss-row"><span class="gloss-main"><span class="gloss-term">' + esc(d.term) + '</span></span><button type="button" class="link-btn" data-action="gloss-restore" data-id="' + escAttr(d.key) + '"' + dis + '>Offer again</button></div>';
         }) + '</div></details>' : '');
@@ -516,15 +532,18 @@
   // ticked keeps the keyboard's place, and a long list does not flicker.
   function paintGlossBar() {
     var v = glossView, picked = pickedKeys().length;
-    var approve = root.querySelector('[data-action="gloss-approve"]'), reject = root.querySelector('[data-action="gloss-reject"]'), all = root.querySelector('[data-action="gloss-all"]');
-    if (approve) { approve.textContent = picked ? 'Approve ' + picked : 'Approve ticked'; approve.disabled = !picked || !!v.busy; }
-    if (reject) reject.disabled = !picked || !!v.busy;
-    if (all) { var boxes = root.querySelectorAll('[data-action="gloss-pick"]'); all.checked = boxes.length > 0 && Array.prototype.every.call(boxes, function (x) { return x.checked; }); }
+    Array.prototype.forEach.call(root.querySelectorAll('[data-action="gloss-approve"]'), function (approve) { approve.textContent = picked ? 'Approve ' + picked : 'Approve ticked'; approve.disabled = !picked || !!v.busy; });
+    Array.prototype.forEach.call(root.querySelectorAll('[data-action="gloss-reject"]'), function (reject) { reject.disabled = !picked || !!v.busy; });
+    // Each list has its own "select all", which is ticked only while every row of that list is.
+    Array.prototype.forEach.call(root.querySelectorAll('[data-action="gloss-all"]'), function (all) {
+      var boxes = root.querySelectorAll('[data-action="gloss-pick"][data-group="' + (all.dataset.group === 'names' ? 'names' : 'heard') + '"]');
+      all.checked = boxes.length > 0 && Array.prototype.every.call(boxes, function (x) { return x.checked; });
+    });
   }
   function pickTerm(key, on) { if (glossView && !glossView.busy) { if (on) glossView.picked[key] = true; else delete glossView.picked[key]; paintGlossBar(); } }
-  function pickAllTerms(on) {
+  function pickAllTerms(on, group) {
     if (!glossView || glossView.busy) return;
-    var shown = glossaryWaiting().filter(function (r) { return glossMatches(r.term + ' ' + r.heard.map(function (h) { return h.text; }).join(' ') + ' ' + r.books.join(' ')); }).slice(0, GLOSS_SHOWN_MAX);
+    var shown = waitingShown()[group === 'names' ? 'names' : 'heard'].slice(0, GLOSS_SHOWN_MAX);
     shown.forEach(function (r) { if (on) glossView.picked[r.key] = true; else delete glossView.picked[r.key]; });
     paintGlossaryLists();
   }
